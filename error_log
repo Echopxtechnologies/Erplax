@@ -1,0 +1,35 @@
+[02-Dec-2025 03:09:31 UTC] PHP Fatal error:  Uncaught Error: Class "SebastianBergmann\Version" not found in /home/erpbangalorein/public_html/erp.erpbangalore.in/vendor/phpunit/phpunit/src/Runner/Version.php:37
+Stack trace:
+#0 /home/erpbangalorein/public_html/erp.erpbangalore.in/vendor/phpunit/phpunit/src/Runner/Version.php(45): PHPUnit\Runner\Version::id()
+#1 /home/erpbangalorein/public_html/erp.erpbangalore.in/vendor/nunomaduro/collision/src/Adapters/Phpunit/Autoload.php(10): PHPUnit\Runner\Version::series()
+#2 /home/erpbangalorein/public_html/erp.erpbangalore.in/vendor/composer/autoload_real.php(41): require('/home/erpbangal...')
+#3 /home/erpbangalorein/public_html/erp.erpbangalore.in/vendor/composer/autoload_real.php(45): {closure}('a1cfe24d14977df...', '/home/erpbangal...')
+#4 /home/erpbangalorein/public_html/erp.erpbangalore.in/vendor/autoload.php(22): ComposerAutoloaderInit9c491b8531eec05ba41a11d9276a5749::getLoader()
+#5 /home/erpbangalorein/public_html/erp.erpbangalore.in/vendor/_laravel_ide/discover-6d96201ad95cad12367117063c707ebf.php(8): require_once('/home/erpbangal...')
+#6 {main}
+  thrown in /home/erpbangalorein/public_html/erp.erpbangalore.in/vendor/phpunit/phpunit/src/Runner/Version.php on line 37
+[02-Dec-2025 03:09:31 UTC] PHP Fatal error:  Uncaught Error: Class "SebastianBergmann\Version" not found in /home/erpbangalorein/public_html/erp.erpbangalore.in/vendor/phpunit/phpunit/src/Runner/Version.php:37
+Stack trace:
+#0 /home/erpbangalorein/public_html/erp.erpbangalore.in/vendor/phpunit/phpunit/src/Runner/Version.php(45): PHPUnit\Runner\Version::id()
+#1 /home/erpbangalorein/public_html/erp.erpbangalore.in/vendor/nunomaduro/collision/src/Adapters/Phpunit/Autoload.php(10): PHPUnit\Runner\Version::series()
+#2 /home/erpbangalorein/public_html/erp.erpbangalore.in/vendor/composer/autoload_real.php(41): require('/home/erpbangal...')
+#3 /home/erpbangalorein/public_html/erp.erpbangalore.in/vendor/composer/autoload_real.php(45): {closure}('a1cfe24d14977df...', '/home/erpbangal...')
+#4 /home/erpbangalorein/public_html/erp.erpbangalore.in/vendor/autoload.php(22): ComposerAutoloaderInit9c491b8531eec05ba41a11d9276a5749::getLoader()
+#5 /home/erpbangalorein/public_html/erp.erpbangalore.in/vendor/_laravel_ide/discover-5802e590a92e23606bb54d2909564178.php(8): require_once('/home/erpbangal...')
+#6 {main}
+  thrown in /home/erpbangalorein/public_html/erp.erpbangalore.in/vendor/phpunit/phpunit/src/Runner/Version.php on line 37
+[02-Dec-2025 03:56:53 UTC] PHP Fatal error:  Allowed memory size of 134217728 bytes exhausted (tried to allocate 65536 bytes) in /home/erpbangalorein/public_html/erp.erpbangalore.in/routes/admin.php on line 7
+[02-Dec-2025 03:56:53 UTC] PHP Fatal error:  Allowed memory size of 134217728 bytes exhausted (tried to allocate 65536 bytes) in /home/erpbangalorein/public_html/erp.erpbangalore.in/vendor/laravel/framework/src/Illuminate/Foundation/Bootstrap/HandleExceptions.php on line 255
+[03-Dec-2025 05:44:36 UTC] PHP Fatal error:  Access level to App\Livewire\Admin\AdminComponent::authorize() must be public (as in class Livewire\Component) in /home/erpbangalorein/public_html/erp.erpbangalore.in/app/Livewire/Admin/AdminComponent.php on line 216
+[03-Dec-2025 05:44:36 UTC] PHP Fatal error:  Access level to App\Livewire\Admin\AdminComponent::authorize() must be public (as in class Livewire\Component) in /home/erpbangalorein/public_html/erp.erpbangalore.in/app/Livewire/Admin/AdminComponent.php on line 216
+[03-Dec-2025 05:44:36 UTC] PHP Fatal error:  Access level to App\Livewire\Admin\AdminComponent::authorize() must be public (as in class Livewire\Component) in /home/erpbangalorein/public_html/erp.erpbangalore.in/app/Livewire/Admin/AdminComponent.php on line 216
+[03-Dec-2025 05:44:36 UTC] PHP Fatal error:  Access level to App\Livewire\Admin\AdminComponent::authorize() must be public (as in class Livewire\Component) in /home/erpbangalorein/public_html/erp.erpbangalore.in/app/Livewire/Admin/AdminComponent.php on line 216
+[03-Dec-2025 05:44:36 UTC] PHP Fatal error:  Access level to App\Livewire\Admin\AdminComponent::authorize() must be public (as in class Livewire\Component) in /home/erpbangalorein/public_html/erp.erpbangalore.in/app/Livewire/Admin/AdminComponent.php on line 216
+[03-Dec-2025 05:44:36 UTC] PHP Fatal error:  Access level to App\Livewire\Admin\AdminComponent::authorize() must be public (as in class Livewire\Component) in /home/erpbangalorein/public_html/erp.erpbangalore.in/app/Livewire/Admin/AdminComponent.php on line 216
+[03-Dec-2025 05:44:36 UTC] PHP Fatal error:  Access level to App\Livewire\Admin\AdminComponent::authorize() must be public (as in class Livewire\Component) in /home/erpbangalorein/public_html/erp.erpbangalore.in/app/Livewire/Admin/AdminComponent.php on line 216
+[03-Dec-2025 05:44:36 UTC] PHP Fatal error:  Access level to App\Livewire\Admin\AdminComponent::authorize() must be public (as in class Livewire\Component) in /home/erpbangalorein/public_html/erp.erpbangalore.in/app/Livewire/Admin/AdminComponent.php on line 216
+[03-Dec-2025 05:44:36 UTC] PHP Fatal error:  Access level to App\Livewire\Admin\AdminComponent::authorize() must be public (as in class Livewire\Component) in /home/erpbangalorein/public_html/erp.erpbangalore.in/app/Livewire/Admin/AdminComponent.php on line 216
+[03-Dec-2025 05:44:36 UTC] PHP Fatal error:  Access level to App\Livewire\Admin\AdminComponent::authorize() must be public (as in class Livewire\Component) in /home/erpbangalorein/public_html/erp.erpbangalore.in/app/Livewire/Admin/AdminComponent.php on line 216
+[03-Dec-2025 05:44:36 UTC] PHP Fatal error:  Access level to App\Livewire\Admin\AdminComponent::authorize() must be public (as in class Livewire\Component) in /home/erpbangalorein/public_html/erp.erpbangalore.in/app/Livewire/Admin/AdminComponent.php on line 216
+[03-Dec-2025 05:44:36 UTC] PHP Fatal error:  Access level to App\Livewire\Admin\AdminComponent::authorize() must be public (as in class Livewire\Component) in /home/erpbangalorein/public_html/erp.erpbangalore.in/app/Livewire/Admin/AdminComponent.php on line 216
+[03-Dec-2025 05:44:36 UTC] PHP Fatal error:  Access level to App\Livewire\Admin\AdminComponent::authorize() must be public (as in class Livewire\Component) in /home/erpbangalorein/public_html/erp.erpbangalore.in/app/Livewire/Admin/AdminComponent.php on line 216
