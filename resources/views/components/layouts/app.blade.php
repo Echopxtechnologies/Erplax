@@ -852,8 +852,10 @@
             </div>
             <div class="setup-submenu">
                 
-         <a href="{{ Route::has('admin.settings.permission') ? route('admin.settings.permission') : '#' }}" class="setup-nav-item {{ request()->routeIs('admin.settings.permission') ? 'active' : '' }}">Permissions</a>
-                <a href="#" class="setup-submenu-item">Dummy 1</a>
+         {{-- <a href="{{ Route::has('admin.settings.permission') ? route('admin.settings.permission') : '#' }}" class="setup-nav-item {{ request()->routeIs('admin.settings.permission') ? 'active' : '' }}">Permissions</a> --}}
+        <a href="{{ Route::has('admin.settings.permissions.index') ? route('admin.settings.permissions.index') : '#' }}" class="setup-nav-item {{ request()->routeIs('admin.settings.permissions.index') ? 'active' : '' }}">Permission</a> 
+         <a href="{{ Route::has('admin.settings.roles.index') ? route('admin.settings.roles.index') : '#' }}" class="setup-nav-item {{ request()->routeIs('admin.settings.roles.index') ? 'active' : '' }}">Role</a> 
+         <a href="{{ Route::has('admin.settings.users.index') ? route('admin.settings.users.index') : '#' }}" class="setup-nav-item {{ request()->routeIs('admin.settings.users.index') ? 'active' : '' }}">User</a> 
                 <a href="#" class="setup-submenu-item">Dummy 2</a>
                 <a href="#" class="setup-submenu-item">Dummy 3</a>
             </div>

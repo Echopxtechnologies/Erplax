@@ -1,0 +1,15 @@
+{
+  "name": "Book",
+  "alias": "book",
+  "description": "Book management module for admin panel",
+  "keywords": [],
+  "version": "1.0.0",
+  "active": 1,
+  "order": 0,
+  "providers": [
+    "Modules\\Book\\Providers\\BookServiceProvider"
+  ],
+  "aliases": {},
+  "files": [],
+  "requires": []
+}

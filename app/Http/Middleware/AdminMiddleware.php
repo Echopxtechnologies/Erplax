@@ -9,9 +9,6 @@ use Symfony\Component\HttpFoundation\Response;
 
 class AdminMiddleware
 {
-    /**
-     * Handle an incoming request.
-     */
     public function handle(Request $request, Closure $next): Response
     {
         // Not logged in
@@ -19,8 +16,13 @@ class AdminMiddleware
             return redirect()->route('admin.login');
         }
 
-        // Logged in but not admin
-        if (Auth::user()->role !== 'admin') {
+        $user = Auth::user();
+
+        // Check using BOTH methods (is_admin flag OR has admin role)
+        $isAdmin = $user->is_admin === 1 || 
+                   (method_exists($user, 'hasRole') && $user->hasRole('admin'));
+
+        if (!$isAdmin) {
             return redirect()->route('dashboard')->with('error', 'Access denied. Admin only.');
         }
 

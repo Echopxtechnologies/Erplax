@@ -1,0 +1,15 @@
+{
+  "name": "Todo",
+  "alias": "todo",
+  "description": "Advanced task management module with Livewire and modals",
+  "keywords": [],
+  "version": "2.0.0",
+  "active": 1,
+  "order": 0,
+  "providers": [
+    "Modules\\Todo\\Providers\\TodoServiceProvider"
+  ],
+  "aliases": {},
+  "files": [],
+  "requires": []
+}

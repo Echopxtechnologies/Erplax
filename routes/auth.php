@@ -44,7 +44,7 @@ Route::middleware('auth')->group(function () {
 // Custom redirect after login based on role
 Route::get('/redirect', function () {
     if (Auth::check()) {
-        if (Auth::user()->role === 'admin') {
+        if (Auth::user()->is_admin == 1) {
             return redirect()->route('admin.dashboard');
         }
         return redirect()->route('dashboard');

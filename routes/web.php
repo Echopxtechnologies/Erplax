@@ -14,7 +14,7 @@ Route::view('/', 'welcome');
 // User Dashboard - Redirects admin to admin dashboard
 Route::get('dashboard', function () {
     // If logged in as admin, redirect to admin dashboard
-    if (Auth::check() && Auth::user()->role === 'admin') {
+    if (Auth::check() && Auth::user()->is_admin == 1) {
         return redirect()->route('admin.dashboard');
     }
     

@@ -127,7 +127,7 @@ class Permission extends Component
             ->orderBy('name')
             ->paginate(10);
 
-        return view('admin.settings.permission', [
+        return view('admin.settings.role_permission.permission', [
             'permissions' => $permissions,
         ])->layout('components.layouts.app');
     }

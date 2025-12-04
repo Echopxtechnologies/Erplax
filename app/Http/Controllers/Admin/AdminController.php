@@ -72,10 +72,24 @@ class AdminController extends Controller
             'admin' => $this->admin,
             'adminName' => $this->admin?->name,
             'adminEmail' => $this->admin?->email,
-            'adminRole' => $this->admin?->role,
+            'adminRole' => $this->getAdminRoleName(), // Updated to use Spatie
         ];
 
         view()->share($this->viewData);
+    }
+
+    /**
+     * Get admin's primary role name using Spatie
+     */
+    protected function getAdminRoleName(): ?string
+    {
+        if (!$this->admin) {
+            return null;
+        }
+
+        // Get first role name from Spatie
+        $roles = $this->admin->getRoleNames();
+        return $roles->first() ?? ($this->admin->is_admin ? 'admin' : 'user');
     }
 
     /*
@@ -101,7 +115,7 @@ class AdminController extends Controller
     }
 
     /**
-     * Check if current user is admin
+     * Check if current user is admin (using Spatie or is_admin flag)
      */
     protected function isAdmin(): bool
     {
@@ -109,11 +123,23 @@ class AdminController extends Controller
             return false;
         }
 
-        return $this->admin()?->role === 'admin';
+        $user = $this->admin();
+        
+        // Check is_admin flag first
+        if ($user?->is_admin) {
+            return true;
+        }
+
+        // Check using Spatie's hasRole method
+        if (method_exists($user, 'hasRole')) {
+            return $user->hasRole('admin');
+        }
+
+        return false;
     }
 
     /**
-     * Check if current user is super admin
+     * Check if current user is super admin (using Spatie)
      */
     protected function isSuperAdmin(): bool
     {
@@ -121,53 +147,169 @@ class AdminController extends Controller
             return false;
         }
 
-        return $this->admin()?->role === 'super_admin';
-    }
+        $user = $this->admin();
 
-    /**
-     * Check if user has specific role
-     */
-    protected function hasRole(string $role): bool
-    {
-        return $this->admin()?->role === $role;
-    }
-
-    /**
-     * Check if user has any of the given roles
-     */
-    protected function hasAnyRole(array $roles): bool
-    {
-        return in_array($this->admin()?->role, $roles);
-    }
-
-    /**
-     * Check if user has permission (Spatie Permission)
-     */
-    protected function hasPermission(string $permission): bool
-    {
-        if (!$this->admin()) {
-            return false;
-        }
-
-        // If using Spatie Permission package
-        if (method_exists($this->admin(), 'hasPermissionTo')) {
-            return $this->admin()->hasPermissionTo($permission);
+        // Check using Spatie's hasRole method
+        if (method_exists($user, 'hasRole')) {
+            return $user->hasRole('super_admin') || $user->hasRole('super-admin');
         }
 
         return false;
     }
 
     /**
-     * Check if user has any of the given permissions
+     * Check if user has specific role (using Spatie)
+     */
+    protected function hasRole(string $role): bool
+    {
+        $user = $this->admin();
+        
+        if (!$user) {
+            return false;
+        }
+
+        // Use Spatie's hasRole method
+        if (method_exists($user, 'hasRole')) {
+            return $user->hasRole($role);
+        }
+
+        return false;
+    }
+
+    /**
+     * Check if user has any of the given roles (using Spatie)
+     */
+    protected function hasAnyRole(array $roles): bool
+    {
+        $user = $this->admin();
+        
+        if (!$user) {
+            return false;
+        }
+
+        // Use Spatie's hasAnyRole method
+        if (method_exists($user, 'hasAnyRole')) {
+            return $user->hasAnyRole($roles);
+        }
+
+        return false;
+    }
+
+    /**
+     * Check if user has all given roles (using Spatie)
+     */
+    protected function hasAllRoles(array $roles): bool
+    {
+        $user = $this->admin();
+        
+        if (!$user) {
+            return false;
+        }
+
+        // Use Spatie's hasAllRoles method
+        if (method_exists($user, 'hasAllRoles')) {
+            return $user->hasAllRoles($roles);
+        }
+
+        return false;
+    }
+
+    /**
+     * Check if user has permission (using Spatie)
+     */
+    protected function hasPermission(string $permission): bool
+    {
+        $user = $this->admin();
+        
+        if (!$user) {
+            return false;
+        }
+
+        // Use Spatie's hasPermissionTo method
+        if (method_exists($user, 'hasPermissionTo')) {
+            return $user->hasPermissionTo($permission);
+        }
+
+        return false;
+    }
+
+    /**
+     * Check if user has any of the given permissions (using Spatie)
      */
     protected function hasAnyPermission(array $permissions): bool
     {
+        $user = $this->admin();
+        
+        if (!$user) {
+            return false;
+        }
+
+        // Use Spatie's hasAnyPermission method
+        if (method_exists($user, 'hasAnyPermission')) {
+            return $user->hasAnyPermission($permissions);
+        }
+
         foreach ($permissions as $permission) {
             if ($this->hasPermission($permission)) {
                 return true;
             }
         }
+        
         return false;
+    }
+
+    /**
+     * Check if user has direct permission (using Spatie)
+     */
+    protected function hasDirectPermission(string $permission): bool
+    {
+        $user = $this->admin();
+        
+        if (!$user) {
+            return false;
+        }
+
+        if (method_exists($user, 'hasDirectPermission')) {
+            return $user->hasDirectPermission($permission);
+        }
+
+        return false;
+    }
+
+    /**
+     * Get all user roles (using Spatie)
+     */
+    protected function getUserRoles(): array
+    {
+        $user = $this->admin();
+        
+        if (!$user) {
+            return [];
+        }
+
+        if (method_exists($user, 'getRoleNames')) {
+            return $user->getRoleNames()->toArray();
+        }
+
+        return [];
+    }
+
+    /**
+     * Get all user permissions (using Spatie)
+     */
+    protected function getUserPermissions(): array
+    {
+        $user = $this->admin();
+        
+        if (!$user) {
+            return [];
+        }
+
+        if (method_exists($user, 'getAllPermissions')) {
+            return $user->getAllPermissions()->pluck('name')->toArray();
+        }
+
+        return [];
     }
 
     /**
@@ -206,11 +348,65 @@ class AdminController extends Controller
     }
 
     /**
+     * Authorize with specific role
+     */
+    protected function authorizeRole(string $role)
+    {
+        $adminCheck = $this->authorizeAdmin();
+        if ($adminCheck) {
+            return $adminCheck;
+        }
+
+        if (!$this->hasRole($role)) {
+            return back()->with('error', 'You do not have the required role to perform this action.');
+        }
+
+        return null; // Authorized
+    }
+
+    /**
+     * Authorize with any of the given roles
+     */
+    protected function authorizeAnyRole(array $roles)
+    {
+        $adminCheck = $this->authorizeAdmin();
+        if ($adminCheck) {
+            return $adminCheck;
+        }
+
+        if (!$this->hasAnyRole($roles)) {
+            return back()->with('error', 'You do not have the required role to perform this action.');
+        }
+
+        return null; // Authorized
+    }
+
+    /**
      * Abort if not authorized
      */
     protected function abortIfNotAdmin(int $code = 403, string $message = 'Access denied.'): void
     {
         if (!$this->isAdmin() && !$this->isSuperAdmin()) {
+            abort($code, $message);
+        }
+    }
+
+    /**
+     * Abort if doesn't have permission
+     */
+    protected function abortIfNoPermission(string $permission, int $code = 403, string $message = 'Permission denied.'): void
+    {
+        if (!$this->hasPermission($permission)) {
+            abort($code, $message);
+        }
+    }
+
+    /**
+     * Abort if doesn't have role
+     */
+    protected function abortIfNoRole(string $role, int $code = 403, string $message = 'Access denied.'): void
+    {
+        if (!$this->hasRole($role)) {
             abort($code, $message);
         }
     }
@@ -512,6 +708,7 @@ class AdminController extends Controller
         Log::info('[Admin Action] ' . $action, array_merge([
             'admin_id' => $this->admin()?->id,
             'admin_email' => $this->admin()?->email,
+            'admin_roles' => $this->getUserRoles(), // Updated to use Spatie
             'ip' => request()->ip(),
         ], $data));
     }
@@ -699,13 +896,16 @@ class AdminController extends Controller
         return redirect()->route('admin.login')->with('success', 'Logged out successfully.');
     }
 
-
-
-
-    //menu configration testing 
-    /* 
-    * @return array|null
+    /*
+    |--------------------------------------------------------------------------
+    | Menu Configuration
+    |--------------------------------------------------------------------------
     */
+    
+    /**
+     * Get menu configuration
+     * @return array|null
+     */
     public static function menu(): ?array
     {
         return null;

@@ -141,7 +141,7 @@ abstract class AdminComponent extends Component
         if (!$this->isAuthenticated()) {
             return false;
         }
-        return $this->admin()?->role === 'admin' || $this->isSuperAdmin();
+        return $this->admin()?->is_admin == 1 || $this->isSuperAdmin();
     }
 
     /**

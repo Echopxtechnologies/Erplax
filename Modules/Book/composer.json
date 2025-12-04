@@ -1,0 +1,5 @@
+{
+  "name": "modules/book",
+  "description": "Book management module",
+  "type": "module"
+}

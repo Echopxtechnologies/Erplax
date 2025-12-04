@@ -10,14 +10,19 @@ use App\Models\User;
 
 class AdminLoginController extends Controller
 {
-       /**
+    /**
      * Show the admin login form
      */
     public function showLoginForm()
     {
         // If already logged in as admin, redirect to dashboard
-        if (Auth::check() && Auth::user()->role === 'admin') {
-            return redirect()->route('admin.dashboard');
+        if (Auth::check()) {
+            $user = Auth::user();
+            
+            // Check using Spatie's hasRole or is_admin flag
+            if ($user->is_admin || $user->hasRole('admin') || $user->hasRole('super-admin')) {
+                return redirect()->route('admin.dashboard');
+            }
         }
 
         return view('livewire.admin.login');
@@ -43,8 +48,8 @@ class AdminLoginController extends Controller
             ]);
         }
 
-        // Check if user is admin
-        if ($user->role !== 'admin') {
+        // Check if user is admin using Spatie's hasRole or is_admin flag
+        if (!$this->isAdminUser($user)) {
             throw ValidationException::withMessages([
                 'email' => 'You do not have admin access.',
             ]);
@@ -64,6 +69,29 @@ class AdminLoginController extends Controller
         throw ValidationException::withMessages([
             'password' => 'Incorrect password.',
         ]);
+    }
+
+    /**
+     * Check if user has admin access
+     */
+    protected function isAdminUser(User $user): bool
+    {
+        // Check is_admin flag first
+        if ($user->is_admin) {
+            return true;
+        }
+
+        // Check using Spatie's hasRole method
+        if (method_exists($user, 'hasRole')) {
+            return $user->hasRole(['admin', 'super-admin', 'super_admin']);
+        }
+
+        // Check using Spatie's hasAnyRole method
+        if (method_exists($user, 'hasAnyRole')) {
+            return $user->hasAnyRole(['admin', 'super-admin', 'super_admin']);
+        }
+
+        return false;
     }
 
     /**
