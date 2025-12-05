@@ -8,7 +8,8 @@ Route::prefix('admin/student')
     ->name('admin.student.')
     ->group(function () {
         Route::get('/', [StudentController::class, 'index'])->name('index');
-        Route::get('/data', [StudentController::class, 'dataTable'])->name('data');  // DataTable AJAX route
+        Route::get('/data', [StudentController::class, 'dataTable'])->name('data');
+        Route::post('/bulk-delete', [StudentController::class, 'bulkDelete'])->name('bulk-delete');
         Route::get('/create', [StudentController::class, 'create'])->name('create');
         Route::post('/', [StudentController::class, 'store'])->name('store');
         Route::get('/{id}', [StudentController::class, 'show'])->name('show');

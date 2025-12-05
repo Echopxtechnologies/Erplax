@@ -1,10 +1,10 @@
 <x-layouts.app>
     <div style="padding: 20px;">
         <div style="margin-bottom: 20px;">
-            <a href="{{ route('admin.student.index') }}" style="color: #3498DB; text-decoration: none;">← Back to Students</a>
+            <a href="{{ route('admin.student.index') }}" style="color: #29475b; text-decoration: none;">← Back to Students</a>
         </div>
 
-        <div style="background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); padding: 20px; max-width: 600px;">
+        <div style="background: rgb(133, 16, 16); border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); padding: 20px; max-width: 600px;">
             <h1 style="margin-bottom: 20px;">{{ $student->name }}</h1>
 
             <div style="margin-bottom: 20px;">

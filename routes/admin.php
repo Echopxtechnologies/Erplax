@@ -50,6 +50,13 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::delete('/{alias}/delete', [ModuleController::class, 'delete'])->name('delete');
     });
 
+    // contacts managenetn routes enga 
+    Route::prefix('contacts')->name('contacts.')->group(function () {
+        Route::get('/dummy1', [AdminController::class, 'dummy1'])->name('dummy1');
+        Route::get('/dummy2', [AdminController::class, 'dummy2'])->name('dummy2');
+        Route::get('/dummy3', [AdminController::class, 'dummy3'])->name('dummy3');
+    });
+
     // Settings Routes - Controller handles auth checks
     Route::prefix('settings')->name('settings.')->group(function () {
         Route::get('/general', [AdminController::class, 'general'])->name('general');

@@ -20,7 +20,7 @@
         @endif
 
         {{-- Just add classes - features appear automatically! --}}
-        <table class="dt-table  dt-export dt-perpage  dt-search" 
+        <table class="dt-table dt-search dt-export dt-perpage dt-checkbox" 
                data-route="{{ route('admin.student.data') }}">
             <thead>
                 <tr>

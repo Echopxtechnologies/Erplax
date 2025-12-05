@@ -13,9 +13,12 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
-
+use App\Traits\DataTable;
 class AdminController extends Controller
 {
+
+    //trait function for list layout 
+    use DataTable;
     /*
     |--------------------------------------------------------------------------
     | Properties

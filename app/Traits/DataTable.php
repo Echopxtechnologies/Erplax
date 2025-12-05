@@ -1,25 +1,20 @@
 <?php
 
-namespace Modules\Core\Traits;
+namespace App\Traits;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Response;
 
-trait DataTableTrait
+trait DataTable
 {
-    /**
-     * Handle DataTable AJAX request
-     */
     public function dataTable(Request $request)
     {
         $query = $this->model::query();
 
-        // Eager load
         if (property_exists($this, 'with') && !empty($this->with)) {
             $query->with($this->with);
         }
 
-        // Export selected IDs only
         if ($request->has('ids') && $request->has('export')) {
             $ids = array_filter(explode(',', $request->input('ids')));
             if (!empty($ids)) {
@@ -28,7 +23,6 @@ trait DataTableTrait
             return $this->dtExport($query, $request->input('export'));
         }
 
-        // Search
         if ($search = $request->input('search')) {
             $query->where(function ($q) use ($search) {
                 foreach ($this->searchable ?? [] as $col) {
@@ -37,7 +31,6 @@ trait DataTableTrait
             });
         }
 
-        // Filters
         if ($filters = $request->input('filters')) {
             $decoded = is_array($filters) ? $filters : json_decode($filters, true);
             foreach ($decoded ?? [] as $key => $value) {
@@ -47,21 +40,17 @@ trait DataTableTrait
             }
         }
 
-        // Sort
         $sortCol = $request->input('sort', 'id');
         $sortDir = $request->input('dir', 'desc');
         $query->orderBy($sortCol, $sortDir);
 
-        // Export all
         if ($request->has('export')) {
             return $this->dtExport($query, $request->input('export'));
         }
 
-        // Paginate
         $perPage = $request->input('per_page', 10);
         $data = $query->paginate($perPage);
 
-        // Add URLs
         $items = collect($data->items())->map(function ($item) {
             $prefix = $this->routePrefix ?? 'admin';
             try {
@@ -82,9 +71,6 @@ trait DataTableTrait
         ]);
     }
 
-    /**
-     * Bulk delete selected items
-     */
     public function bulkDelete(Request $request)
     {
         $ids = $request->input('ids', []);
@@ -101,9 +87,6 @@ trait DataTableTrait
         }
     }
 
-    /**
-     * Export data to CSV
-     */
     protected function dtExport($query, $type)
     {
         $columns = $this->exportable ?? ['*'];

@@ -1,64 +1,48 @@
-# Core - Shared DataTable
+# Core - DataTable
 
-Simple folder with shared files. NOT a module, just files to use.
+Simple folder with shared DataTable files.
 
 ## Structure
 
 ```
 Modules/
-├── Core/                    ← Just a folder
+├── Core/
 │   ├── Traits/
 │   │   └── DataTableTrait.php
 │   └── Views/
 │       └── datatable.blade.php
-├── Book/
-├── Student/
-└── Todo/
 ```
 
-## ONE TIME SETUP
+## Usage
 
-Add this ONE line to `app/Providers/AppServiceProvider.php`:
-
-```php
-public function boot()
-{
-    // Add this line
-    $this->loadViewsFrom(base_path('Modules/Core/Views'), 'core');
-}
-```
-
-That's it!
-
----
-
-## HOW TO USE IN ANY MODULE
-
-### 1. Controller (add 4 lines)
+### Controller
 
 ```php
 use Modules\Core\Traits\DataTableTrait;
 
-class YourController extends AdminController
+class YourController extends Controller
 {
-    use DataTableTrait;
-    
+    // use DataTableTrait;
+
     protected $model = YourModel::class;
     protected $searchable = ['name', 'email'];
     protected $routePrefix = 'admin.yourmodule';
 }
 ```
 
-### 2. Routes (add 1 line)
+### Routes
 
 ```php
 Route::get('/data', [YourController::class, 'dataTable'])->name('data');
+
+// If using checkbox bulk delete:
+Route::post('/bulk-delete', [YourController::class, 'bulkDelete'])->name('bulk-delete');
 ```
 
-### 3. View - Just add classes to table!
+### View
 
 ```blade
-<table class="dt-table dt-search dt-export dt-perpage" 
+<table class="dt-table dt-search dt-export dt-perpage dt-checkbox" 
        data-route="{{ route('admin.yourmodule.data') }}">
     <thead>
         <tr>
@@ -74,31 +58,22 @@ Route::get('/data', [YourController::class, 'dataTable'])->name('data');
 @include('core::datatable')
 ```
 
----
+## Table Classes
 
-## TABLE CLASSES
+| Class | Feature |
+|-------|---------|
+| `dt-table` | Required |
+| `dt-search` | Search box |
+| `dt-export` | Export All CSV |
+| `dt-perpage` | 10/25/50/100 dropdown |
+| `dt-checkbox` | Checkbox selection + bulk actions |
 
-| Class | What Appears |
-|-------|--------------|
-| `dt-table` | Required - enables styling |
-| `dt-search` | Search box (left) |
-| `dt-export` | Export CSV button (right) |
-| `dt-perpage` | 10/25/50/100 dropdown (right) |
+## Column Options
 
-## TH CLASSES & ATTRIBUTES
-
-| On `<th>` | Purpose |
+| Attribute | Purpose |
 |-----------|---------|
-| `class="dt-sort"` | Click to sort |
-| `data-col="name"` | Database column |
+| `class="dt-sort"` | Sortable |
+| `data-col="name"` | DB column |
 | `data-render="badge"` | Colored badge |
 | `data-render="date"` | Format date |
 | `data-render="actions"` | View/Edit/Delete |
-
-## BADGE COLORS (auto)
-
-- `active` → Green
-- `inactive` → Gray  
-- `pending` → Orange
-- `completed` → Green
-- `cancelled` → Red

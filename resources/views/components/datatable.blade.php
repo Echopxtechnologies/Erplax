@@ -1,7 +1,4 @@
-{{-- 
-    DataTable Assets - Modules/Core/Views/datatable.blade.php
-    All styles scoped to .dt-container
---}}
+
 
 <style>
 /* Container */
