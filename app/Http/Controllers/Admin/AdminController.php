@@ -114,48 +114,83 @@ class AdminController extends Controller
         return Auth::check();
     }
 
-    /**
-     * Check if current user is admin (using Spatie or is_admin flag)
-     */
-    protected function isAdmin(): bool
-    {
-        if (!$this->isAuthenticated()) {
-            return false;
-        }
+/**
+ * Roles that can access admin panel
+ */
+protected array $allowedRoles = [
+    'super-admin',
+    'admin',
+    'manager',
+    'staff',
+];
 
-        $user = $this->admin();
-        
-        // Check is_admin flag first
-        if ($user?->is_admin) {
-            return true;
-        }
-
-        // Check using Spatie's hasRole method
-        if (method_exists($user, 'hasRole')) {
-            return $user->hasRole('admin');
-        }
-
+/**
+ * Check if current user can access admin panel
+ */
+protected function isAdmin(): bool
+{
+    if (!$this->isAuthenticated()) {
         return false;
     }
 
-    /**
-     * Check if current user is super admin (using Spatie)
-     */
-    protected function isSuperAdmin(): bool
-    {
-        if (!$this->isAuthenticated()) {
-            return false;
-        }
+    $user = $this->admin();
 
-        $user = $this->admin();
+    // Check is_admin flag
+    if ($user?->is_admin) {
+        return true;
+    }
 
-        // Check using Spatie's hasRole method
-        if (method_exists($user, 'hasRole')) {
-            return $user->hasRole('super_admin') || $user->hasRole('super-admin');
-        }
+    // Check if user has any allowed role via Spatie
+    if (method_exists($user, 'hasAnyRole')) {
+        return $user->hasAnyRole($this->allowedRoles);
+    }
 
+    // Check if user has ANY role at all
+    if (method_exists($user, 'roles') && $user->roles->count() > 0) {
+        return true;
+    }
+
+    return false;
+}
+
+/**
+ * Check if current user is super admin
+ */
+protected function isSuperAdmin(): bool
+{
+    if (!$this->isAuthenticated()) {
         return false;
     }
+
+    $user = $this->admin();
+
+    if (method_exists($user, 'hasRole')) {
+        return $user->hasRole(['super-admin', 'super_admin']);
+    }
+
+    return false;
+}
+
+/**
+ * Authorize admin access - returns redirect if not authorized
+ */
+protected function authorizeAdmin()
+{
+    if (!$this->isAuthenticated()) {
+        return redirect()->route('admin.login')
+            ->with('error', 'Please login to continue.');
+    }
+
+    // Use isAdmin() which now checks for any role
+    if (!$this->isAdmin()) {
+        // Logout and redirect to admin login (NOT dashboard)
+        Auth::logout();
+        return redirect()->route('admin.login')
+            ->with('error', 'You do not have permission to access the admin panel.');
+    }
+
+    return null; // Authorized
+}
 
     /**
      * Check if user has specific role (using Spatie)
@@ -315,20 +350,20 @@ class AdminController extends Controller
     /**
      * Authorize admin access - returns redirect if not authorized
      */
-    protected function authorizeAdmin()
-    {
-        if (!$this->isAuthenticated()) {
-            return redirect()->route('admin.login')
-                ->with('error', 'Please login to continue.');
-        }
+    // protected function authorizeAdmin()
+    // {
+    //     if (!$this->isAuthenticated()) {
+    //         return redirect()->route('admin.login')
+    //             ->with('error', 'Please login to continue.');
+    //     }
 
-        if (!$this->isAdmin() && !$this->isSuperAdmin()) {
-            return redirect()->route('dashboard')
-                ->with('error', 'Access denied. Admin only.');
-        }
+    //     if (!$this->isAdmin() && !$this->isSuperAdmin()) {
+    //         return redirect()->route('dashboard')
+    //             ->with('error', 'Access denied. Admin only.');
+    //     }
 
-        return null; // Authorized
-    }
+    //     return null; // Authorized
+    // }
 
     /**
      * Authorize with specific permission

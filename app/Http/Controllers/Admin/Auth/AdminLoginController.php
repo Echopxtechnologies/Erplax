@@ -28,6 +28,24 @@ class AdminLoginController extends Controller
         return view('livewire.admin.login');
     }
 
+        /**
+     * Check if user can access admin panel
+     * Returns true if user has ANY role assigned
+     */
+    protected function canAccessAdminPanel(User $user): bool
+    {
+        // Check is_admin flag
+        if ($user->is_admin) {
+            return true;
+        }
+
+        // Check if user has ANY role assigned via Spatie
+        if (method_exists($user, 'roles')) {
+            return $user->roles->count() > 0;
+        }
+
+        return false;
+    }
     /**
      * Handle admin login request
      */
@@ -49,11 +67,12 @@ class AdminLoginController extends Controller
         }
 
         // Check if user is admin using Spatie's hasRole or is_admin flag
-        if (!$this->isAdminUser($user)) {
+        if (!$this->canAccessAdminPanel($user)) {
             throw ValidationException::withMessages([
                 'email' => 'You do not have admin access.',
             ]);
         }
+
 
         // Attempt to authenticate
         if (Auth::attempt($credentials, $request->boolean('remember'))) {

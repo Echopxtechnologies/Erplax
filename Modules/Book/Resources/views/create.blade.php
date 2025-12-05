@@ -1,4 +1,5 @@
 <x-layouts.app>
+    
     <div style="padding: 20px;">
         <div style="margin-bottom: 20px;">
             <h1>Create New Book</h1>

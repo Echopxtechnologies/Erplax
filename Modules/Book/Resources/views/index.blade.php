@@ -2,9 +2,11 @@
     <div style="padding: 20px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
             <h1>Book Management</h1>
+            @can('book.create.create')
             <a href="{{ route('admin.book.create') }}" style="background: #3498DB; color: white; padding: 10px 20px; border-radius: 5px; text-decoration: none;">
                 + Add New Book
             </a>
+            @endcan
         </div>
 
         @if(session('success'))
@@ -41,15 +43,19 @@
                                     {{ $book->author }}
                                 </td>
                                 <td style="padding: 15px;">
+                                    @can('book.list.edit')
                                     <a href="{{ route('admin.book.edit', $book->id) }}" style="background: #F39C12; color: white; padding: 6px 12px; border-radius: 3px; text-decoration: none; font-size: 12px; margin-right: 5px; display: inline-block;">
                                         Edit
                                     </a>
+                                    @endcan
                                     <form method="POST" action="{{ route('admin.book.destroy', $book->id) }}" style="display: inline-block;" onsubmit="return confirm('Are you sure?');">
                                         @csrf
                                         @method('DELETE')
+                                        @can('book.list.delete')
                                         <button type="submit" style="background: #E74C3C; color: white; padding: 6px 12px; border: none; border-radius: 3px; cursor: pointer; font-size: 12px;">
                                             Delete
                                         </button>
+                                        @endcan()
                                     </form>
                                 </td>
                             </tr>

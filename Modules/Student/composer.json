@@ -1,0 +1,5 @@
+{
+  "name": "modules/student",
+  "description": "Student management module",
+  "type": "module"
+}

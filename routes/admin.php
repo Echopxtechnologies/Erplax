@@ -9,6 +9,7 @@ use App\Livewire\Admin\Settings\Permission;
 use App\Http\Controllers\Admin\PermissionController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Admin\RolePermissionController;
 
 /*
 |--------------------------------------------------------------------------
@@ -72,6 +73,12 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/roles/{id}/edit', [RoleController::class, 'edit'])->name('roles.edit');
         Route::post('/roles/{id}', [RoleController::class, 'update'])->name('roles.update');
         Route::delete('/roles/{id}', [RoleController::class, 'destroy'])->name('roles.destroy');
+
+        // Role Permissions Management
+        Route::get('/role-permissions', [RolePermissionController::class, 'index'])->name('role-permissions.index');
+        Route::get('/role-permissions/{roleId}/edit', [RolePermissionController::class, 'edit'])->name('role-permissions.edit');
+        Route::post('/role-permissions/{roleId}', [RolePermissionController::class, 'update'])->name('role-permissions.update');
+        Route::post('/role-permissions/{roleId}/menus', [RolePermissionController::class, 'syncMenuAccess'])->name('role-permissions.menus');
 
     // Users CRUD
         Route::get('/users/list', [UserController::class, 'index'])->name('users.index');

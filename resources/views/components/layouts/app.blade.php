@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    
+  <meta name="csrf-token" content="{{ csrf_token() }}">
     @php
         $companyName = config('app.name', 'Laravel');
         $companyLogo = null;
@@ -18,6 +17,7 @@
     @endif
     
     <script>
+        
         (function() {
             const theme = localStorage.getItem('theme') || 'light';
             document.documentElement.setAttribute('data-theme', theme);
@@ -856,8 +856,6 @@
         <a href="{{ Route::has('admin.settings.permissions.index') ? route('admin.settings.permissions.index') : '#' }}" class="setup-nav-item {{ request()->routeIs('admin.settings.permissions.index') ? 'active' : '' }}">Permission</a> 
          <a href="{{ Route::has('admin.settings.roles.index') ? route('admin.settings.roles.index') : '#' }}" class="setup-nav-item {{ request()->routeIs('admin.settings.roles.index') ? 'active' : '' }}">Role</a> 
          <a href="{{ Route::has('admin.settings.users.index') ? route('admin.settings.users.index') : '#' }}" class="setup-nav-item {{ request()->routeIs('admin.settings.users.index') ? 'active' : '' }}">User</a> 
-                <a href="#" class="setup-submenu-item">Dummy 2</a>
-                <a href="#" class="setup-submenu-item">Dummy 3</a>
             </div>
         </div>
     </div>
@@ -883,6 +881,13 @@
                     <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
                 </svg>
                 <span>Dashboard</span>
+            </a>
+
+            <a href="#" class="nav-item {{ request()->routeIs() ? 'active' : '' }}">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+                </svg>
+                <span>Contacts</span>
             </a>
             
             {{-- Module menu items --}}
@@ -1068,5 +1073,6 @@
     @if (session('info'))
         <script>document.addEventListener('DOMContentLoaded', function() { Toast.info("{{ session('info') }}"); });</script>
     @endif
+
 </body>
 </html>

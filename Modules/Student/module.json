@@ -1,0 +1,15 @@
+{
+  "name": "Student",
+  "alias": "student",
+  "description": "Student management module for admin panel",
+  "keywords": [],
+  "version": "1.0.0",
+  "active": 1,
+  "order": 0,
+  "providers": [
+    "Modules\\Student\\Providers\\StudentServiceProvider"
+  ],
+  "aliases": {},
+  "files": [],
+  "requires": []
+}

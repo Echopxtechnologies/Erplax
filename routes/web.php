@@ -11,13 +11,21 @@ use Illuminate\Support\Facades\Auth;
 
 Route::view('/', 'welcome');
 
-// User Dashboard - Redirects admin to admin dashboard
+// User Dashboard - For regular users without admin panel access
 Route::get('dashboard', function () {
-    // If logged in as admin, redirect to admin dashboard
-    if (Auth::check() && Auth::user()->is_admin == 1) {
-        return redirect()->route('admin.dashboard');
+    if (Auth::check()) {
+        $user = Auth::user();
+        
+        // Check if user can access admin panel
+        $canAccessAdmin = $user->is_admin || 
+            (method_exists($user, 'roles') && $user->roles->count() > 0);
+        
+        if ($canAccessAdmin) {
+            return redirect()->route('admin.dashboard');
+        }
     }
     
+    // Regular user dashboard
     return view('dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
@@ -27,3 +35,12 @@ Route::view('profile', 'profile')
 
 require __DIR__.'/auth.php';
 require __DIR__.'/admin.php';
+
+use App\Livewire\Admin\Customers\index as CustomersIndex;
+
+Route::middleware(['auth'])   // plus your admin middleware
+    ->prefix('admin')
+    ->name('admin.')
+    ->group(function () {
+        Route::get('customers', CustomersIndex::class)->name('admin.customers.index');
+    });

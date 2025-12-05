@@ -1,0 +1,28 @@
+<?php
+
+namespace Modules\Student\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+
+class Student extends Model
+{
+    use HasFactory;
+
+    protected $table = 'students';
+
+    protected $fillable = [
+        'name',
+        'email',
+        'phone',
+        'course',
+        'status',
+        'admission_date',
+    ];
+
+    protected $casts = [
+        'admission_date' => 'date',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
+    ];
+}

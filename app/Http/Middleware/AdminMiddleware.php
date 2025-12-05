@@ -9,6 +9,13 @@ use Symfony\Component\HttpFoundation\Response;
 
 class AdminMiddleware
 {
+        protected array $allowedRoles = [
+        'super-admin',
+        'admin',
+        'manager',
+        'staff',
+    ];
+
     public function handle(Request $request, Closure $next): Response
     {
         // Not logged in
@@ -18,14 +25,34 @@ class AdminMiddleware
 
         $user = Auth::user();
 
-        // Check using BOTH methods (is_admin flag OR has admin role)
-        $isAdmin = $user->is_admin === 1 || 
-                   (method_exists($user, 'hasRole') && $user->hasRole('admin'));
-
-        if (!$isAdmin) {
-            return redirect()->route('dashboard')->with('error', 'Access denied. Admin only.');
+        // Check if user can access admin panel
+        if (!$this->canAccessAdminPanel($user)) {
+            Auth::logout();
+            return redirect()->route('admin.login')->with('error', 'You do not have permission to access the admin panel.');
         }
 
         return $next($request);
+    }
+        /**
+     * Check if user can access admin panel
+     */
+    protected function canAccessAdminPanel($user): bool
+    {
+        // Check is_admin flag
+        if ($user->is_admin) {
+            return true;
+        }
+
+        // Check if user has any allowed role
+        if (method_exists($user, 'hasAnyRole')) {
+            return $user->hasAnyRole($this->allowedRoles);
+        }
+
+        // Or check if user has ANY role
+        if (method_exists($user, 'roles')) {
+            return $user->roles->count() > 0;
+        }
+
+        return false;
     }
 }
