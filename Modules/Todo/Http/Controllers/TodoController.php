@@ -2,30 +2,21 @@
 
 namespace Modules\Todo\Http\Controllers;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Admin\AdminController;
 use App\Models\User;
 use App\Models\Notification;
 use Modules\Todo\Models\Todo;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Response;
 
-class TodoController extends Controller
+class TodoController extends AdminController
 {
-    /**
-     * Get authenticated user
-     */
-    private function getUser()
-    {
-        return Auth::user();
-    }
-
     /**
      * DataTable endpoint
      */
     public function dataTable(Request $request)
     {
-        $user = $this->getUser();
+        $user = $this->admin();
         $query = Todo::query()->with(['user', 'assignee']);
 
         // Filter: Admin sees all, regular user sees own + assigned to them
@@ -137,7 +128,7 @@ class TodoController extends Controller
      */
     public function index()
     {
-        $user = $this->getUser();
+        $user = $this->admin();
         $isAdmin = $user->is_admin;
 
         // Stats for dashboard cards
@@ -157,7 +148,7 @@ class TodoController extends Controller
         // Get all users for assign dropdown (admin only)
         $users = $isAdmin ? User::orderBy('name')->get() : collect();
 
-        return view('todo::index', compact('stats', 'isAdmin', 'users'));
+        return $this->moduleView('todo::index', compact('stats', 'isAdmin', 'users'));
     }
 
     /**
@@ -165,11 +156,11 @@ class TodoController extends Controller
      */
     public function create()
     {
-        $user = $this->getUser();
+        $user = $this->admin();
         $isAdmin = $user->is_admin;
         $users = $isAdmin ? User::orderBy('name')->get() : collect();
         
-        return view('todo::create', compact('isAdmin', 'users'));
+        return $this->moduleView('todo::create', compact('isAdmin', 'users'));
     }
 
     /**
@@ -177,7 +168,7 @@ class TodoController extends Controller
      */
     public function store(Request $request)
     {
-        $user = $this->getUser();
+        $user = $this->admin();
         
         $validated = $request->validate([
             'title' => 'required|string|max:255',
@@ -219,7 +210,7 @@ class TodoController extends Controller
     public function show($id)
     {
         $todo = $this->getTodoWithAccess($id);
-        return view('todo::show', compact('todo'));
+        return $this->moduleView('todo::show', compact('todo'));
     }
 
     /**
@@ -228,11 +219,11 @@ class TodoController extends Controller
     public function edit($id)
     {
         $todo = $this->getTodoWithAccess($id);
-        $user = $this->getUser();
+        $user = $this->admin();
         $isAdmin = $user->is_admin;
         $users = $isAdmin ? User::orderBy('name')->get() : collect();
         
-        return view('todo::edit', compact('todo', 'isAdmin', 'users'));
+        return $this->moduleView('todo::edit', compact('todo', 'isAdmin', 'users'));
     }
 
     /**
@@ -241,7 +232,7 @@ class TodoController extends Controller
     public function update(Request $request, $id)
     {
         $todo = $this->getTodoWithAccess($id);
-        $user = $this->getUser();
+        $user = $this->admin();
 
         $validated = $request->validate([
             'title' => 'required|string|max:255',
@@ -264,13 +255,11 @@ class TodoController extends Controller
         if ($validated['status'] === 'completed' && $todo->status !== 'completed') {
             $validated['completed_at'] = now();
             
-            // If was overdue and now completed, delete the notification
             if ($wasOverdue) {
                 $this->deleteOverdueNotification($todo);
             }
         } elseif ($validated['status'] !== 'completed') {
             $validated['completed_at'] = null;
-            // Reset overdue_notified if due date changed or status changed from completed
             if ($todo->due_date != ($validated['due_date'] ?? null) || $todo->status === 'completed') {
                 $validated['overdue_notified'] = false;
             }
@@ -296,10 +285,7 @@ class TodoController extends Controller
     public function destroy($id)
     {
         $todo = $this->getTodoWithAccess($id);
-        
-        // Delete any notifications for this task
         $this->deleteTaskNotifications($todo);
-        
         $todo->delete();
 
         if (request()->ajax()) {
@@ -320,15 +306,13 @@ class TodoController extends Controller
             return response()->json(['success' => false, 'message' => 'No items selected'], 400);
         }
 
-        $user = $this->getUser();
+        $user = $this->admin();
         $query = Todo::whereIn('id', $ids);
 
-        // Non-admin can only delete their own or assigned tasks
         if (!$user->is_admin) {
             $query->forUser($user->id);
         }
 
-        // Delete notifications for these tasks
         $todos = $query->get();
         foreach ($todos as $todo) {
             $this->deleteTaskNotifications($todo);
@@ -352,8 +336,6 @@ class TodoController extends Controller
         
         if ($newStatus === 'completed') {
             $todo->completed_at = now();
-            
-            // Delete overdue notification if was overdue
             if ($wasOverdue) {
                 $this->deleteOverdueNotification($todo);
             }
@@ -367,7 +349,7 @@ class TodoController extends Controller
     }
 
     /**
-     * Check overdue tasks and send notifications (called by scheduler)
+     * Check overdue tasks
      */
     public function checkOverdueTasks()
     {
@@ -384,9 +366,6 @@ class TodoController extends Controller
         return response()->json(['success' => true, 'notified' => $count]);
     }
 
-    /**
-     * Delete overdue notification for a task
-     */
     private function deleteOverdueNotification(Todo $todo)
     {
         $notifyUserId = $todo->assigned_to ?? $todo->user_id;
@@ -397,23 +376,16 @@ class TodoController extends Controller
             ->delete();
     }
 
-    /**
-     * Delete all notifications for a task
-     */
     private function deleteTaskNotifications(Todo $todo)
     {
         Notification::where('url', 'LIKE', '%/todo/' . $todo->id . '%')->delete();
     }
 
-    /**
-     * Helper: Get todo with access check
-     */
     private function getTodoWithAccess($id)
     {
-        $user = $this->getUser();
+        $user = $this->admin();
         $todo = Todo::with(['user', 'assignee'])->findOrFail($id);
 
-        // Check access: Admin can access all, user can access own or assigned
         if (!$user->is_admin && $todo->user_id !== $user->id && $todo->assigned_to !== $user->id) {
             abort(403, 'You do not have permission to access this task.');
         }

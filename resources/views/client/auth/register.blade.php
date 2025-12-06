@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Admin Login - {{ config('app.name', 'ERPLax') }}</title>
+    <title>Register - {{ config('app.name', 'ERPLax') }}</title>
     
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     
@@ -23,14 +23,13 @@
             -webkit-font-smoothing: antialiased;
         }
         
-        /* Split Layout */
         .login-wrapper {
             display: flex;
             width: 100%;
             min-height: 100vh;
         }
         
-        /* Left Panel - Branding */
+        /* Left Panel */
         .left-panel {
             flex: 1;
             background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
@@ -42,14 +41,13 @@
             overflow: hidden;
         }
         
-        /* Animated Background Elements */
         .bg-pattern {
             position: absolute;
             inset: 0;
             background-image: 
-                radial-gradient(circle at 20% 50%, rgba(59, 130, 246, 0.1) 0%, transparent 50%),
-                radial-gradient(circle at 80% 80%, rgba(139, 92, 246, 0.1) 0%, transparent 50%),
-                radial-gradient(circle at 40% 20%, rgba(14, 165, 233, 0.08) 0%, transparent 50%);
+                radial-gradient(circle at 20% 50%, rgba(16, 185, 129, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(6, 182, 212, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 40% 20%, rgba(59, 130, 246, 0.08) 0%, transparent 50%);
             z-index: 0;
         }
         
@@ -63,7 +61,6 @@
             z-index: 0;
         }
         
-        /* Floating Shapes */
         .shape {
             position: absolute;
             border-radius: 50%;
@@ -75,10 +72,9 @@
         .shape-1 {
             width: 300px;
             height: 300px;
-            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            background: linear-gradient(135deg, #10b981, #06b6d4);
             top: -50px;
             left: -50px;
-            animation-delay: 0s;
         }
         
         .shape-2 {
@@ -93,7 +89,7 @@
         .shape-3 {
             width: 150px;
             height: 150px;
-            background: linear-gradient(135deg, #8b5cf6, #ec4899);
+            background: linear-gradient(135deg, #10b981, #14b8a6);
             bottom: 30%;
             left: 20%;
             animation-delay: -10s;
@@ -112,7 +108,6 @@
             max-width: 500px;
         }
         
-        /* Logo */
         .brand-logo {
             display: flex;
             align-items: center;
@@ -123,12 +118,12 @@
         .logo-icon {
             width: 56px;
             height: 56px;
-            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            background: linear-gradient(135deg, #10b981, #06b6d4);
             border-radius: 14px;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 20px 40px rgba(59, 130, 246, 0.3);
+            box-shadow: 0 20px 40px rgba(16, 185, 129, 0.3);
         }
         
         .logo-icon svg {
@@ -141,25 +136,22 @@
             font-size: 28px;
             font-weight: 800;
             color: #fff;
-            letter-spacing: -0.5px;
         }
         
         .logo-text span {
-            color: #3b82f6;
+            color: #10b981;
         }
         
-        /* Headline */
         .brand-headline {
             font-size: 42px;
             font-weight: 700;
             color: #fff;
             line-height: 1.2;
             margin-bottom: 20px;
-            letter-spacing: -1px;
         }
         
         .brand-headline span {
-            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            background: linear-gradient(135deg, #10b981, #06b6d4);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
@@ -172,107 +164,68 @@
             margin-bottom: 48px;
         }
         
-        /* Features */
-        .features {
+        .benefits {
             display: flex;
             flex-direction: column;
-            gap: 20px;
-        }
-        
-        .feature-item {
-            display: flex;
-            align-items: flex-start;
             gap: 16px;
         }
         
-        .feature-icon {
-            width: 44px;
-            height: 44px;
-            background: rgba(59, 130, 246, 0.1);
-            border: 1px solid rgba(59, 130, 246, 0.2);
-            border-radius: 10px;
+        .benefit-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .benefit-icon {
+            width: 24px;
+            height: 24px;
+            background: rgba(16, 185, 129, 0.2);
+            border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
         }
         
-        .feature-icon svg {
-            width: 20px;
-            height: 20px;
-            color: #3b82f6;
+        .benefit-icon svg {
+            width: 14px;
+            height: 14px;
+            color: #10b981;
         }
         
-        .feature-content h4 {
-            font-size: 15px;
-            font-weight: 600;
-            color: #f1f5f9;
-            margin-bottom: 4px;
+        .benefit-item span {
+            font-size: 14px;
+            color: #94a3b8;
         }
         
-        .feature-content p {
-            font-size: 13px;
-            color: #64748b;
-            line-height: 1.5;
-        }
-        
-        /* Stats */
-        .stats {
-            display: flex;
-            gap: 40px;
-            margin-top: 48px;
-            padding-top: 32px;
-            border-top: 1px solid rgba(255,255,255,0.1);
-        }
-        
-        .stat-item {
-            text-align: left;
-        }
-        
-        .stat-number {
-            font-size: 32px;
-            font-weight: 700;
-            color: #fff;
-            margin-bottom: 4px;
-        }
-        
-        .stat-number span {
-            color: #3b82f6;
-        }
-        
-        .stat-label {
-            font-size: 13px;
-            color: #64748b;
-        }
-        
-        /* Right Panel - Form */
+        /* Right Panel */
         .right-panel {
-            width: 520px;
+            width: 560px;
             background: #1e293b;
             display: flex;
             flex-direction: column;
             justify-content: center;
-            padding: 60px;
+            padding: 40px 60px;
             position: relative;
+            overflow-y: auto;
         }
         
         .form-container {
             width: 100%;
-            max-width: 380px;
+            max-width: 400px;
             margin: 0 auto;
         }
         
-        /* Form Header */
         .form-header {
             text-align: center;
-            margin-bottom: 36px;
+            margin-bottom: 32px;
         }
         
         .form-header-icon {
             width: 64px;
             height: 64px;
-            background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(139, 92, 246, 0.2));
-            border: 1px solid rgba(59, 130, 246, 0.3);
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(6, 182, 212, 0.2));
+            border: 1px solid rgba(16, 185, 129, 0.3);
             border-radius: 16px;
             display: inline-flex;
             align-items: center;
@@ -283,7 +236,7 @@
         .form-header-icon svg {
             width: 28px;
             height: 28px;
-            color: #3b82f6;
+            color: #10b981;
         }
         
         .form-title {
@@ -298,7 +251,6 @@
             color: #94a3b8;
         }
         
-        /* Alert */
         .alert {
             padding: 14px 16px;
             border-radius: 10px;
@@ -318,18 +270,25 @@
             height: 20px;
             color: #ef4444;
             flex-shrink: 0;
-            margin-top: 1px;
         }
         
         .alert-error p {
             font-size: 13px;
             color: #fca5a5;
-            line-height: 1.5;
         }
         
-        /* Form */
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        
         .form-group {
-            margin-bottom: 22px;
+            margin-bottom: 20px;
+        }
+        
+        .form-group.full-width {
+            grid-column: 1 / -1;
         }
         
         .form-label {
@@ -338,6 +297,11 @@
             font-weight: 500;
             color: #e2e8f0;
             margin-bottom: 8px;
+        }
+        
+        .form-label .optional {
+            color: #64748b;
+            font-weight: 400;
         }
         
         .input-wrapper {
@@ -378,15 +342,14 @@
         }
         
         .form-input:focus {
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
+            border-color: #10b981;
+            box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.15);
         }
         
         .input-wrapper:focus-within .input-icon {
-            color: #3b82f6;
+            color: #10b981;
         }
         
-        /* Password Toggle */
         .password-toggle {
             position: absolute;
             right: 14px;
@@ -398,8 +361,6 @@
             cursor: pointer;
             padding: 4px;
             display: flex;
-            align-items: center;
-            justify-content: center;
             transition: color 0.2s ease;
         }
         
@@ -412,7 +373,6 @@
             height: 18px;
         }
         
-        /* Error */
         .error-message {
             display: flex;
             align-items: center;
@@ -428,19 +388,41 @@
             flex-shrink: 0;
         }
         
-        /* Form Options */
-        .form-options {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 28px;
+        /* Password Strength */
+        .password-strength {
+            margin-top: 10px;
         }
         
-        .checkbox-wrapper {
+        .strength-bar {
+            height: 4px;
+            background: #334155;
+            border-radius: 2px;
+            overflow: hidden;
+            margin-bottom: 6px;
+        }
+        
+        .strength-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: all 0.3s ease;
+            width: 0%;
+        }
+        
+        .strength-fill.weak { width: 33%; background: #ef4444; }
+        .strength-fill.medium { width: 66%; background: #f59e0b; }
+        .strength-fill.strong { width: 100%; background: #10b981; }
+        
+        .strength-text {
+            font-size: 11px;
+            color: #64748b;
+        }
+        
+        /* Terms Checkbox */
+        .terms-wrapper {
             display: flex;
-            align-items: center;
-            gap: 10px;
-            cursor: pointer;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 24px;
         }
         
         .checkbox-input {
@@ -453,12 +435,14 @@
             appearance: none;
             -webkit-appearance: none;
             position: relative;
+            flex-shrink: 0;
+            margin-top: 2px;
             transition: all 0.2s ease;
         }
         
         .checkbox-input:checked {
-            background: #3b82f6;
-            border-color: #3b82f6;
+            background: #10b981;
+            border-color: #10b981;
         }
         
         .checkbox-input:checked::after {
@@ -473,25 +457,21 @@
             transform: rotate(45deg);
         }
         
-        .checkbox-label {
+        .terms-label {
             font-size: 13px;
             color: #94a3b8;
-            user-select: none;
+            line-height: 1.5;
         }
         
-        .forgot-link {
-            font-size: 13px;
-            color: #3b82f6;
+        .terms-label a {
+            color: #10b981;
             text-decoration: none;
-            font-weight: 500;
-            transition: color 0.2s ease;
         }
         
-        .forgot-link:hover {
-            color: #60a5fa;
+        .terms-label a:hover {
+            text-decoration: underline;
         }
         
-        /* Submit Button */
         .submit-btn {
             width: 100%;
             padding: 13px 24px;
@@ -499,19 +479,19 @@
             font-weight: 600;
             font-family: inherit;
             color: #fff;
-            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            background: linear-gradient(135deg, #10b981, #059669);
             border: none;
             border-radius: 10px;
             cursor: pointer;
             position: relative;
             overflow: hidden;
             transition: all 0.3s ease;
-            box-shadow: 0 8px 24px rgba(59, 130, 246, 0.3);
+            box-shadow: 0 8px 24px rgba(16, 185, 129, 0.3);
         }
         
         .submit-btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 12px 32px rgba(59, 130, 246, 0.4);
+            box-shadow: 0 12px 32px rgba(16, 185, 129, 0.4);
         }
         
         .submit-btn:active {
@@ -535,7 +515,6 @@
             transform: translateX(4px);
         }
         
-        /* Loading */
         .submit-btn.loading {
             pointer-events: none;
         }
@@ -564,35 +543,26 @@
             to { transform: rotate(360deg); }
         }
         
-        /* Security */
-        .security-note {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
+        .login-link {
+            text-align: center;
             margin-top: 24px;
-            padding: 12px;
-            background: rgba(34, 197, 94, 0.1);
-            border: 1px solid rgba(34, 197, 94, 0.2);
-            border-radius: 8px;
+            font-size: 14px;
+            color: #94a3b8;
         }
         
-        .security-note svg {
-            width: 16px;
-            height: 16px;
-            color: #22c55e;
+        .login-link a {
+            color: #10b981;
+            text-decoration: none;
+            font-weight: 600;
         }
         
-        .security-note span {
-            font-size: 12px;
-            color: #22c55e;
-            font-weight: 500;
+        .login-link a:hover {
+            color: #34d399;
         }
         
-        /* Footer */
         .form-footer {
             text-align: center;
-            margin-top: 32px;
+            margin-top: 24px;
         }
         
         .footer-link {
@@ -606,7 +576,7 @@
         }
         
         .footer-link:hover {
-            color: #3b82f6;
+            color: #10b981;
         }
         
         .footer-link svg {
@@ -614,39 +584,19 @@
             height: 16px;
         }
         
-        /* Responsive */
         @media (max-width: 1024px) {
-            .left-panel {
-                display: none;
-            }
-            
-            .right-panel {
-                width: 100%;
-                padding: 40px 24px;
-            }
+            .left-panel { display: none; }
+            .right-panel { width: 100%; padding: 40px 24px; }
         }
         
         @media (max-width: 480px) {
-            .form-options {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 12px;
-            }
-            
-            .form-header-icon {
-                width: 56px;
-                height: 56px;
-            }
-            
-            .form-title {
-                font-size: 22px;
-            }
+            .form-row { grid-template-columns: 1fr; }
         }
     </style>
 </head>
 <body>
     <div class="login-wrapper">
-        <!-- Left Panel - Branding -->
+        <!-- Left Panel -->
         <div class="left-panel">
             <div class="bg-pattern"></div>
             <div class="bg-grid"></div>
@@ -655,7 +605,6 @@
             <div class="shape shape-3"></div>
             
             <div class="left-content">
-                <!-- Logo -->
                 <div class="brand-logo">
                     <div class="logo-icon">
                         <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -665,159 +614,119 @@
                     <span class="logo-text">ERP<span>Lax</span></span>
                 </div>
                 
-                <!-- Headline -->
                 <h1 class="brand-headline">
-                    Streamline Your<br>
-                    <span>Business Operations</span>
+                    Join Thousands of<br>
+                    <span>Growing Businesses</span>
                 </h1>
                 
                 <p class="brand-description">
-                    Powerful enterprise resource planning solution designed to help you manage inventory, sales, purchases, accounting, and more - all in one unified platform.
+                    Create your account today and unlock powerful tools to manage your business efficiently. Get started in minutes.
                 </p>
                 
-                <!-- Features -->
-                <div class="features">
-                    <div class="feature-item">
-                        <div class="feature-icon">
+                <div class="benefits">
+                    <div class="benefit-item">
+                        <div class="benefit-icon">
                             <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                                <path d="M5 13l4 4L19 7"></path>
                             </svg>
                         </div>
-                        <div class="feature-content">
-                            <h4>Real-time Analytics</h4>
-                            <p>Get instant insights into your business performance with powerful dashboards.</p>
-                        </div>
+                        <span>Free 14-day trial, no credit card required</span>
                     </div>
-                    
-                    <div class="feature-item">
-                        <div class="feature-icon">
+                    <div class="benefit-item">
+                        <div class="benefit-icon">
                             <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                                <path d="M5 13l4 4L19 7"></path>
                             </svg>
                         </div>
-                        <div class="feature-content">
-                            <h4>Enterprise Security</h4>
-                            <p>Bank-grade encryption and role-based access control keeps your data safe.</p>
-                        </div>
+                        <span>Access to all features during trial</span>
                     </div>
-                    
-                    <div class="feature-item">
-                        <div class="feature-icon">
+                    <div class="benefit-item">
+                        <div class="benefit-icon">
                             <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                <path d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"></path>
+                                <path d="M5 13l4 4L19 7"></path>
                             </svg>
                         </div>
-                        <div class="feature-content">
-                            <h4>Modular Design</h4>
-                            <p>Enable only the modules you need. Scale as your business grows.</p>
+                        <span>Cancel anytime, hassle-free</span>
+                    </div>
+                    <div class="benefit-item">
+                        <div class="benefit-icon">
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path d="M5 13l4 4L19 7"></path>
+                            </svg>
                         </div>
-                    </div>
-                </div>
-                
-                <!-- Stats -->
-                <div class="stats">
-                    <div class="stat-item">
-                        <div class="stat-number">500<span>+</span></div>
-                        <div class="stat-label">Active Companies</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-number">99.9<span>%</span></div>
-                        <div class="stat-label">Uptime SLA</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-number">24<span>/7</span></div>
-                        <div class="stat-label">Support</div>
+                        <span>Dedicated onboarding support</span>
                     </div>
                 </div>
             </div>
         </div>
         
-        <!-- Right Panel - Login Form -->
+        <!-- Right Panel -->
         <div class="right-panel">
             <div class="form-container">
-                <!-- Form Header -->
                 <div class="form-header">
                     <div class="form-header-icon">
                         <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                            <path d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
                         </svg>
                     </div>
-                    <h2 class="form-title">Admin Login</h2>
-                    <p class="form-subtitle">Sign in to access admin dashboard</p>
+                    <h2 class="form-title">Create Account</h2>
+                    <p class="form-subtitle">Start your journey with us today</p>
                 </div>
                 
-                <!-- Error Alert -->
-                @if($errors->any() && $errors->has('email') && str_contains($errors->first('email'), 'credentials'))
+                @if($errors->any())
                     <div class="alert alert-error">
                         <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                             <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
                         </svg>
-                        <p>Invalid credentials. Please check your email and password.</p>
+                        <p>Please fix the errors below and try again.</p>
                     </div>
                 @endif
                 
-                <!-- Login Form -->
-                <form method="POST" action="{{ route('admin.login.submit') }}" id="loginForm">
+                <form method="POST" action="{{ route('client.register.submit') }}" id="registerForm">
                     @csrf
                     
-                    <!-- Email -->
-                    <div class="form-group">
-                        <label for="email" class="form-label">Email Address</label>
-                        <div class="input-wrapper">
-                            <input 
-                                type="email" 
-                                name="email" 
-                                id="email" 
-                                class="form-input" 
-                                placeholder="admin@example.com"
-                                value="{{ old('email') }}"
-                                required 
-                                autofocus
-                                autocomplete="email"
-                            >
-                            <svg class="input-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                <path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
-                            </svg>
-                        </div>
-                        @error('email')
-                            @if(!str_contains($message, 'credentials'))
+                    <div class="form-row">
+                        <!-- Name -->
+                        <div class="form-group">
+                            <label for="name" class="form-label">Full Name</label>
+                            <div class="input-wrapper">
+                                <input type="text" name="name" id="name" class="form-input" placeholder="John Doe" value="{{ old('name') }}" required autofocus>
+                                <svg class="input-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                </svg>
+                            </div>
+                            @error('name')
                                 <div class="error-message">
                                     <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                                         <path d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                     </svg>
                                     <span>{{ $message }}</span>
                                 </div>
-                            @endif
-                        @enderror
+                            @enderror
+                        </div>
+                        
+                        <!-- Phone -->
+                        <div class="form-group">
+                            <label for="phone" class="form-label">Phone <span class="optional">(Optional)</span></label>
+                            <div class="input-wrapper">
+                                <input type="tel" name="phone" id="phone" class="form-input" placeholder="+91 98765 43210" value="{{ old('phone') }}">
+                                <svg class="input-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path>
+                                </svg>
+                            </div>
+                        </div>
                     </div>
                     
-                    <!-- Password -->
+                    <!-- Email -->
                     <div class="form-group">
-                        <label for="password" class="form-label">Password</label>
+                        <label for="email" class="form-label">Email Address</label>
                         <div class="input-wrapper">
-                            <input 
-                                type="password" 
-                                name="password" 
-                                id="password" 
-                                class="form-input" 
-                                placeholder="••••••••"
-                                required
-                                autocomplete="current-password"
-                            >
+                            <input type="email" name="email" id="email" class="form-input" placeholder="you@company.com" value="{{ old('email') }}" required>
                             <svg class="input-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                                <path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
                             </svg>
-                            <button type="button" class="password-toggle" onclick="togglePassword()">
-                                <svg id="eyeIcon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                    <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                    <path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-                                </svg>
-                                <svg id="eyeOffIcon" style="display:none;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                    <path d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"></path>
-                                </svg>
-                            </button>
                         </div>
-                        @error('password')
+                        @error('email')
                             <div class="error-message">
                                 <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                                     <path d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
@@ -827,22 +736,88 @@
                         @enderror
                     </div>
                     
-                    <!-- Remember & Forgot -->
-                    <div class="form-options">
-                        <label class="checkbox-wrapper">
-                            <input type="checkbox" name="remember" class="checkbox-input" {{ old('remember') ? 'checked' : '' }}>
-                            <span class="checkbox-label">Remember me</span>
-                        </label>
-                        @if(Route::has('admin.password.request'))
-                            <a href="{{ route('admin.password.request') }}" class="forgot-link">Forgot password?</a>
-                        @endif
+                    <!-- Company -->
+                    <div class="form-group">
+                        <label for="company" class="form-label">Company Name <span class="optional">(Optional)</span></label>
+                        <div class="input-wrapper">
+                            <input type="text" name="company" id="company" class="form-input" placeholder="Your Company Ltd." value="{{ old('company') }}">
+                            <svg class="input-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                            </svg>
+                        </div>
                     </div>
+                    
+                    <div class="form-row">
+                        <!-- Password -->
+                        <div class="form-group">
+                            <label for="password" class="form-label">Password</label>
+                            <div class="input-wrapper">
+                                <input type="password" name="password" id="password" class="form-input" placeholder="••••••••" required onkeyup="checkPasswordStrength()">
+                                <svg class="input-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                                </svg>
+                                <button type="button" class="password-toggle" onclick="togglePassword('password')">
+                                    <svg class="eye-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                        <path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                            <div class="password-strength">
+                                <div class="strength-bar">
+                                    <div class="strength-fill" id="strengthFill"></div>
+                                </div>
+                                <span class="strength-text" id="strengthText">Enter a password</span>
+                            </div>
+                            @error('password')
+                                <div class="error-message">
+                                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <path d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    <span>{{ $message }}</span>
+                                </div>
+                            @enderror
+                        </div>
+                        
+                        <!-- Confirm Password -->
+                        <div class="form-group">
+                            <label for="password_confirmation" class="form-label">Confirm Password</label>
+                            <div class="input-wrapper">
+                                <input type="password" name="password_confirmation" id="password_confirmation" class="form-input" placeholder="••••••••" required>
+                                <svg class="input-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                                </svg>
+                                <button type="button" class="password-toggle" onclick="togglePassword('password_confirmation')">
+                                    <svg class="eye-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                        <path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Terms -->
+                    <div class="terms-wrapper">
+                        <input type="checkbox" name="terms" id="terms" class="checkbox-input" required {{ old('terms') ? 'checked' : '' }}>
+                        <label for="terms" class="terms-label">
+                            I agree to the <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>
+                        </label>
+                    </div>
+                    @error('terms')
+                        <div class="error-message" style="margin-top: -16px; margin-bottom: 16px;">
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <span>{{ $message }}</span>
+                        </div>
+                    @enderror
                     
                     <!-- Submit -->
                     <button type="submit" class="submit-btn" id="submitBtn">
                         <span class="spinner"></span>
                         <span class="submit-btn-content">
-                            <span class="btn-text">Sign In</span>
+                            <span class="btn-text">Create Account</span>
                             <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                                 <path d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
                             </svg>
@@ -850,15 +825,10 @@
                     </button>
                 </form>
                 
-                <!-- Security Note -->
-                <div class="security-note">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
-                    </svg>
-                    <span>256-bit SSL Encrypted</span>
-                </div>
+                <p class="login-link">
+                    Already have an account? <a href="{{ route('client.login') }}">Sign in</a>
+                </p>
                 
-                <!-- Footer -->
                 <div class="form-footer">
                     <a href="{{ url('/') }}" class="footer-link">
                         <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -872,23 +842,38 @@
     </div>
     
     <script>
-        function togglePassword() {
-            const passwordInput = document.getElementById('password');
-            const eyeIcon = document.getElementById('eyeIcon');
-            const eyeOffIcon = document.getElementById('eyeOffIcon');
+        function togglePassword(fieldId) {
+            const input = document.getElementById(fieldId);
+            input.type = input.type === 'password' ? 'text' : 'password';
+        }
+        
+        function checkPasswordStrength() {
+            const password = document.getElementById('password').value;
+            const fill = document.getElementById('strengthFill');
+            const text = document.getElementById('strengthText');
             
-            if (passwordInput.type === 'password') {
-                passwordInput.type = 'text';
-                eyeIcon.style.display = 'none';
-                eyeOffIcon.style.display = 'block';
+            let strength = 0;
+            if (password.length >= 8) strength++;
+            if (/[a-z]/.test(password) && /[A-Z]/.test(password)) strength++;
+            if (/\d/.test(password)) strength++;
+            if (/[^a-zA-Z0-9]/.test(password)) strength++;
+            
+            fill.className = 'strength-fill';
+            if (password.length === 0) {
+                text.textContent = 'Enter a password';
+            } else if (strength <= 1) {
+                fill.classList.add('weak');
+                text.textContent = 'Weak password';
+            } else if (strength <= 2) {
+                fill.classList.add('medium');
+                text.textContent = 'Medium strength';
             } else {
-                passwordInput.type = 'password';
-                eyeIcon.style.display = 'block';
-                eyeOffIcon.style.display = 'none';
+                fill.classList.add('strong');
+                text.textContent = 'Strong password';
             }
         }
         
-        document.getElementById('loginForm').addEventListener('submit', function() {
+        document.getElementById('registerForm').addEventListener('submit', function() {
             document.getElementById('submitBtn').classList.add('loading');
         });
     </script>

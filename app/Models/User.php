@@ -13,6 +13,7 @@ class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable , HasRoles;
 
+    // protected $guard = 'web';
     /**
      * The attributes that are mass assignable.
      *
@@ -44,11 +45,4 @@ class User extends Authenticatable
         'password' => 'hashed',
     ];
     
-    /**
-     * Check if user has admin role
-     */
-    public function isAdmin(): bool
-    {
-        return $this->is_admin || $this->hasRole('admin');
-    }
 }

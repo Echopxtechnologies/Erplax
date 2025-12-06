@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="csrf-token" content="{{ csrf_token() }}">
-    @php
-        $companyName = config('app.name', 'Laravel');
-        $companyLogo = null;
-        $companyFavicon = null;
+        @php
+        $companyName = \App\Models\Option::companyName();
+        $companyLogo = \App\Models\Option::companyLogo();
+        $companyFavicon = \App\Models\Option::companyFavicon();
     @endphp
     
     <title>{{ $companyName }}</title>
@@ -455,13 +455,13 @@
         /* ========== SETUP PANEL (Slide-out from left) ========== */
         .setup-panel {
             position: fixed;
-            top: var(--navbar-height);
+            top: 0;
             left: 0;
             width: var(--sidebar-width);
-            height: calc(100vh - var(--navbar-height));
+            height: 100vh;
             background: var(--card-bg);
             border-right: 1px solid var(--card-border);
-            z-index: 1050;
+            z-index: 1102;
             transform: translateX(-100%);
             transition: transform 0.3s ease;
             display: flex;
@@ -559,7 +559,7 @@
         
         .setup-overlay {
             position: fixed; inset: 0;
-            background: rgba(0,0,0,0.3); z-index: 1049;
+            background: rgba(0,0,0,0.3); z-index: 1101;
             opacity: 0; visibility: hidden;
             transition: all 0.3s ease;
         }

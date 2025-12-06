@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Admin\Auth;
+namespace App\Http\Controllers\Client\Auth;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
@@ -11,51 +11,52 @@ use Illuminate\Validation\ValidationException;
 use Illuminate\Auth\Events\Lockout;
 use App\Models\User;
 
-class AdminLoginController extends Controller
+class ClientLoginController extends Controller
 {
     /**
-     * Show the admin login form
+     * Show the client login form
      */
     public function showLoginForm()
-{
-    if (Auth::check()) {
-        $user = Auth::user();
-        
-        // If admin user, redirect to admin dashboard
-        if ($this->canAccessAdminPanel($user)) {
-            return redirect()->route('admin.dashboard');
+    {
+        // If already logged in, check user type
+        if (Auth::check()) {
+            $user = Auth::user();
+            
+            // If client user (not admin), redirect to client dashboard
+            if (!$this->isAdminUser($user)) {
+                return redirect()->route('client.dashboard');
+            }
+            
+            // If admin user is logged in, logout and REDIRECT to get fresh CSRF token
+            Auth::logout();
+            request()->session()->invalidate();
+            request()->session()->regenerateToken();
+            
+            // IMPORTANT: Redirect to same page to get fresh CSRF token
+            return redirect()->route('client.login');
         }
-        
-        // Client user trying to access admin login
-        // Logout and REDIRECT (not return view)
-        Auth::logout();
-        request()->session()->invalidate();
-        request()->session()->regenerateToken();
-        
-        return redirect()->route('admin.login');  // ← THIS LINE IS CRITICAL
+
+        return view('client.auth.login');
     }
 
-    return view('admin.auth.login');
-}
-
     /**
-     * Check if user can access admin panel
+     * Check if user is admin
      */
-    protected function canAccessAdminPanel($user): bool
+    protected function isAdminUser($user): bool
     {
         if ($user->is_admin) {
             return true;
         }
 
-        if (method_exists($user, 'roles')) {
-            return $user->roles->count() > 0;
+        if (method_exists($user, 'roles') && $user->roles->count() > 0) {
+            return true;
         }
 
         return false;
     }
 
     /**
-     * Handle admin login request
+     * Handle client login request
      */
     public function login(Request $request)
     {
@@ -77,10 +78,17 @@ class AdminLoginController extends Controller
             ]);
         }
 
-        // Check if user has admin access
-        if (!$this->canAccessAdminPanel($user)) {
+        // Check if user is admin (should use admin login)
+        if ($this->isAdminUser($user)) {
             throw ValidationException::withMessages([
-                'email' => __('You do not have admin access.'),
+                'email' => __('Please use the admin login portal.'),
+            ]);
+        }
+
+        // Check if account is active
+        if (isset($user->status) && $user->status !== 'active') {
+            throw ValidationException::withMessages([
+                'email' => __('Your account is not active. Please contact support.'),
             ]);
         }
 
@@ -100,9 +108,9 @@ class AdminLoginController extends Controller
             $request->session()->regenerate();
             
             // Store user type in session for quick checks
-            $request->session()->put('user_type', 'admin');
+            $request->session()->put('user_type', 'client');
 
-            return redirect()->intended(route('admin.dashboard'));
+            return redirect()->intended(route('client.dashboard'));
         }
 
         RateLimiter::hit($this->throttleKey($request));
@@ -142,7 +150,7 @@ class AdminLoginController extends Controller
     }
 
     /**
-     * Handle admin logout
+     * Handle client logout
      */
     public function logout(Request $request)
     {
@@ -151,6 +159,6 @@ class AdminLoginController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect()->route('admin.login');
+        return redirect()->route('client.login');
     }
 }

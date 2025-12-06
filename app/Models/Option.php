@@ -1,0 +1,233 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Cache;
+
+class Option extends Model
+{
+    protected $fillable = [
+        'key',
+        'value',
+        'group',
+        'type',
+        'label',
+        'description',
+        'is_public',
+        'autoload',
+    ];
+
+    protected $casts = [
+        'is_public' => 'boolean',
+        'autoload' => 'boolean',
+    ];
+
+    /*
+    |--------------------------------------------------------------------------
+    | Static Helpers
+    |--------------------------------------------------------------------------
+    */
+
+    /**
+     * Get option value by key
+     */
+    public static function get(string $key, $default = null)
+    {
+        try {
+            $option = Cache::remember("option.{$key}", 3600, function () use ($key) {
+                return static::where('key', $key)->first();
+            });
+
+            if (!$option) {
+                return $default;
+            }
+
+            return static::castValue($option->value, $option->type);
+        } catch (\Exception $e) {
+            return $default;
+        }
+    }
+
+    /**
+     * Set option value
+     */
+    public static function set(string $key, $value, array $attributes = []): self
+    {
+        if (is_array($value) || is_object($value)) {
+            $value = json_encode($value);
+        } elseif (is_bool($value)) {
+            $value = $value ? '1' : '0';
+        }
+
+        $option = static::updateOrCreate(
+            ['key' => $key],
+            array_merge(['value' => $value], $attributes)
+        );
+
+        Cache::forget("option.{$key}");
+        Cache::forget('options.autoload');
+
+        return $option;
+    }
+
+    /**
+     * Save file as base64
+     */
+    public static function setFile(string $key, $uploadedFile, array $attributes = []): self
+    {
+        $mimeType = $uploadedFile->getMimeType();
+        $content = file_get_contents($uploadedFile->getRealPath());
+        $base64 = 'data:' . $mimeType . ';base64,' . base64_encode($content);
+
+        return static::set($key, $base64, array_merge(['type' => 'file'], $attributes));
+    }
+
+    /**
+     * Get all options by group
+     */
+    public static function getGroup(string $group): array
+    {
+        $options = static::where('group', $group)->get();
+        
+        $result = [];
+        foreach ($options as $option) {
+            $result[$option->key] = static::castValue($option->value, $option->type);
+        }
+        
+        return $result;
+    }
+
+    /**
+     * Get all autoload options
+     */
+    public static function getAutoload(): array
+    {
+        return Cache::remember('options.autoload', 3600, function () {
+            $options = static::where('autoload', true)->get();
+            
+            $result = [];
+            foreach ($options as $option) {
+                $result[$option->key] = static::castValue($option->value, $option->type);
+            }
+            
+            return $result;
+        });
+    }
+
+    /**
+     * Cast value based on type
+     */
+    protected static function castValue($value, string $type)
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        return match ($type) {
+            'boolean' => (bool) $value,
+            'number', 'integer' => (int) $value,
+            'float', 'decimal' => (float) $value,
+            'json', 'array' => json_decode($value, true) ?? [],
+            default => $value,
+        };
+    }
+
+    /**
+     * Clear all options cache
+     */
+    public static function clearCache(): void
+    {
+        try {
+            $options = static::all();
+            foreach ($options as $option) {
+                Cache::forget("option.{$option->key}");
+            }
+            Cache::forget('options.autoload');
+        } catch (\Exception $e) {
+            // Table might not exist
+        }
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Company Settings Helpers
+    |--------------------------------------------------------------------------
+    */
+
+    public static function companyName(): string
+    {
+        return static::get('company_name', config('app.name', 'Laravel'));
+    }
+
+    public static function companyEmail(): ?string
+    {
+        return static::get('company_email');
+    }
+
+    public static function companyPhone(): ?string
+    {
+        return static::get('company_phone');
+    }
+
+    public static function companyAddress(): ?string
+    {
+        return static::get('company_address');
+    }
+
+    public static function companyLogo(): ?string
+    {
+        return static::get('company_logo');
+    }
+
+    public static function companyFavicon(): ?string
+    {
+        return static::get('company_favicon');
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Mail Settings Helpers
+    |--------------------------------------------------------------------------
+    */
+
+    public static function mailDriver(): string
+    {
+        return static::get('mail_mailer', 'smtp');
+    }
+
+    public static function mailHost(): ?string
+    {
+        return static::get('mail_host');
+    }
+
+    public static function mailPort(): int
+    {
+        return (int) static::get('mail_port', 587);
+    }
+
+    public static function mailUsername(): ?string
+    {
+        return static::get('mail_username');
+    }
+
+    public static function mailPassword(): ?string
+    {
+        return static::get('mail_password');
+    }
+
+    public static function mailEncryption(): ?string
+    {
+        return static::get('mail_encryption', 'tls');
+    }
+
+    public static function mailFromAddress(): ?string
+    {
+        return static::get('mail_from_address');
+    }
+
+    public static function mailFromName(): ?string
+    {
+        return static::get('mail_from_name');
+    }
+}

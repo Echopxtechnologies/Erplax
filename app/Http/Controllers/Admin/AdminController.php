@@ -14,57 +14,153 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use App\Traits\DataTable;
+use App\Models\Option;
+use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Mail;
+
 class AdminController extends Controller
 {
-
-    //trait function for list layout 
     use DataTable;
+
     /*
     |--------------------------------------------------------------------------
     | Properties
     |--------------------------------------------------------------------------
     */
     
-    /**
-     * The authenticated admin user
-     */
     protected ?User $admin = null;
-
-    /**
-     * Default pagination limit
-     */
     protected int $perPage = 10;
+    protected array $viewData = [];
+    protected string $layout = 'components.layouts.app';
 
     /**
-     * View data shared across all views
+     * Roles that can access admin panel
      */
-    protected array $viewData = [];
+    protected array $allowedRoles = [
+        'super-admin',
+        'admin',
+        'manager',
+        'staff',
+    ];
 
     /*
     |--------------------------------------------------------------------------
-    | Constructor
+    | Constructor - Authentication happens here
     |--------------------------------------------------------------------------
     */
 
     public function __construct()
     {
-        // Initialize admin user after middleware runs
+        // Apply auth middleware and admin check
+        $this->middleware(['auth']);
+        
+        // Initialize admin and check access after auth middleware
         $this->middleware(function ($request, $next) {
-            $this->initializeAdmin();
+            
+            // Check if user is authenticated
+            if (!Auth::check()) {
+                return $this->handleUnauthenticated($request);
+            }
+
+            $user = Auth::user();
+
+            // Check if user can access admin panel
+            if (!$this->canAccessAdminPanel($user)) {
+                return $this->handleUnauthorized($request, $user);
+            }
+
+            // Initialize admin user
+            $this->admin = $user;
+            $this->shareViewData();
+
             return $next($request);
         });
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | Authentication Handlers
+    |--------------------------------------------------------------------------
+    */
+
     /**
-     * Initialize admin user and shared data
+     * Handle unauthenticated access
      */
-    protected function initializeAdmin(): void
+    protected function handleUnauthenticated($request)
     {
-        if (Auth::check()) {
-            $this->admin = Auth::user();
-            $this->shareViewData();
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthenticated. Please login.',
+                'redirect' => route('admin.login')
+            ], 401);
         }
+
+        return redirect()->route('admin.login')
+            ->with('error', 'Please login to continue.');
     }
+
+    /**
+     * Handle unauthorized access (logged in but not admin)
+     */
+    protected function handleUnauthorized($request, $user)
+    {
+        // Log unauthorized attempt
+        Log::warning('[Admin Unauthorized Access]', [
+            'user_id' => $user->id,
+            'email' => $user->email,
+            'ip' => $request->ip(),
+            'url' => $request->fullUrl(),
+        ]);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Access denied. Admin privileges required.',
+            ], 403);
+        }
+
+        // Logout and redirect to admin login
+        Auth::logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return redirect()->route('admin.login')
+            ->with('error', 'You do not have permission to access the admin panel.');
+    }
+
+    /**
+     * Check if user can access admin panel
+     */
+    protected function canAccessAdminPanel($user): bool
+    {
+        if (!$user) {
+            return false;
+        }
+
+        // Check is_admin flag
+        if ($user->is_admin) {
+            return true;
+        }
+
+        // Check if user has any allowed role via Spatie
+        if (method_exists($user, 'hasAnyRole')) {
+            return $user->hasAnyRole($this->allowedRoles);
+        }
+
+        // Check if user has ANY role at all
+        if (method_exists($user, 'roles') && $user->roles->count() > 0) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Shared Data
+    |--------------------------------------------------------------------------
+    */
 
     /**
      * Share common data with all views
@@ -75,14 +171,16 @@ class AdminController extends Controller
             'admin' => $this->admin,
             'adminName' => $this->admin?->name,
             'adminEmail' => $this->admin?->email,
-            'adminRole' => $this->getAdminRoleName(), // Updated to use Spatie
+            'adminRole' => $this->getAdminRoleName(),
+            'adminRoles' => $this->getUserRoles(),
+            'adminPermissions' => $this->getUserPermissions(),
         ];
 
         view()->share($this->viewData);
     }
 
     /**
-     * Get admin's primary role name using Spatie
+     * Get admin's primary role name
      */
     protected function getAdminRoleName(): ?string
     {
@@ -90,14 +188,17 @@ class AdminController extends Controller
             return null;
         }
 
-        // Get first role name from Spatie
-        $roles = $this->admin->getRoleNames();
-        return $roles->first() ?? ($this->admin->is_admin ? 'admin' : 'user');
+        if (method_exists($this->admin, 'getRoleNames')) {
+            $roles = $this->admin->getRoleNames();
+            return $roles->first() ?? ($this->admin->is_admin ? 'admin' : 'user');
+        }
+
+        return $this->admin->is_admin ? 'admin' : 'user';
     }
 
     /*
     |--------------------------------------------------------------------------
-    | Authentication & Authorization
+    | Authentication Helpers
     |--------------------------------------------------------------------------
     */
 
@@ -117,162 +218,96 @@ class AdminController extends Controller
         return Auth::check();
     }
 
-/**
- * Roles that can access admin panel
- */
-protected array $allowedRoles = [
-    'super-admin',
-    'admin',
-    'manager',
-    'staff',
-];
-
-/**
- * Check if current user can access admin panel
- */
-protected function isAdmin(): bool
-{
-    if (!$this->isAuthenticated()) {
-        return false;
+    /**
+     * Check if current user is admin
+     */
+    protected function isAdmin(): bool
+    {
+        return $this->canAccessAdminPanel($this->admin());
     }
-
-    $user = $this->admin();
-
-    // Check is_admin flag
-    if ($user?->is_admin) {
-        return true;
-    }
-
-    // Check if user has any allowed role via Spatie
-    if (method_exists($user, 'hasAnyRole')) {
-        return $user->hasAnyRole($this->allowedRoles);
-    }
-
-    // Check if user has ANY role at all
-    if (method_exists($user, 'roles') && $user->roles->count() > 0) {
-        return true;
-    }
-
-    return false;
-}
-
-/**
- * Check if current user is super admin
- */
-protected function isSuperAdmin(): bool
-{
-    if (!$this->isAuthenticated()) {
-        return false;
-    }
-
-    $user = $this->admin();
-
-    if (method_exists($user, 'hasRole')) {
-        return $user->hasRole(['super-admin', 'super_admin']);
-    }
-
-    return false;
-}
-
-/**
- * Authorize admin access - returns redirect if not authorized
- */
-protected function authorizeAdmin()
-{
-    if (!$this->isAuthenticated()) {
-        return redirect()->route('admin.login')
-            ->with('error', 'Please login to continue.');
-    }
-
-    // Use isAdmin() which now checks for any role
-    if (!$this->isAdmin()) {
-        // Logout and redirect to admin login (NOT dashboard)
-        Auth::logout();
-        return redirect()->route('admin.login')
-            ->with('error', 'You do not have permission to access the admin panel.');
-    }
-
-    return null; // Authorized
-}
 
     /**
-     * Check if user has specific role (using Spatie)
+     * Check if current user is super admin
+     */
+    protected function isSuperAdmin(): bool
+    {
+        $user = $this->admin();
+
+        if (!$user) {
+            return false;
+        }
+
+        if (method_exists($user, 'hasRole')) {
+            return $user->hasRole(['super-admin', 'super_admin']);
+        }
+
+        return false;
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Role & Permission Helpers (Spatie)
+    |--------------------------------------------------------------------------
+    */
+
+    /**
+     * Check if user has specific role
      */
     protected function hasRole(string $role): bool
     {
         $user = $this->admin();
         
-        if (!$user) {
+        if (!$user || !method_exists($user, 'hasRole')) {
             return false;
         }
 
-        // Use Spatie's hasRole method
-        if (method_exists($user, 'hasRole')) {
-            return $user->hasRole($role);
-        }
-
-        return false;
+        return $user->hasRole($role);
     }
 
     /**
-     * Check if user has any of the given roles (using Spatie)
+     * Check if user has any of the given roles
      */
     protected function hasAnyRole(array $roles): bool
     {
         $user = $this->admin();
         
-        if (!$user) {
+        if (!$user || !method_exists($user, 'hasAnyRole')) {
             return false;
         }
 
-        // Use Spatie's hasAnyRole method
-        if (method_exists($user, 'hasAnyRole')) {
-            return $user->hasAnyRole($roles);
-        }
-
-        return false;
+        return $user->hasAnyRole($roles);
     }
 
     /**
-     * Check if user has all given roles (using Spatie)
+     * Check if user has all given roles
      */
     protected function hasAllRoles(array $roles): bool
     {
         $user = $this->admin();
         
-        if (!$user) {
+        if (!$user || !method_exists($user, 'hasAllRoles')) {
             return false;
         }
 
-        // Use Spatie's hasAllRoles method
-        if (method_exists($user, 'hasAllRoles')) {
-            return $user->hasAllRoles($roles);
-        }
-
-        return false;
+        return $user->hasAllRoles($roles);
     }
 
     /**
-     * Check if user has permission (using Spatie)
+     * Check if user has permission
      */
     protected function hasPermission(string $permission): bool
     {
         $user = $this->admin();
         
-        if (!$user) {
+        if (!$user || !method_exists($user, 'hasPermissionTo')) {
             return false;
         }
 
-        // Use Spatie's hasPermissionTo method
-        if (method_exists($user, 'hasPermissionTo')) {
-            return $user->hasPermissionTo($permission);
-        }
-
-        return false;
+        return $user->hasPermissionTo($permission);
     }
 
     /**
-     * Check if user has any of the given permissions (using Spatie)
+     * Check if user has any of the given permissions
      */
     protected function hasAnyPermission(array $permissions): bool
     {
@@ -282,7 +317,6 @@ protected function authorizeAdmin()
             return false;
         }
 
-        // Use Spatie's hasAnyPermission method
         if (method_exists($user, 'hasAnyPermission')) {
             return $user->hasAnyPermission($permissions);
         }
@@ -297,156 +331,106 @@ protected function authorizeAdmin()
     }
 
     /**
-     * Check if user has direct permission (using Spatie)
+     * Check if user has direct permission
      */
     protected function hasDirectPermission(string $permission): bool
     {
         $user = $this->admin();
         
-        if (!$user) {
+        if (!$user || !method_exists($user, 'hasDirectPermission')) {
             return false;
         }
 
-        if (method_exists($user, 'hasDirectPermission')) {
-            return $user->hasDirectPermission($permission);
-        }
-
-        return false;
+        return $user->hasDirectPermission($permission);
     }
 
     /**
-     * Get all user roles (using Spatie)
+     * Get all user roles
      */
     protected function getUserRoles(): array
     {
         $user = $this->admin();
         
-        if (!$user) {
+        if (!$user || !method_exists($user, 'getRoleNames')) {
             return [];
         }
 
-        if (method_exists($user, 'getRoleNames')) {
-            return $user->getRoleNames()->toArray();
-        }
-
-        return [];
+        return $user->getRoleNames()->toArray();
     }
 
     /**
-     * Get all user permissions (using Spatie)
+     * Get all user permissions
      */
     protected function getUserPermissions(): array
     {
         $user = $this->admin();
         
-        if (!$user) {
+        if (!$user || !method_exists($user, 'getAllPermissions')) {
             return [];
         }
 
-        if (method_exists($user, 'getAllPermissions')) {
-            return $user->getAllPermissions()->pluck('name')->toArray();
-        }
-
-        return [];
+        return $user->getAllPermissions()->pluck('name')->toArray();
     }
 
-    /**
-     * Authorize admin access - returns redirect if not authorized
-     */
-    // protected function authorizeAdmin()
-    // {
-    //     if (!$this->isAuthenticated()) {
-    //         return redirect()->route('admin.login')
-    //             ->with('error', 'Please login to continue.');
-    //     }
-
-    //     if (!$this->isAdmin() && !$this->isSuperAdmin()) {
-    //         return redirect()->route('dashboard')
-    //             ->with('error', 'Access denied. Admin only.');
-    //     }
-
-    //     return null; // Authorized
-    // }
+    /*
+    |--------------------------------------------------------------------------
+    | Authorization Helpers
+    |--------------------------------------------------------------------------
+    */
 
     /**
-     * Authorize with specific permission
+     * Authorize with specific permission - throws exception if unauthorized
      */
-    protected function authorizePermission(string $permission)
+    protected function authorizePermission(string $permission): void
     {
-        $adminCheck = $this->authorizeAdmin();
-        if ($adminCheck) {
-            return $adminCheck;
-        }
-
         if (!$this->hasPermission($permission)) {
-            return back()->with('error', 'You do not have permission to perform this action.');
+            $this->abortUnauthorized('You do not have permission to perform this action.');
         }
-
-        return null; // Authorized
     }
 
     /**
-     * Authorize with specific role
+     * Authorize with specific role - throws exception if unauthorized
      */
-    protected function authorizeRole(string $role)
+    protected function authorizeRole(string $role): void
     {
-        $adminCheck = $this->authorizeAdmin();
-        if ($adminCheck) {
-            return $adminCheck;
-        }
-
         if (!$this->hasRole($role)) {
-            return back()->with('error', 'You do not have the required role to perform this action.');
+            $this->abortUnauthorized('You do not have the required role to perform this action.');
         }
-
-        return null; // Authorized
     }
 
     /**
      * Authorize with any of the given roles
      */
-    protected function authorizeAnyRole(array $roles)
+    protected function authorizeAnyRole(array $roles): void
     {
-        $adminCheck = $this->authorizeAdmin();
-        if ($adminCheck) {
-            return $adminCheck;
-        }
-
         if (!$this->hasAnyRole($roles)) {
-            return back()->with('error', 'You do not have the required role to perform this action.');
-        }
-
-        return null; // Authorized
-    }
-
-    /**
-     * Abort if not authorized
-     */
-    protected function abortIfNotAdmin(int $code = 403, string $message = 'Access denied.'): void
-    {
-        if (!$this->isAdmin() && !$this->isSuperAdmin()) {
-            abort($code, $message);
+            $this->abortUnauthorized('You do not have the required role to perform this action.');
         }
     }
 
     /**
-     * Abort if doesn't have permission
+     * Authorize with any of the given permissions
      */
-    protected function abortIfNoPermission(string $permission, int $code = 403, string $message = 'Permission denied.'): void
+    protected function authorizeAnyPermission(array $permissions): void
     {
-        if (!$this->hasPermission($permission)) {
-            abort($code, $message);
+        if (!$this->hasAnyPermission($permissions)) {
+            $this->abortUnauthorized('You do not have permission to perform this action.');
         }
     }
 
     /**
-     * Abort if doesn't have role
+     * Abort with unauthorized response
      */
-    protected function abortIfNoRole(string $role, int $code = 403, string $message = 'Access denied.'): void
+    protected function abortUnauthorized(string $message = 'Access denied.'): void
     {
-        if (!$this->hasRole($role)) {
-            abort($code, $message);
+        if (request()->expectsJson()) {
+            abort(response()->json([
+                'success' => false,
+                'message' => $message,
+            ], 403));
         }
+
+        abort(403, $message);
     }
 
     /*
@@ -540,15 +524,25 @@ protected function authorizeAdmin()
      */
     protected function view(string $view, array $data = [])
     {
-        return view($view, array_merge($this->viewData, $data));
+        return view($view, array_merge($this->viewData, $data))
+            ->layout($this->layout);
     }
 
     /**
-     * Render admin view (alias for settings views)
+     * Render admin view (alias)
      */
     protected function adminView(string $view, array $data = [])
     {
         return $this->view('admin.' . $view, $data);
+    }
+
+    /**
+     * Render module view with automatic layout
+     */
+    protected function moduleView(string $view, array $data = [])
+    {
+        $content = view($view, array_merge($this->viewData, $data))->render();
+        return view('components.layouts.app-wrap', ['slot' => $content]);
     }
 
     /**
@@ -617,7 +611,6 @@ protected function authorizeAdmin()
         }
 
         $filename = $filename ?? Str::uuid() . '.' . $file->getClientOriginalExtension();
-        
         return $file->storeAs($directory, $filename, $disk);
     }
 
@@ -634,7 +627,6 @@ protected function authorizeAdmin()
             return null;
         }
 
-        // Validate it's an image
         $allowedMimes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
         if (!in_array($image->getMimeType(), $allowedMimes)) {
             return null;
@@ -746,7 +738,7 @@ protected function authorizeAdmin()
         Log::info('[Admin Action] ' . $action, array_merge([
             'admin_id' => $this->admin()?->id,
             'admin_email' => $this->admin()?->email,
-            'admin_roles' => $this->getUserRoles(), // Updated to use Spatie
+            'admin_roles' => $this->getUserRoles(),
             'ip' => request()->ip(),
         ], $data));
     }
@@ -873,7 +865,7 @@ protected function authorizeAdmin()
 
     /*
     |--------------------------------------------------------------------------
-    | Settings Page Methods
+    | Dashboard & Settings Methods
     |--------------------------------------------------------------------------
     */
 
@@ -882,43 +874,170 @@ protected function authorizeAdmin()
      */
     public function dashboard()
     {
-        $redirect = $this->authorizeAdmin();
-        if ($redirect) return $redirect;
-
-        return view('livewire.admin.dashboard');
+        return view('admin.dashboard');
     }
 
     /**
-     * General Settings
+     * General Settings Page
      */
-    public function general()
+    public function settingsGeneral()
     {
-        $redirect = $this->authorizeAdmin();
-        if ($redirect) return $redirect;
+        $data = [
+            'company_name' => Option::get('company_name', ''),
+            'company_email' => Option::get('company_email', ''),
+            'company_phone' => Option::get('company_phone', ''),
+            'company_address' => Option::get('company_address', ''),
+            'company_website' => Option::get('company_website', ''),
+            'company_gst' => Option::get('company_gst', ''),
+            'company_logo' => Option::get('company_logo', ''),
+            'company_favicon' => Option::get('company_favicon', ''),
+            'site_timezone' => Option::get('site_timezone', 'Asia/Kolkata'),
+            'date_format' => Option::get('date_format', 'd/m/Y'),
+            'time_format' => Option::get('time_format', 'h:i A'),
+            'currency_symbol' => Option::get('currency_symbol', '₹'),
+            'currency_code' => Option::get('currency_code', 'INR'),
+            'pagination_limit' => Option::get('pagination_limit', 10),
+        ];
 
-        return $this->adminView('settings.general');
+        return view('admin.settings.general', $data);
     }
 
     /**
-     * Email Settings
+     * Save General Settings
      */
-    public function email()
+    public function saveSettingsGeneral(Request $request)
     {
-        $redirect = $this->authorizeAdmin();
-        if ($redirect) return $redirect;
+        $request->validate([
+            'company_name' => 'required|string|max:255',
+            'company_email' => 'nullable|email|max:255',
+            'company_phone' => 'nullable|string|max:50',
+            'company_address' => 'nullable|string|max:500',
+            'company_website' => 'nullable|url|max:255',
+            'company_gst' => 'nullable|string|max:50',
+            'company_logo' => 'nullable|image|max:2048',
+            'company_favicon' => 'nullable|image|max:1024',
+            'site_timezone' => 'required|string',
+            'date_format' => 'required|string|max:20',
+            'time_format' => 'required|string|max:20',
+            'currency_symbol' => 'required|string|max:10',
+            'currency_code' => 'required|string|max:10',
+            'pagination_limit' => 'required|integer|min:5|max:100',
+        ]);
 
-        return $this->adminView('settings.email');
+        // Company settings
+        Option::set('company_name', $request->company_name, ['group' => 'company']);
+        Option::set('company_email', $request->company_email, ['group' => 'company']);
+        Option::set('company_phone', $request->company_phone, ['group' => 'company']);
+        Option::set('company_address', $request->company_address, ['group' => 'company']);
+        Option::set('company_website', $request->company_website, ['group' => 'company']);
+        Option::set('company_gst', $request->company_gst, ['group' => 'company']);
+
+        // Handle logo upload
+        if ($request->hasFile('company_logo')) {
+            Option::setFile('company_logo', $request->file('company_logo'), ['group' => 'company']);
+        }
+
+        // Handle favicon upload
+        if ($request->hasFile('company_favicon')) {
+            Option::setFile('company_favicon', $request->file('company_favicon'), ['group' => 'company']);
+        }
+
+        // General settings
+        Option::set('site_timezone', $request->site_timezone, ['group' => 'general']);
+        Option::set('date_format', $request->date_format, ['group' => 'general']);
+        Option::set('time_format', $request->time_format, ['group' => 'general']);
+        Option::set('currency_symbol', $request->currency_symbol, ['group' => 'general']);
+        Option::set('currency_code', $request->currency_code, ['group' => 'general']);
+        Option::set('pagination_limit', $request->pagination_limit, ['group' => 'general']);
+
+        Option::clearCache();
+
+        $this->logAction('Updated general settings');
+
+        return redirect()->back()->with('success', 'Settings saved successfully!');
     }
 
     /**
-     * Permission Settings
+     * Email Settings Page
      */
-    public function permission()
+    public function settingsEmail()
     {
-        $redirect = $this->authorizeAdmin();
-        if ($redirect) return $redirect;
+        $data = [
+            'mail_mailer' => Option::get('mail_mailer', 'smtp'),
+            'mail_host' => Option::get('mail_host', ''),
+            'mail_port' => Option::get('mail_port', 587),
+            'mail_username' => Option::get('mail_username', ''),
+            'mail_password' => Option::get('mail_password', ''),
+            'mail_encryption' => Option::get('mail_encryption', 'tls'),
+            'mail_from_address' => Option::get('mail_from_address', ''),
+            'mail_from_name' => Option::get('mail_from_name', ''),
+        ];
 
-        return $this->adminView('settings.permission');
+        return view('admin.settings.email', $data);
+    }
+
+    /**
+     * Save Email Settings
+     */
+    public function saveSettingsEmail(Request $request)
+    {
+        $request->validate([
+            'mail_mailer' => 'required|string',
+            'mail_host' => 'required|string|max:255',
+            'mail_port' => 'required|integer',
+            'mail_username' => 'nullable|string|max:255',
+            'mail_password' => 'nullable|string|max:255',
+            'mail_encryption' => 'nullable|string|in:tls,ssl,null',
+            'mail_from_address' => 'required|email|max:255',
+            'mail_from_name' => 'required|string|max:255',
+        ]);
+
+        Option::set('mail_mailer', $request->mail_mailer, ['group' => 'mail']);
+        Option::set('mail_host', $request->mail_host, ['group' => 'mail']);
+        Option::set('mail_port', $request->mail_port, ['group' => 'mail']);
+        Option::set('mail_username', $request->mail_username, ['group' => 'mail']);
+        Option::set('mail_password', $request->mail_password, ['group' => 'mail']);
+        Option::set('mail_encryption', $request->mail_encryption, ['group' => 'mail']);
+        Option::set('mail_from_address', $request->mail_from_address, ['group' => 'mail']);
+        Option::set('mail_from_name', $request->mail_from_name, ['group' => 'mail']);
+
+        Option::clearCache();
+
+        $this->logAction('Updated email settings');
+
+        return redirect()->back()->with('success', 'Email settings saved successfully!');
+    }
+
+    /**
+     * Send Test Email
+     */
+    public function sendTestEmail(Request $request)
+    {
+        $request->validate([
+            'test_email' => 'required|email',
+        ]);
+
+        try {
+            Config::set('mail.mailers.smtp.host', Option::get('mail_host'));
+            Config::set('mail.mailers.smtp.port', Option::get('mail_port'));
+            Config::set('mail.mailers.smtp.username', Option::get('mail_username'));
+            Config::set('mail.mailers.smtp.password', Option::get('mail_password'));
+            Config::set('mail.mailers.smtp.encryption', Option::get('mail_encryption') === 'null' ? null : Option::get('mail_encryption'));
+            Config::set('mail.from.address', Option::get('mail_from_address'));
+            Config::set('mail.from.name', Option::get('mail_from_name'));
+
+            Mail::raw('This is a test email. If you received this, your email settings are working!', function ($message) use ($request) {
+                $message->to($request->test_email)
+                    ->subject('Test Email - ' . Option::companyName());
+            });
+
+            $this->logAction('Sent test email', ['to' => $request->test_email]);
+
+            return redirect()->back()->with('success', 'Test email sent to ' . $request->test_email);
+        } catch (\Exception $e) {
+            $this->logError('Test email failed', $e);
+            return redirect()->back()->with('error', 'Failed to send: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -926,8 +1045,9 @@ protected function authorizeAdmin()
      */
     public function logout(Request $request)
     {
+        $this->logAction('Admin logged out');
+
         Auth::logout();
-        
         $request->session()->invalidate();
         $request->session()->regenerateToken();
         
@@ -941,8 +1061,7 @@ protected function authorizeAdmin()
     */
     
     /**
-     * Get menu configuration
-     * @return array|null
+     * Get menu configuration - Override in child classes
      */
     public static function menu(): ?array
     {
@@ -980,7 +1099,6 @@ protected function authorizeAdmin()
         $html = '';
 
         if ($hasChildren) {
-            // Parent with submenu
             $activeClass = $isActive ? 'active open' : '';
             $html .= '<div class="nav-item ' . $activeClass . '" onclick="this.classList.toggle(\'open\'); this.nextElementSibling.classList.toggle(\'open\');" style="cursor: pointer;">';
             $html .= '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="' . $iconPath . '"></path></svg>';
@@ -988,7 +1106,6 @@ protected function authorizeAdmin()
             $html .= '<svg class="chevron" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7"></path></svg>';
             $html .= '</div>';
 
-            // Submenu
             $submenuClass = $isActive ? 'open' : '';
             $html .= '<div class="nav-submenu ' . $submenuClass . '">';
             foreach ($menu['children'] as $child) {
@@ -1004,7 +1121,6 @@ protected function authorizeAdmin()
             }
             $html .= '</div>';
         } else {
-            // Single item
             $activeClass = $isActive ? 'active' : '';
             $href = \Route::has($routePrefix) ? route($routePrefix) : '#';
             $html .= '<a href="' . $href . '" class="nav-item ' . $activeClass . '">';
