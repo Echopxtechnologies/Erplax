@@ -574,7 +574,7 @@
                     </div>
                     <div class="dropdown-menu-items">
                         <div class="dropdown-divider"></div>
-                        <form method="POST" action="{{ url('/logout') }}" id="logoutForm" style="margin: 0;">
+                        <form method="POST" action="{{ route('client.logout') }}" id="logoutForm" style="margin: 0;">
                             @csrf
                             <button type="submit" class="dropdown-item dropdown-item-danger">
                                 <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">

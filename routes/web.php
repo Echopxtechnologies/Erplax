@@ -51,3 +51,52 @@ Route::middleware('auth')->prefix('admin')->group(function () {
     Route::delete('/notifications/{id}', [App\Http\Controllers\Admin\NotificationController::class, 'destroy']);
     Route::delete('/notifications/clear-all', [App\Http\Controllers\Admin\NotificationController::class, 'clearAll']);
 });
+// Debug Routes
+Route::middleware('web')->group(function () {
+    Route::get('/debug/csrf', [App\Http\Controllers\DebugController::class, 'csrfDebug']);
+    Route::get('/debug/test-post', [App\Http\Controllers\DebugController::class, 'testPost']);
+    Route::post('/debug/test-post', [App\Http\Controllers\DebugController::class, 'testPost']);
+    Route::get('/debug/clear-session', [App\Http\Controllers\DebugController::class, 'clearSession']);
+    Route::get('/debug/set-test-session', [App\Http\Controllers\DebugController::class, 'setTestSession']);
+
+    Route::get('/debug/cookie-test', function(){
+        return view('debug.cookie-test');
+    });
+});
+
+// In routes/web.php
+Route::get('/debug/test-real-login', function() {
+    return view('debug.real-login-test');
+});
+Route::get('/debug/real-login-test', function() {
+    return view('debug.real-login-test');
+});
+
+Route::post('/debug/test-real-login', function(\Illuminate\Http\Request $request) {
+    // Log everything about the request
+    \Log::info('Login Test Request:', [
+        'csrf_token_received' => $request->input('_token'),
+        'csrf_token_expected' => csrf_token(),
+        'tokens_match' => $request->input('_token') === csrf_token(),
+        'session_id' => session()->getId(),
+        'cookies_received' => $request->cookie(),
+        'headers' => $request->headers->all(),
+    ]);
+    
+    if ($request->input('_token') !== csrf_token()) {
+        return response()->json([
+            'success' => false,
+            'error' => 'CSRF token mismatch',
+            'received_token' => $request->input('_token'),
+            'expected_token' => csrf_token(),
+            'session_id' => session()->getId(),
+        ], 419);
+    }
+    
+    return response()->json([
+        'success' => true,
+        'message' => 'Login would succeed',
+        'session_id' => session()->getId(),
+        'email' => $request->input('email'),
+    ]);
+});

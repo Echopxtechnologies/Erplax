@@ -11,43 +11,41 @@ class EnsureIsAdmin
 {
     /**
      * Handle an incoming request.
-     * 
-     * Ensures the authenticated user is an admin.
-     * If user is logged in but not admin, redirect to client dashboard.
-     * If not logged in, redirect to admin login.
      */
     public function handle(Request $request, Closure $next): Response
     {
-        // Not logged in - redirect to admin login
-        if (!Auth::check()) {
+        // Check if user is authenticated via admin guard
+        if (!Auth::guard('admin')->check()) {
             return redirect()->route('admin.login');
         }
 
-        $user = Auth::user();
+        $admin = Auth::guard('admin')->user();
 
-        // Check if user is admin
-        if ($this->isAdminUser($user)) {
-            return $next($request);
+        // Check if admin can access admin panel
+        if (!$this->isAdminUser($admin)) {
+            // Admin is logged in but not authorized
+            Auth::guard('admin')->logout();
+            $request->session()->invalidate();
+            
+            return redirect()->route('admin.login')
+                ->with('error', 'You do not have admin access.');
         }
 
-        // User is logged in but NOT admin - they logged in as client
-        // Redirect to client dashboard (single session enforcement)
-        return redirect()->route('client.dashboard')
-            ->with('info', 'You are logged in as a client. Please use the admin portal to access admin features.');
+        return $next($request);
     }
 
     /**
      * Check if user has admin access
      */
-    protected function isAdminUser($user): bool
+    protected function isAdminUser($admin): bool
     {
         // Check is_admin flag
-        if ($user->is_admin) {
+        if ($admin->is_admin) {
             return true;
         }
 
-        // Check if user has any role via Spatie
-        if (method_exists($user, 'roles') && $user->roles->count() > 0) {
+        // Check if admin has any role via Spatie
+        if (method_exists($admin, 'roles') && $admin->roles->count() > 0) {
             return true;
         }
 

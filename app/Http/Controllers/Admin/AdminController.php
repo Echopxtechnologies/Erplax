@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
+use App\Models\Admin;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -28,7 +28,7 @@ class AdminController extends Controller
     |--------------------------------------------------------------------------
     */
     
-    protected ?User $admin = null;
+    protected ?Admin $admin;
     protected int $perPage = 10;
     protected array $viewData = [];
     protected string $layout = 'components.layouts.app';
@@ -51,28 +51,10 @@ class AdminController extends Controller
 
     public function __construct()
     {
-        // Apply auth middleware and admin check
-        $this->middleware(['auth']);
-        
-        // Initialize admin and check access after auth middleware
         $this->middleware(function ($request, $next) {
+            $this->admin = auth()->guard('admin')->user(); // This now returns Admin model
             
-            // Check if user is authenticated
-            if (!Auth::check()) {
-                return $this->handleUnauthenticated($request);
-            }
-
-            $user = Auth::user();
-
-            // Check if user can access admin panel
-            if (!$this->canAccessAdminPanel($user)) {
-                return $this->handleUnauthorized($request, $user);
-            }
-
-            // Initialize admin user
-            $this->admin = $user;
-            $this->shareViewData();
-
+            // If you have any other code that expects User, update it too
             return $next($request);
         });
     }
@@ -132,24 +114,24 @@ class AdminController extends Controller
     /**
      * Check if user can access admin panel
      */
-    protected function canAccessAdminPanel($user): bool
+    protected function canAccessAdminPanel($admin): bool
     {
-        if (!$user) {
+        if (!$admin) {
             return false;
         }
 
         // Check is_admin flag
-        if ($user->is_admin) {
+        if ($admin->is_admin) {
             return true;
         }
 
-        // Check if user has any allowed role via Spatie
-        if (method_exists($user, 'hasAnyRole')) {
-            return $user->hasAnyRole($this->allowedRoles);
+        // Check if admin has any role
+        if (method_exists($admin, 'hasAnyRole')) {
+            return $admin->hasAnyRole($this->allowedRoles);
         }
 
-        // Check if user has ANY role at all
-        if (method_exists($user, 'roles') && $user->roles->count() > 0) {
+        // Check if admin has ANY role at all
+        if (method_exists($admin, 'roles') && $admin->roles->count() > 0) {
             return true;
         }
 
@@ -205,9 +187,9 @@ class AdminController extends Controller
     /**
      * Get current authenticated admin
      */
-    protected function admin(): ?User
+    protected function admin(): ?Admin // Change return type
     {
-        return $this->admin ?? Auth::user();
+        return $this->admin ?? Auth::guard('admin')->user(); // Use admin guard
     }
 
     /**
@@ -215,9 +197,8 @@ class AdminController extends Controller
      */
     protected function isAuthenticated(): bool
     {
-        return Auth::check();
+        return Auth::guard('admin')->check(); // Use admin guard
     }
-
     /**
      * Check if current user is admin
      */
@@ -874,9 +855,11 @@ class AdminController extends Controller
      */
     public function dashboard()
     {
-        return view('admin.dashboard');
+        // $this->admin is now an Admin model instance
+        return view('admin.dashboard', [
+            'admin' => $this->admin
+        ]);
     }
-
     /**
      * General Settings Page
      */
@@ -1047,7 +1030,7 @@ class AdminController extends Controller
     {
         $this->logAction('Admin logged out');
 
-        Auth::logout();
+        Auth::guard('admin')->logout(); // Use admin guard
         $request->session()->invalidate();
         $request->session()->regenerateToken();
         

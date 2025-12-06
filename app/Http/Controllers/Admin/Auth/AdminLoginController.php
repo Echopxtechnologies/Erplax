@@ -8,8 +8,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
-use Illuminate\Auth\Events\Lockout;
-use App\Models\User;
+use App\Models\Admin; // Change from User to Admin
 
 class AdminLoginController extends Controller
 {
@@ -17,45 +16,53 @@ class AdminLoginController extends Controller
      * Show the admin login form
      */
     public function showLoginForm()
-{
-    if (Auth::check()) {
-        $user = Auth::user();
-        
-        // If admin user, redirect to admin dashboard
-        if ($this->canAccessAdminPanel($user)) {
-            return redirect()->route('admin.dashboard');
+    {
+        // Check if already logged in as admin
+        if (Auth::guard('admin')->check()) {
+            $admin = Auth::guard('admin')->user();
+            
+            if ($this->canAccessAdminPanel($admin)) {
+                return redirect()->route('admin.dashboard');
+            } else {
+                // Invalid admin - logout
+                Auth::guard('admin')->logout();
+                session()->invalidate();
+            }
         }
         
-        // Client user trying to access admin login
-        // Logout and REDIRECT (not return view)
-        Auth::logout();
-        request()->session()->invalidate();
-        request()->session()->regenerateToken();
-        
-        return redirect()->route('admin.login');  // ← THIS LINE IS CRITICAL
+        // If logged in as regular user (web guard), redirect them away
+        if (Auth::guard('web')->check()) {
+            return redirect()->route('client.dashboard')
+                ->with('info', 'You are logged in as a client. Please logout first to access admin panel.');
+        }
+
+        return view('admin.auth.login');
     }
 
-    return view('admin.auth.login');
-}
-
     /**
-     * Check if user can access admin panel
+     * Check if admin can access admin panel
      */
-    protected function canAccessAdminPanel($user): bool
+    protected function canAccessAdminPanel($admin): bool
     {
-        if ($user->is_admin) {
+        if (!$admin) {
+            return false;
+        }
+
+        // Check is_admin flag
+        if ($admin->is_admin) {
             return true;
         }
 
-        if (method_exists($user, 'roles')) {
-            return $user->roles->count() > 0;
+        // Check if admin has any role
+        if (method_exists($admin, 'roles')) {
+            return $admin->roles->count() > 0;
         }
 
         return false;
     }
 
     /**
-     * Handle admin login request
+     * Handle admin login request - WITH SEPARATE SESSION SUPPORT
      */
     public function login(Request $request)
     {
@@ -67,40 +74,39 @@ class AdminLoginController extends Controller
         // Check rate limiting
         $this->ensureIsNotRateLimited($request);
 
-        // Find the user
-        $user = User::where('email', $credentials['email'])->first();
+        // Find the admin using Admin model
+        $admin = Admin::where('email', $credentials['email'])->first();
 
-        if (!$user) {
+        if (!$admin) {
             RateLimiter::hit($this->throttleKey($request));
             throw ValidationException::withMessages([
                 'email' => __('No account found with this email.'),
             ]);
         }
 
-        // Check if user has admin access
-        if (!$this->canAccessAdminPanel($user)) {
+        // Check if admin has admin access
+        if (!$this->canAccessAdminPanel($admin)) {
             throw ValidationException::withMessages([
                 'email' => __('You do not have admin access.'),
             ]);
         }
 
-        // If someone else is logged in, logout first
-        if (Auth::check() && Auth::id() !== $user->id) {
-            Auth::logout();
-            $request->session()->invalidate();
-            $request->session()->regenerate(); // Regenerate to get new session
-        }
-
-        // Attempt to authenticate
-        if (Auth::attempt($credentials, $request->boolean('remember'))) {
+        // IMPORTANT: Use admin guard for authentication
+        if (Auth::guard('admin')->attempt($credentials, $request->boolean('remember'))) {
             
             RateLimiter::clear($this->throttleKey($request));
             
-            // Regenerate session for security
+            // Regenerate session for security - Use separate admin session
             $request->session()->regenerate();
             
-            // Store user type in session for quick checks
+            // Store admin-specific data
             $request->session()->put('user_type', 'admin');
+            $request->session()->put('admin_id', $admin->id);
+            
+            // Clear any web guard session if exists (prevent conflict)
+            if (Auth::guard('web')->check()) {
+                Auth::guard('web')->logout();
+            }
 
             return redirect()->intended(route('admin.dashboard'));
         }
@@ -108,7 +114,7 @@ class AdminLoginController extends Controller
         RateLimiter::hit($this->throttleKey($request));
 
         throw ValidationException::withMessages([
-            'password' => __('The provided password is incorrect.'),
+            'email' => __('Invalid credentials.'),
         ]);
     }
 
@@ -120,8 +126,6 @@ class AdminLoginController extends Controller
         if (!RateLimiter::tooManyAttempts($this->throttleKey($request), 5)) {
             return;
         }
-
-        event(new Lockout($request));
 
         $seconds = RateLimiter::availableIn($this->throttleKey($request));
 
@@ -146,7 +150,8 @@ class AdminLoginController extends Controller
      */
     public function logout(Request $request)
     {
-        Auth::logout();
+        // Only logout admin guard
+        Auth::guard('admin')->logout();
         
         $request->session()->invalidate();
         $request->session()->regenerateToken();

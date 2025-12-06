@@ -28,7 +28,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
     | Guest Routes (Login)
     |--------------------------------------------------------------------------
     */
-    Route::middleware('guest')->group(function () {
+    Route::middleware('guest:admin')->group(function () { // Use guest:admin
         Route::get('/login', [AdminLoginController::class, 'showLoginForm'])->name('login');
         Route::post('/login', [AdminLoginController::class, 'login'])->name('login.submit');
     });
@@ -42,7 +42,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
     | - If logged in as client → redirect to client dashboard
     | - If logged in as admin → allow access
     */
-    Route::middleware([EnsureIsAdmin::class])->group(function () {
+     Route::middleware(['auth:admin', EnsureIsAdmin::class])->group(function () {
         
         // Dashboard
         Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('dashboard');

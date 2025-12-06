@@ -895,6 +895,86 @@
         document.getElementById('loginForm').addEventListener('submit', function() {
             document.getElementById('submitBtn').classList.add('loading');
         });
+
+
+
+
+
+        document.addEventListener('DOMContentLoaded', function() {
+    const loginForm = document.getElementById('loginForm');
+    const csrfToken = document.querySelector('input[name="_token"]');
+    
+    if (loginForm && csrfToken) {
+        // Store original token
+        const originalToken = csrfToken.value;
+        
+        // Handle form submission
+        loginForm.addEventListener('submit', function(e) {
+            // Check if token is still valid
+            if (csrfToken.value !== originalToken) {
+                e.preventDefault();
+                
+                // Refresh page to get new token
+                fetch(window.location.href, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(() => {
+                    window.location.reload();
+                })
+                .catch(() => {
+                    window.location.reload();
+                });
+                
+                return false;
+            }
+            
+            // Show loading state
+            const submitBtn = document.getElementById('submitBtn');
+            if (submitBtn) {
+                submitBtn.classList.add('loading');
+                submitBtn.disabled = true;
+            }
+            
+            return true;
+        });
+    }
+    
+    // Clear any session conflicts on page load
+    if (sessionStorage.getItem('admin_login_attempt')) {
+        sessionStorage.removeItem('admin_login_attempt');
+        
+        // Force token refresh
+        fetch('/admin/login', {
+            method: 'GET',
+            headers: {
+                'X-CSRF-TOKEN': csrfToken.value
+            }
+        });
+    }
+});
+
+
+
+console.log("=== LOGIN PAGE DEBUG ===");
+    console.log("CSRF Token from meta:", document.querySelector('meta[name="csrf-token"]')?.content);
+    console.log("CSRF Token from Laravel:", '{{ csrf_token() }}');
+    console.log("Form CSRF field exists:", document.querySelector('input[name="_token"]') ? 'Yes' : 'No');
+    console.log("All Cookies:", document.cookie);
+    console.log("XSRF Cookie present:", document.cookie.includes('XSRF-TOKEN') ? 'Yes' : 'No');
+    
+    // Check form submission
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.querySelector('form[action*="login"]');
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                console.log("Form submitting...");
+                console.log("Form data:", new FormData(this));
+            });
+        }
+    });
+
     </script>
 </body>
 </html>

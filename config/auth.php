@@ -1,7 +1,6 @@
 <?php
 
 return [
-
     'defaults' => [
         'guard' => 'web',
         'passwords' => 'users',
@@ -14,8 +13,10 @@ return [
         ],
 
         'admin' => [
-            'driver' => 'session',  // FIXED (was drive)
-            'provider' => 'admins',  // USING SAME TABLE
+            'driver' => 'session',
+            'provider' => 'admins',
+            'redirect_to' => 'admin.login', // Add this
+            'redirect_name' => 'admin',
         ],
     ],
 
@@ -46,5 +47,4 @@ return [
     ],
 
     'password_timeout' => 10800,
-
 ];
