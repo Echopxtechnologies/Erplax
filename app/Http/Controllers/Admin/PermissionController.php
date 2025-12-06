@@ -4,71 +4,271 @@ namespace App\Http\Controllers\Admin;
 
 use Illuminate\Http\Request;
 use App\Http\Controllers\Admin\AdminController;
-use Spatie\Permission\Models\Permission as PermissionModel;
+use App\Models\Module;
+use App\Models\Permission;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
+
 
 class PermissionController extends AdminController
 {
-    // Show permissions list
+    /**
+     * Show permissions grouped by module
+     */
     public function index()
     {
-        $permissions = PermissionModel::latest()->paginate(10);
-        return view('admin.settings.role_permission.permission.permission-management', compact('permissions'));
+        $redirect = $this->authorizeAdmin();
+        if ($redirect) return $redirect;
+
+        // Get all permissions with their modules
+        $permissions = Permission::with('module')
+            ->orderBy('name')
+            ->get();
+
+        // Group permissions by module
+        $permissionsByModule = [];
+        
+        foreach ($permissions as $permission) {
+            $moduleId = $permission->module_id ?? 'orphan';
+            
+            if (!isset($permissionsByModule[$moduleId])) {
+                $permissionsByModule[$moduleId] = [
+                    'module' => $permission->module ?? (object)[
+                        'id' => 'orphan',
+                        'name' => 'Other Permissions',
+                        'alias' => 'unassigned'
+                    ],
+                    'permissions' => []
+                ];
+            }
+
+            // Get menu slug (second part of permission name)
+            $parts = explode('.', $permission->name);
+            $menuSlug = $parts[1] ?? $parts[0];
+
+            if (!isset($permissionsByModule[$moduleId]['permissions'][$menuSlug])) {
+                $permissionsByModule[$moduleId]['permissions'][$menuSlug] = [];
+            }
+
+            $permissionsByModule[$moduleId]['permissions'][$menuSlug][] = $permission;
+        }
+
+        // Sort by module name
+        uasort($permissionsByModule, function($a, $b) {
+            if ($a['module']->id === 'orphan') return 1;
+            if ($b['module']->id === 'orphan') return -1;
+            return $a['module']->name <=> $b['module']->name;
+        });
+
+        // Stats
+        $totalPermissions = $permissions->count();
+        $modulesCount = Module::where('is_installed', true)->count();
+        $orphanPermissions = $permissions->whereNull('module_id')->count();
+
+        return view('admin.settings.role_permission.permission.permission-management', compact(
+            'permissionsByModule',
+            'totalPermissions',
+            'modulesCount',
+            'orphanPermissions'
+        ));
     }
 
-    // Show create form
+    /**
+     * Show create form
+     */
     public function create()
     {
-        return view('admin.settings.role_permission.permission.permission-create');
+        $redirect = $this->authorizeAdmin();
+        if ($redirect) return $redirect;
+
+        $modules = Module::where('is_active', true)
+            ->where('is_installed', true)
+            ->orderBy('name')
+            ->get();
+
+        return view('admin.settings.role_permission.permission.permission-create', compact('modules'));
     }
 
-    // Store new permission
+    /**
+     * Store new permission
+     */
     public function store(Request $request)
     {
+        $redirect = $this->authorizeAdmin();
+        if ($redirect) return $redirect;
+
         $validator = Validator::make($request->all(), [
-            'name' => 'required|unique:permissions|min:3'
+            'module_id' => 'required|exists:modules,id',
+            'name' => 'required|unique:permissions,name|min:3',
         ]);
 
-        if ($validator->passes()) {
-            PermissionModel::create(['name' => $request->name]);
-            return redirect()->route('admin.settings.permissions.index')->with('success', 'Permission added successfully');
-        } else {
-            return redirect()->route('admin.settings.permissions.create')->withInput()->withErrors($validator);
+        if ($validator->fails()) {
+            return redirect()->back()->withErrors($validator)->withInput();
         }
+
+        // Get action name from the permission name
+        $parts = explode('.', $request->name);
+        $actionSlug = end($parts);
+        $actionNames = [
+            'read' => 'View',
+            'create' => 'Create',
+            'edit' => 'Edit',
+            'delete' => 'Delete',
+            'export' => 'Export',
+            'import' => 'Import',
+        ];
+
+        Permission::create([
+            'name' => $request->name,
+            'guard_name' => 'web',
+            'module_id' => $request->module_id,
+            'action_name' => $actionNames[$actionSlug] ?? ucfirst($actionSlug),
+        ]);
+
+        // Clear permission cache
+        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+
+        return redirect()
+            ->route('admin.settings.permissions.index')
+            ->with('success', 'Permission created successfully.');
     }
 
-    // Show edit form
+    /**
+     * Store bulk permissions
+     */
+    public function storeBulk(Request $request)
+    {
+        $redirect = $this->authorizeAdmin();
+        if ($redirect) return $redirect;
+
+        $validator = Validator::make($request->all(), [
+            'bulk_module_id' => 'required|exists:modules,id',
+            'bulk_menu_name' => 'required|string|min:2',
+            'bulk_actions' => 'required|array|min:1',
+        ]);
+
+        if ($validator->fails()) {
+            return redirect()->back()->withErrors($validator)->withInput();
+        }
+
+        $module = Module::find($request->bulk_module_id);
+        $menuName = strtolower(str_replace(' ', '_', $request->bulk_menu_name));
+        $actions = $request->bulk_actions;
+
+        $actionNames = [
+            'read' => 'View',
+            'create' => 'Create',
+            'edit' => 'Edit',
+            'delete' => 'Delete',
+            'export' => 'Export',
+            'import' => 'Import',
+        ];
+
+        $created = 0;
+        $skipped = 0;
+
+        DB::transaction(function () use ($module, $menuName, $actions, $actionNames, &$created, &$skipped) {
+            foreach ($actions as $action) {
+                $permissionName = "{$module->alias}.{$menuName}.{$action}";
+                
+                // Check if permission already exists
+                if (Permission::where('name', $permissionName)->exists()) {
+                    $skipped++;
+                    continue;
+                }
+
+                Permission::create([
+                    'name' => $permissionName,
+                    'guard_name' => 'web',
+                    'module_id' => $module->id,
+                    'action_name' => $actionNames[$action] ?? ucfirst($action),
+                ]);
+                $created++;
+            }
+        });
+
+        // Clear permission cache
+        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+
+        $message = "{$created} permission(s) created successfully.";
+        if ($skipped > 0) {
+            $message .= " {$skipped} permission(s) already existed.";
+        }
+
+        return redirect()
+            ->route('admin.settings.permissions.index')
+            ->with('success', $message);
+    }
+
+    /**
+     * Show edit form
+     */
     public function edit($id)
     {
-        $permission = PermissionModel::findOrFail($id);
-        return view('admin.settings.role_permission.permission.permission-edit', compact('permission'));
+        $redirect = $this->authorizeAdmin();
+        if ($redirect) return $redirect;
+
+        $permission = Permission::findOrFail($id);
+        $modules = Module::where('is_active', true)
+            ->where('is_installed', true)
+            ->orderBy('name')
+            ->get();
+
+        return view('admin.settings.role_permission.permission.permission-edit', compact('permission', 'modules'));
     }
 
-    // Update permission
+    /**
+     * Update permission
+     */
     public function update(Request $request, $id)
     {
-        $permission = PermissionModel::findOrFail($id);
-        
+        $redirect = $this->authorizeAdmin();
+        if ($redirect) return $redirect;
+
+        $permission = Permission::findOrFail($id);
+
         $validator = Validator::make($request->all(), [
-            'name' => 'required|min:3|unique:permissions,name,' . $id . ',id'
+            'module_id' => 'required|exists:modules,id',
+            'name' => 'required|min:3|unique:permissions,name,' . $id,
         ]);
 
-        if ($validator->passes()) {
-            $permission->name = $request->name;
-            $permission->save();
-            return redirect()->route('admin.settings.permissions.index')->with('success', 'Permission updated successfully');
-        } else {
-            return redirect()->route('admin.settings.permissions.edit', $id)->withInput()->withErrors($validator);
+        if ($validator->fails()) {
+            return redirect()->back()->withErrors($validator)->withInput();
         }
+
+        $parts = explode('.', $request->name);
+        $actionSlug = end($parts);
+        $actionNames = [
+            'read' => 'View',
+            'create' => 'Create',
+            'edit' => 'Edit',
+            'delete' => 'Delete',
+            'export' => 'Export',
+            'import' => 'Import',
+        ];
+
+        $permission->update([
+            'name' => $request->name,
+            'module_id' => $request->module_id,
+            'action_name' => $actionNames[$actionSlug] ?? ucfirst($actionSlug),
+        ]);
+
+        // Clear permission cache
+        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+
+        return redirect()
+            ->route('admin.settings.permissions.index')
+            ->with('success', 'Permission updated successfully.');
     }
 
-    // Delete permission
+    /**
+     * Delete permission
+     */
     public function destroy($id)
     {
-        $permission = PermissionModel::find($id);
-        
-        if ($permission === null) {
-            session()->flash('error', 'Permission not found');
+        $permission = Permission::find($id);
+
+        if (!$permission) {
             return response()->json([
                 'status' => false,
                 'message' => 'Permission not found'
@@ -76,8 +276,12 @@ class PermissionController extends AdminController
         }
 
         $permission->delete();
-        session()->flash('success', 'Permission deleted successfully');
-        
+
+        // Clear permission cache
+        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+
+        session()->flash('success', 'Permission deleted successfully.');
+
         return response()->json([
             'status' => true,
             'message' => 'Permission deleted successfully'

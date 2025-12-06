@@ -44,3 +44,9 @@ Route::middleware(['auth'])   // plus your admin middleware
     ->group(function () {
         Route::get('customers', CustomersIndex::class)->name('admin.customers.index');
     });
+
+//notofication 
+Route::middleware('auth')->prefix('admin')->group(function () {
+    Route::delete('/notifications/{id}', [App\Http\Controllers\Admin\NotificationController::class, 'destroy']);
+    Route::delete('/notifications/clear-all', [App\Http\Controllers\Admin\NotificationController::class, 'clearAll']);
+});

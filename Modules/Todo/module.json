@@ -1,15 +1,12 @@
 {
-  "name": "Todo",
-  "alias": "todo",
-  "description": "Advanced task management module with Livewire and modals",
-  "keywords": [],
-  "version": "2.0.0",
-  "active": 1,
-  "order": 0,
-  "providers": [
-    "Modules\\Todo\\Providers\\TodoServiceProvider"
-  ],
-  "aliases": {},
-  "files": [],
-  "requires": []
+    "name": "Todo",
+    "alias": "todo",
+    "description": "Personal task management module with user-based access control",
+    "version": "1.0.0",
+    "keywords": ["todo", "tasks", "personal"],
+    "active": 1,
+    "order": 0,
+    "providers": [
+        "Modules\\Todo\\Providers\\TodoServiceProvider"
+    ]
 }

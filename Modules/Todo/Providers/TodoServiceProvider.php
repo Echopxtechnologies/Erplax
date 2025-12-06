@@ -3,29 +3,56 @@
 namespace Modules\Todo\Providers;
 
 use Illuminate\Support\ServiceProvider;
-use Livewire\Livewire;
+use Modules\Todo\Console\Commands\CheckOverdueTasks;
 
 class TodoServiceProvider extends ServiceProvider
 {
-    protected $modulePath = __DIR__ . '/../';
+    protected string $moduleName = 'Todo';
+    protected string $moduleNameLower = 'todo';
 
-    public function boot()
+    public function boot(): void
     {
-        $this->loadRoutesFrom($this->modulePath . 'Routes/web.php');
-        $this->loadViewsFrom($this->modulePath . 'Resources/views', 'todo');
-        $this->loadMigrationsFrom($this->modulePath . 'Database/Migrations');
+        $this->registerViews();
+        $this->loadMigrationsFrom(module_path($this->moduleName, 'Database/Migrations'));
         
-        // Register Livewire components
-        Livewire::component('todo::todo-list', \Modules\Todo\Http\Livewire\TodoList::class);
-        Livewire::component('todo::create-todo', \Modules\Todo\Http\Livewire\CreateTodo::class);
-        Livewire::component('todo::edit-todo', \Modules\Todo\Http\Livewire\EditTodo::class);
+        // Register console commands
+        if ($this->app->runningInConsole()) {
+            $this->commands([
+                CheckOverdueTasks::class,
+            ]);
+        }
     }
 
-    public function register()
+    public function register(): void
     {
-        $this->mergeConfigFrom(
-            $this->modulePath . 'Config/config.php',
-            'todo'
-        );
+        $this->app->register(RouteServiceProvider::class);
+    }
+
+    protected function registerViews(): void
+    {
+        $viewPath = resource_path('views/modules/' . $this->moduleNameLower);
+        $sourcePath = module_path($this->moduleName, 'Resources/views');
+
+        $this->publishes([
+            $sourcePath => $viewPath
+        ], ['views', $this->moduleNameLower . '-module-views']);
+
+        $this->loadViewsFrom(array_merge($this->getPublishableViewPaths(), [$sourcePath]), $this->moduleNameLower);
+    }
+
+    private function getPublishableViewPaths(): array
+    {
+        $paths = [];
+        foreach (config('view.paths') as $path) {
+            if (is_dir($path . '/modules/' . $this->moduleNameLower)) {
+                $paths[] = $path . '/modules/' . $this->moduleNameLower;
+            }
+        }
+        return $paths;
+    }
+
+    public function provides(): array
+    {
+        return [];
     }
 }

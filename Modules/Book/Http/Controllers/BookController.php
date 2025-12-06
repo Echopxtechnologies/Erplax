@@ -27,7 +27,7 @@ class BookController extends AdminController
     public function create()
     {
         $this->authorizeAdmin();
-        // $this->authorize('book.create.create');
+        $this->authorize('book.create.create');
 
         return view('book::create');
     }

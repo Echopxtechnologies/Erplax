@@ -34,14 +34,22 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     
     @php
-        $authUser = Auth::guard('admin')->user() ?? Auth::user();
+        $authUser = Auth::user();
         
+        // Notifications from custom table
         try {
-            $notifications = $authUser?->unreadNotifications ?? collect();
+            $notifications = $authUser 
+                ? \App\Models\Notification::where('user_id', $authUser->id)
+                    ->latest()
+                    ->take(10)
+                    ->get() 
+                : collect();
             $hasNotifications = $notifications->count() > 0;
+            $notificationCount = $notifications->count();
         } catch (\Exception $e) {
             $notifications = collect();
             $hasNotifications = false;
+            $notificationCount = 0;
         }
         
         try {
@@ -300,6 +308,16 @@
         }
         .notif-dot.hidden { display: none; }
         
+        .notif-count {
+            position: absolute; top: 4px; right: 4px;
+            min-width: 16px; height: 16px;
+            background: var(--danger); border-radius: 8px;
+            font-size: 10px; font-weight: 600; color: #fff;
+            display: flex; align-items: center; justify-content: center;
+            padding: 0 4px;
+        }
+        .notif-count.hidden { display: none; }
+        
         /* User Dropdown */
         .user-dropdown { position: relative; }
         .user-dropdown-toggle {
@@ -392,14 +410,47 @@
             display: flex; gap: 10px; padding: 10px;
             border-radius: var(--radius-md); margin-bottom: 6px;
             background: var(--body-bg); cursor: pointer;
+            text-decoration: none;
+            position: relative;
         }
         .notif-item:hover { background: var(--card-border); }
         .notif-item-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
-        .notif-item-dot.blue { background: var(--primary); }
-        .notif-item-dot.green { background: var(--success); }
-        .notif-item-dot.orange { background: var(--warning); }
-        .notif-item-text { font-size: var(--font-sm); color: var(--text-primary); margin: 0; line-height: 1.4; }
+        .notif-item-dot.info { background: var(--primary); }
+        .notif-item-dot.success { background: var(--success); }
+        .notif-item-dot.warning { background: var(--warning); }
+        .notif-item-dot.error { background: var(--danger); }
+        .notif-item-content { flex: 1; min-width: 0; }
+        .notif-item-title { font-size: var(--font-sm); font-weight: 600; color: var(--text-primary); margin: 0 0 2px 0; }
+        .notif-item-text { font-size: var(--font-sm); color: var(--text-secondary); margin: 0; line-height: 1.4; }
         .notif-item-time { font-size: var(--font-xs); color: var(--text-muted); margin-top: 4px; }
+        .notif-item-delete {
+            position: absolute; top: 8px; right: 8px;
+            width: 20px; height: 20px;
+            border: none; background: transparent;
+            border-radius: var(--radius-sm);
+            cursor: pointer; opacity: 0;
+            display: flex; align-items: center; justify-content: center;
+            transition: opacity 0.2s;
+        }
+        .notif-item:hover .notif-item-delete { opacity: 1; }
+        .notif-item-delete:hover { background: var(--danger-light); }
+        .notif-item-delete svg { width: 14px; height: 14px; color: var(--danger); }
+        
+        .notif-footer {
+            padding: var(--space-md);
+            border-top: 1px solid var(--card-border);
+            text-align: center;
+        }
+        .notif-clear-all {
+            font-size: var(--font-sm);
+            color: var(--danger);
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 6px 12px;
+            border-radius: var(--radius-md);
+        }
+        .notif-clear-all:hover { background: var(--danger-light); }
         
         /* ========== SETUP PANEL (Slide-out from left) ========== */
         .setup-panel {
@@ -502,27 +553,14 @@
             color: var(--text-primary);
         }
         .setup-submenu-item.active {
-            color: var(--primary);
             background: var(--primary-light);
-        }
-        
-        .setup-section-title {
-            font-size: var(--font-xs);
-            font-weight: 600;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            padding: 14px 12px 6px;
+            color: var(--primary);
         }
         
         .setup-overlay {
-            position: fixed;
-            inset: 0;
-            top: var(--navbar-height);
-            background: rgba(0,0,0,0.3);
-            z-index: 1049;
-            opacity: 0;
-            visibility: hidden;
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.3); z-index: 1049;
+            opacity: 0; visibility: hidden;
             transition: all 0.3s ease;
         }
         .setup-overlay.active { opacity: 1; visibility: visible; }
@@ -537,42 +575,44 @@
             background: var(--sidebar-bg);
             border-right: 1px solid var(--sidebar-border);
             overflow-y: auto;
-            overflow-x: hidden;
-            transition: transform 0.3s ease;
+            transition: transform 0.3s ease, width 0.3s ease;
             z-index: 1000;
         }
         .sidebar.hidden { transform: translateX(-100%); }
         
         .sidebar-user {
-            padding: var(--space-lg) var(--space-md);
-            background: var(--sidebar-user-bg);
-            margin: var(--space-md);
-            border-radius: var(--radius-lg);
             display: flex; align-items: center; gap: 10px;
+            padding: var(--space-lg);
+            background: var(--sidebar-user-bg);
+            border-bottom: 1px solid var(--sidebar-border);
         }
         .sidebar-user-avatar {
             width: 36px; height: 36px;
             background: linear-gradient(135deg, var(--primary), var(--primary-hover));
-            border-radius: var(--radius-lg);
+            border-radius: var(--radius-md);
             display: flex; align-items: center; justify-content: center;
-            font-size: var(--font-base); font-weight: 600; color: #fff;
+            font-size: var(--font-sm); font-weight: 600; color: #fff;
         }
         .sidebar-user-name { font-size: var(--font-sm); font-weight: 600; color: var(--text-primary); }
         .sidebar-user-email { font-size: var(--font-xs); color: var(--text-muted); }
         
-        .sidebar-nav { padding: 0 10px var(--space-lg); }
+        .sidebar-nav { padding: var(--space-md); }
         .sidebar-nav-title {
             font-size: var(--font-xs); font-weight: 600;
             color: var(--sidebar-section-text);
-            text-transform: uppercase; letter-spacing: 0.5px;
-            padding: 14px 10px 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: var(--space-md) var(--space-md) var(--space-sm);
         }
         
         .nav-item {
             display: flex; align-items: center; gap: 10px;
-            padding: 9px 12px; color: var(--sidebar-text);
-            text-decoration: none; font-size: var(--font-base);
-            border-radius: var(--radius-md); margin-bottom: 2px;
+            padding: 9px 12px;
+            color: var(--sidebar-text);
+            text-decoration: none;
+            font-size: var(--font-base);
+            border-radius: var(--radius-md);
+            margin-bottom: 2px;
             transition: all 0.15s;
         }
         .nav-item:hover { background: var(--body-bg); color: var(--sidebar-text-hover); }
@@ -580,30 +620,27 @@
         .nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
         .nav-item span { flex: 1; }
         .nav-item .chevron { width: 16px; height: 16px; transition: transform 0.2s; }
-        .nav-item.open .chevron { transform: rotate(180deg); }
+        .nav-item.open .chevron { transform: rotate(90deg); }
         
         .nav-submenu {
-            max-height: 0;
-            overflow: hidden;
+            max-height: 0; overflow: hidden;
             transition: max-height 0.3s ease;
-            padding-left: 18px;
+            padding-left: 28px;
         }
         .nav-submenu.open { max-height: 500px; }
-        .nav-submenu .nav-item { padding: 8px 12px; font-size: var(--font-sm); }
         
         /* Main Content */
         .main-content {
             margin-left: var(--sidebar-width);
-            padding-top: var(--navbar-height);
-            min-height: 100vh;
+            margin-top: var(--navbar-height);
+            min-height: calc(100vh - var(--navbar-height));
             transition: margin-left 0.3s ease;
-            background: var(--body-bg);
         }
         .main-content.expanded { margin-left: 0; }
         
-        .page-container { padding: var(--space-xl); max-width: 1400px; }
-        .page-title { font-size: var(--font-xl); font-weight: 600; color: var(--text-primary); margin: 0 0 4px; }
+        .page-container { padding: var(--space-xl); }
         
+        /* Sidebar overlay for mobile */
         .sidebar-overlay {
             position: fixed; inset: 0;
             background: rgba(0,0,0,0.4); z-index: 999;
@@ -612,63 +649,54 @@
         }
         .sidebar-overlay.active { opacity: 1; visibility: visible; }
         
-        @media (max-width: 1024px) {
-            .sidebar { transform: translateX(-100%); }
-            .sidebar.mobile-open { transform: translateX(0); }
-            .main-content { margin-left: 0; }
-        }
-        @media (max-width: 640px) {
-            .page-container { padding: var(--space-lg); }
-            .setup-panel { width: 280px; }
-        }
-        
         /* Toast */
         .toast-container {
-            position: fixed; top: 70px; right: 20px;
-            z-index: 1200;
-            display: flex; flex-direction: column; gap: 10px;
-            pointer-events: none;
+            position: fixed; bottom: 20px; right: 20px;
+            z-index: 9999; display: flex; flex-direction: column; gap: 10px;
         }
         .toast {
-            display: flex; align-items: flex-start; gap: 10px;
-            padding: 12px 14px;
-            background: var(--card-bg); border: 1px solid var(--card-border);
-            border-radius: var(--radius-lg); box-shadow: var(--shadow-lg);
             min-width: 300px; max-width: 400px;
-            pointer-events: auto;
-            opacity: 0; transform: translateX(100%);
-            transition: all 0.3s ease;
-            position: relative; overflow: hidden;
+            background: var(--card-bg); border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg); padding: 14px 16px;
+            display: flex; align-items: flex-start; gap: 12px;
+            transform: translateX(120%); opacity: 0;
+            transition: all 0.3s ease; position: relative; overflow: hidden;
         }
-        .toast.show { opacity: 1; transform: translateX(0); }
-        .toast.hide { opacity: 0; transform: translateX(100%); }
-        .toast-icon { width: 20px; height: 20px; flex-shrink: 0; margin-top: 1px; }
+        .toast.show { transform: translateX(0); opacity: 1; }
+        .toast.hide { transform: translateX(120%); opacity: 0; }
+        .toast-icon { width: 20px; height: 20px; flex-shrink: 0; margin-top: 2px; }
         .toast-success .toast-icon { color: var(--success); }
         .toast-error .toast-icon { color: var(--danger); }
         .toast-warning .toast-icon { color: var(--warning); }
         .toast-info .toast-icon { color: var(--primary); }
         .toast-title { font-size: var(--font-sm); font-weight: 600; color: var(--text-primary); margin: 0; }
-        .toast-message { font-size: var(--font-sm); color: var(--text-secondary); margin: 2px 0 0; }
+        .toast-message { font-size: var(--font-sm); color: var(--text-secondary); margin: 4px 0 0; }
         .toast-close {
-            width: 20px; height: 20px;
-            border: none; background: transparent;
-            cursor: pointer;
-            display: flex; align-items: center; justify-content: center;
-            border-radius: var(--radius-sm);
+            background: none; border: none; cursor: pointer; padding: 0;
+            color: var(--text-muted); display: flex;
         }
-        .toast-close:hover { background: var(--body-bg); }
-        .toast-close svg { width: 14px; height: 14px; color: var(--text-muted); }
+        .toast-close svg { width: 16px; height: 16px; }
+        .toast-close:hover { color: var(--text-primary); }
         .toast-progress {
-            position: absolute; bottom: 0; left: 0; right: 0;
-            height: 3px; background: var(--primary);
+            position: absolute; bottom: 0; left: 0; right: 0; height: 3px;
             transform-origin: left;
         }
         .toast-success .toast-progress { background: var(--success); }
         .toast-error .toast-progress { background: var(--danger); }
         .toast-warning .toast-progress { background: var(--warning); }
+        .toast-info .toast-progress { background: var(--primary); }
         
-        .hidden { display: none !important; }
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.mobile-open { transform: translateX(0); }
+            .main-content { margin-left: 0; }
+            .navbar-center { display: none; }
+            .user-name { display: none; }
+        }
     </style>
+    
+    @stack('styles')
 </head>
 <body>
     <!-- Top Navbar -->
@@ -685,42 +713,27 @@
                 @else
                     <div class="navbar-brand-icon">
                         <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                            <path d="M13 10V3L4 14h7v7l9-11h-7z"></path>
                         </svg>
                     </div>
-                    {{ $companyName }}
                 @endif
+                <span>{{ $companyName }}</span>
             </a>
         </div>
         
         <div class="navbar-center">
-            @if($currentPage === 'dashboard')
-                <div class="navbar-static-menu">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
-                    </svg>
-                    <span>Dashboard</span>
-                </div>
-            @elseif($currentPage === 'modules')
+            @if($currentModule)
                 <div class="navbar-static-menu">
                     <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                         <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
                     </svg>
-                    <span>Modules</span>
-                </div>
-            @elseif($currentPage === 'settings')
-                <div class="navbar-static-menu">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
-                        <circle cx="12" cy="12" r="3"></circle>
-                    </svg>
-                    <span>Settings</span>
+                    {{ $currentModule->name }}
                 </div>
             @endif
         </div>
         
         <div class="navbar-right">
-            <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">
+            <button class="theme-toggle" onclick="toggleTheme()">
                 <svg class="icon-light" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
                 </svg>
@@ -733,7 +746,7 @@
                 <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
                 </svg>
-                <span class="notif-dot {{ $hasNotifications ? '' : 'hidden' }}"></span>
+                <span class="notif-count {{ $hasNotifications ? '' : 'hidden' }}" id="notifCount">{{ $notificationCount }}</span>
             </button>
             
             <div class="user-dropdown" id="userDropdown">
@@ -746,7 +759,6 @@
                         </svg>
                     </div>
                 </button>
-                
                 <div class="user-dropdown-menu">
                     <div class="dropdown-header">
                         <div class="dropdown-header-name">{{ $authUser?->name ?? 'User' }}</div>
@@ -788,15 +800,23 @@
                 </svg>
             </button>
         </div>
-        <div class="notif-body">
+        <div class="notif-body" id="notifBody">
             @if($hasNotifications)
                 @foreach($notifications as $notification)
-                    <div class="notif-item">
-                        <div class="notif-item-dot {{ $notification->data['type'] ?? 'blue' }}"></div>
-                        <div>
-                            <p class="notif-item-text">{{ $notification->data['message'] ?? 'New notification' }}</p>
+                    <div class="notif-item" data-id="{{ $notification->id }}" onclick="handleNotificationClick({{ $notification->id }}, '{{ $notification->url }}')">
+                        <div class="notif-item-dot {{ $notification->type ?? 'info' }}"></div>
+                        <div class="notif-item-content">
+                            <p class="notif-item-title">{{ $notification->title }}</p>
+                            @if($notification->message)
+                                <p class="notif-item-text">{{ $notification->message }}</p>
+                            @endif
                             <div class="notif-item-time">{{ $notification->created_at->diffForHumans() }}</div>
                         </div>
+                        <button class="notif-item-delete" onclick="event.stopPropagation(); deleteNotification({{ $notification->id }})">
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
                     </div>
                 @endforeach
             @else
@@ -808,6 +828,11 @@
                 </div>
             @endif
         </div>
+        @if($hasNotifications)
+        <div class="notif-footer">
+            <button class="notif-clear-all" onclick="clearAllNotifications()">Clear All</button>
+        </div>
+        @endif
     </div>
     
     <!-- Settings Panel (Slide-out) -->
@@ -1033,6 +1058,92 @@
             }
         });
         
+        // ========== NOTIFICATION FUNCTIONS ==========
+        
+        // Handle notification click - delete and redirect
+        function handleNotificationClick(id, url) {
+            deleteNotification(id, function() {
+                if (url) {
+                    window.location.href = url;
+                }
+            });
+        }
+        
+        // Delete single notification
+        function deleteNotification(id, callback) {
+            fetch(`/admin/notifications/${id}`, {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Accept': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Remove from DOM
+                    const item = document.querySelector(`.notif-item[data-id="${id}"]`);
+                    if (item) item.remove();
+                    
+                    // Update count
+                    updateNotificationCount();
+                    
+                    // Callback (for redirect)
+                    if (callback) callback();
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+        
+        // Clear all notifications
+        function clearAllNotifications() {
+            if (!confirm('Clear all notifications?')) return;
+            
+            fetch('/admin/notifications/clear-all', {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Accept': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('notifBody').innerHTML = `
+                        <div class="notif-empty">
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                            </svg>
+                            <p>No notifications</p>
+                        </div>
+                    `;
+                    // Remove footer
+                    const footer = document.querySelector('.notif-footer');
+                    if (footer) footer.remove();
+                    
+                    // Update count
+                    updateNotificationCount();
+                    
+                    Toast.success('All notifications cleared');
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+        
+        // Update notification count badge
+        function updateNotificationCount() {
+            const items = document.querySelectorAll('.notif-item');
+            const count = items.length;
+            const badge = document.getElementById('notifCount');
+            
+            if (count > 0) {
+                badge.textContent = count;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
+        
         // Toast System
         const Toast = {
             container: null,
@@ -1091,5 +1202,6 @@
         <script>document.addEventListener('DOMContentLoaded', function() { Toast.info("{{ session('info') }}"); });</script>
     @endif
 
+    @stack('scripts')
 </body>
 </html>

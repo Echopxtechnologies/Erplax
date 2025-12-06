@@ -2,12 +2,12 @@
 
 namespace Modules\Student\Http\Controllers;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Admin\AdminController;
 use Modules\Core\Traits\DataTableTrait;
 use Modules\Student\Models\Student;
 use Illuminate\Http\Request;
 
-class StudentController extends Controller
+class StudentController extends AdminController
 {
     use DataTableTrait;
 

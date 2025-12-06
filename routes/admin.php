@@ -69,12 +69,13 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/permissions/list', [PermissionController::class, 'index'])->name('permissions.index');
         Route::get('/permissions/create', [PermissionController::class, 'create'])->name('permissions.create');
         Route::post('/permissions', [PermissionController::class, 'store'])->name('permissions.store');
+        Route::post('/permissions/bulk', [PermissionController::class, 'storeBulk'])->name('permissions.store-bulk');
         Route::get('/permissions/{id}/edit', [PermissionController::class, 'edit'])->name('permissions.edit');
         Route::post('/permissions/{id}', [PermissionController::class, 'update'])->name('permissions.update');
-        Route::delete('/permissions/{id}', [PermissionController::class, 'destroy'])->name('permissions.destroy');  
+        Route::delete('/permissions/{id}', [PermissionController::class, 'destroy'])->name('permissions.destroy'); 
 
             // Roles & Permissions
-        Route::get('/roles', [RoleController::class, 'index'])->name('roles.index');
+        Route::get('/roles/list', [RoleController::class, 'index'])->name('roles.index');
         Route::get('/roles/create', [RoleController::class, 'create'])->name('roles.create');
         Route::post('/roles', [RoleController::class, 'store'])->name('roles.store');
         Route::get('/roles/{id}/edit', [RoleController::class, 'edit'])->name('roles.edit');
