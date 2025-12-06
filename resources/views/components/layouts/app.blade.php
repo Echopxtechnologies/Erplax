@@ -835,7 +835,7 @@
         @endif
     </div>
     
-    <!-- Settings Panel (Slide-out) -->
+    <!-- Settings Panel (Slide-out) - DYNAMIC -->
     <div class="setup-overlay" id="setupOverlay" onclick="toggleSettingsPanel()"></div>
     <div class="setup-panel" id="setupPanel">
         <div class="setup-header">
@@ -847,41 +847,7 @@
             </button>
         </div>
         <div class="setup-body">
-            <!-- General -->
-            <a href="{{ Route::has('admin.settings.general') ? route('admin.settings.general') : '#' }}" class="setup-nav-item {{ request()->routeIs('admin.settings.general') ? 'active' : '' }}">
-                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
-                    <circle cx="12" cy="12" r="3"></circle>
-                </svg>
-                <span>General</span>
-            </a>
-            
-            <!-- Email -->
-            <a href="{{ Route::has('admin.settings.email') ? route('admin.settings.email') : '#' }}" class="setup-nav-item {{ request()->routeIs('admin.settings.email') ? 'active' : '' }}">
-                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
-                </svg>
-                <span>Email</span>
-            </a>
-            
-          
-            <!-- roles um permission um  -->
-            <div class="setup-nav-item" onclick="toggleSetupSubmenu(this)">
-                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
-                </svg>
-                <span>Roles/Permission</span>
-                <svg class="arrow" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path d="M19 9l-7 7-7-7"></path>
-                </svg>
-            </div>
-            <div class="setup-submenu">
-                
-         {{-- <a href="{{ Route::has('admin.settings.permission') ? route('admin.settings.permission') : '#' }}" class="setup-nav-item {{ request()->routeIs('admin.settings.permission') ? 'active' : '' }}">Permissions</a> --}}
-        <a href="{{ Route::has('admin.settings.permissions.index') ? route('admin.settings.permissions.index') : '#' }}" class="setup-nav-item {{ request()->routeIs('admin.settings.permissions.index') ? 'active' : '' }}">Permission</a> 
-         <a href="{{ Route::has('admin.settings.roles.index') ? route('admin.settings.roles.index') : '#' }}" class="setup-nav-item {{ request()->routeIs('admin.settings.roles.index') ? 'active' : '' }}">Role</a> 
-         <a href="{{ Route::has('admin.settings.users.index') ? route('admin.settings.users.index') : '#' }}" class="setup-nav-item {{ request()->routeIs('admin.settings.users.index') ? 'active' : '' }}">User</a> 
-            </div>
+            {!! \App\Services\Admin\CoreMenuService::renderSettingsPanel() !!}
         </div>
     </div>
     
@@ -924,36 +890,22 @@
                 <a href="{{ route('admin.contacts.dummy3') }}" class="nav-item {{ request()->routeIs('admin.contacts.dummy3') ? 'active' : '' }}">Dummy 3</a>
             </div>
 
-            {{-- Module menu items --}}
+            {{-- Module menu items (non-core modules from Modules folder) --}}
             @foreach($activeModules as $module)
-                @if(View::exists(strtolower($module->alias) . '::sidebar'))
-                    @include(strtolower($module->alias) . '::sidebar')
-                @elseif(View::exists(strtolower($module->alias) . '::menu'))
-                    @include(strtolower($module->alias) . '::menu')
+                @if(!$module->is_core)
+                    @if(View::exists(strtolower($module->alias) . '::sidebar'))
+                        @include(strtolower($module->alias) . '::sidebar')
+                    @elseif(View::exists(strtolower($module->alias) . '::menu'))
+                        @include(strtolower($module->alias) . '::menu')
+                    @endif
                 @endif
             @endforeach
             
+            {{-- DYNAMIC SYSTEM MENU --}}
             <div class="sidebar-nav-title">System</div>
             
-            <!-- Modules -->
-            <a href="{{ route('admin.modules.index') }}" class="nav-item {{ request()->routeIs('admin.modules.*') ? 'active' : '' }}">
-                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
-                </svg>
-                <span>Modules</span>
-            </a>
+            {!! \App\Services\Admin\CoreMenuService::renderSystemMenu() !!}
             
-            <!-- Settings Button - Opens Settings Panel -->
-            <div class="nav-item" onclick="toggleSettingsPanel()" style="cursor: pointer;">
-                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
-                    <circle cx="12" cy="12" r="3"></circle>
-                </svg>
-                <span>Settings</span>
-                <svg class="chevron" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:16px;height:16px;">
-                    <path d="M9 5l7 7-7 7"></path>
-                </svg>
-            </div>
         </nav>
     </aside>
     
