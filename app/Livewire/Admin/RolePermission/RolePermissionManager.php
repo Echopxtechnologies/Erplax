@@ -13,9 +13,6 @@ class RolePermissionManager extends Component
     public Role $role;
     public array $selectedPermissions = [];
     public array $modulePermissions = [];
-    public string $searchQuery = '';
-
-    protected $listeners = ['refreshPermissions' => '$refresh'];
 
     public function mount(Role $role)
     {
@@ -25,54 +22,76 @@ class RolePermissionManager extends Component
     }
 
     /**
-     * Load permissions grouped by module
+     * Load permissions grouped by module (admin guard only)
      */
     public function loadModulePermissions()
     {
-        $modules = Module::where('is_active', true)
-            ->where('is_installed', true)
-            ->orderBy('sort_order')
-            ->get();
-
         $this->modulePermissions = [];
 
-        foreach ($modules as $module) {
-            $permissions = Permission::where('module_id', $module->id)
-                ->orderBy('sort_order')
-                ->orderBy('name')
-                ->get()
-                ->groupBy(function ($permission) {
-                    // Group by menu (second part of permission name)
-                    $parts = explode('.', $permission->name);
-                    return $parts[1] ?? 'general';
-                });
-
-            if ($permissions->count() > 0) {
-                $this->modulePermissions[$module->id] = [
-                    'module' => $module,
-                    'permissions' => $permissions,
-                ];
-            }
-        }
-
-        // Add orphan permissions (no module)
-        $orphanPermissions = Permission::whereNull('module_id')
+        // Get all permissions for admin guard
+        $allPermissions = Permission::where('guard_name', 'admin')
             ->orderBy('name')
             ->get();
 
-        if ($orphanPermissions->count() > 0) {
-            $this->modulePermissions['orphan'] = [
-                'module' => (object)[
-                    'id' => 'orphan',
-                    'name' => 'Other Permissions',
-                    'alias' => 'other',
+        // Group permissions by module alias
+        $groupedByModule = [];
+        
+        foreach ($allPermissions as $permission) {
+            $parts = explode('.', $permission->name);
+            
+            if (count($parts) >= 3) {
+                $moduleAlias = $parts[0];
+                $menuSlug = $parts[1];
+                $actionSlug = $parts[2];
+            } elseif (count($parts) == 2) {
+                $moduleAlias = $parts[0];
+                $menuSlug = 'general';
+                $actionSlug = $parts[1];
+            } else {
+                $moduleAlias = 'other';
+                $menuSlug = 'general';
+                $actionSlug = $parts[0];
+            }
+
+            if (!isset($groupedByModule[$moduleAlias])) {
+                $groupedByModule[$moduleAlias] = [];
+            }
+
+            if (!isset($groupedByModule[$moduleAlias][$menuSlug])) {
+                $groupedByModule[$moduleAlias][$menuSlug] = [];
+            }
+
+            $groupedByModule[$moduleAlias][$menuSlug][] = $permission;
+        }
+
+        // Get modules from database
+        $modules = Module::where('is_active', true)
+            ->where('is_installed', true)
+            ->get()
+            ->keyBy('alias');
+
+        // Build final structure
+        foreach ($groupedByModule as $moduleAlias => $menus) {
+            $module = $modules[$moduleAlias] ?? null;
+            
+            $this->modulePermissions[$moduleAlias] = [
+                'module' => $module ? $module : (object)[
+                    'id' => $moduleAlias,
+                    'name' => ucfirst($moduleAlias),
+                    'alias' => $moduleAlias,
                 ],
-                'permissions' => $orphanPermissions->groupBy(function ($permission) {
-                    $parts = explode('.', $permission->name);
-                    return $parts[0] ?? 'general';
+                'permissions' => collect($menus)->map(function ($perms) {
+                    return collect($perms);
                 }),
             ];
         }
+
+        // Sort by module name
+        uksort($this->modulePermissions, function ($a, $b) {
+            if ($a === 'other') return 1;
+            if ($b === 'other') return -1;
+            return strcasecmp($a, $b);
+        });
     }
 
     /**
@@ -81,21 +100,20 @@ class RolePermissionManager extends Component
     public function togglePermission(string $permissionName)
     {
         if (in_array($permissionName, $this->selectedPermissions)) {
-            $this->selectedPermissions = array_diff($this->selectedPermissions, [$permissionName]);
+            $this->selectedPermissions = array_values(array_diff($this->selectedPermissions, [$permissionName]));
         } else {
             $this->selectedPermissions[] = $permissionName;
         }
 
-        // Auto-save
         $this->savePermissions();
     }
 
     /**
      * Toggle all permissions for a module
      */
-    public function toggleModule(int $moduleId, bool $checked)
+    public function toggleModule(string $moduleAlias, bool $checked)
     {
-        $moduleData = $this->modulePermissions[$moduleId] ?? null;
+        $moduleData = $this->modulePermissions[$moduleAlias] ?? null;
         
         if (!$moduleData) return;
 
@@ -109,18 +127,18 @@ class RolePermissionManager extends Component
         if ($checked) {
             $this->selectedPermissions = array_unique(array_merge($this->selectedPermissions, $modulePermissionNames));
         } else {
-            $this->selectedPermissions = array_diff($this->selectedPermissions, $modulePermissionNames);
+            $this->selectedPermissions = array_values(array_diff($this->selectedPermissions, $modulePermissionNames));
         }
 
         $this->savePermissions();
     }
 
     /**
-     * Toggle all permissions for a menu within a module
+     * Toggle all permissions for a menu
      */
-    public function toggleMenu(int $moduleId, string $menuSlug, bool $checked)
+    public function toggleMenu(string $moduleAlias, string $menuSlug, bool $checked)
     {
-        $moduleData = $this->modulePermissions[$moduleId] ?? null;
+        $moduleData = $this->modulePermissions[$moduleAlias] ?? null;
         
         if (!$moduleData || !isset($moduleData['permissions'][$menuSlug])) return;
 
@@ -129,7 +147,7 @@ class RolePermissionManager extends Component
         if ($checked) {
             $this->selectedPermissions = array_unique(array_merge($this->selectedPermissions, $menuPermissionNames));
         } else {
-            $this->selectedPermissions = array_diff($this->selectedPermissions, $menuPermissionNames);
+            $this->selectedPermissions = array_values(array_diff($this->selectedPermissions, $menuPermissionNames));
         }
 
         $this->savePermissions();
@@ -140,7 +158,9 @@ class RolePermissionManager extends Component
      */
     public function selectAll()
     {
-        $this->selectedPermissions = Permission::pluck('name')->toArray();
+        $this->selectedPermissions = Permission::where('guard_name', 'admin')
+            ->pluck('name')
+            ->toArray();
         $this->savePermissions();
     }
 
@@ -158,8 +178,11 @@ class RolePermissionManager extends Component
      */
     public function selectReadOnly()
     {
-        $this->selectedPermissions = Permission::where('name', 'like', '%.read')
-            ->orWhere('name', 'read')
+        $this->selectedPermissions = Permission::where('guard_name', 'admin')
+            ->where(function ($query) {
+                $query->where('name', 'like', '%.read')
+                    ->orWhere('name', 'read');
+            })
             ->pluck('name')
             ->toArray();
         $this->savePermissions();
@@ -172,24 +195,21 @@ class RolePermissionManager extends Component
     {
         DB::transaction(function () {
             $this->role->syncPermissions($this->selectedPermissions);
-            
-            // Clear permission cache
             app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
         });
 
         $this->dispatch('notify', [
             'type' => 'success',
-            'message' => 'Permissions updated successfully!',
+            'message' => 'Permissions updated!',
         ]);
     }
 
     /**
      * Check if module has all permissions selected
      */
-    public function isModuleFullySelected(int $moduleId): bool
+    public function isModuleFullySelected(string $moduleAlias): bool
     {
-        $moduleData = $this->modulePermissions[$moduleId] ?? null;
-        
+        $moduleData = $this->modulePermissions[$moduleAlias] ?? null;
         if (!$moduleData) return false;
 
         foreach ($moduleData['permissions'] as $menuPermissions) {
@@ -199,42 +219,15 @@ class RolePermissionManager extends Component
                 }
             }
         }
-
         return true;
-    }
-
-    /**
-     * Check if module has some permissions selected
-     */
-    public function isModulePartiallySelected(int $moduleId): bool
-    {
-        $moduleData = $this->modulePermissions[$moduleId] ?? null;
-        
-        if (!$moduleData) return false;
-
-        $hasSelected = false;
-        $hasUnselected = false;
-
-        foreach ($moduleData['permissions'] as $menuPermissions) {
-            foreach ($menuPermissions as $permission) {
-                if (in_array($permission->name, $this->selectedPermissions)) {
-                    $hasSelected = true;
-                } else {
-                    $hasUnselected = true;
-                }
-            }
-        }
-
-        return $hasSelected && $hasUnselected;
     }
 
     /**
      * Check if menu has all permissions selected
      */
-    public function isMenuFullySelected(int $moduleId, string $menuSlug): bool
+    public function isMenuFullySelected(string $moduleAlias, string $menuSlug): bool
     {
-        $moduleData = $this->modulePermissions[$moduleId] ?? null;
-        
+        $moduleData = $this->modulePermissions[$moduleAlias] ?? null;
         if (!$moduleData || !isset($moduleData['permissions'][$menuSlug])) return false;
 
         foreach ($moduleData['permissions'][$menuSlug] as $permission) {
@@ -242,24 +235,17 @@ class RolePermissionManager extends Component
                 return false;
             }
         }
-
         return true;
     }
 
-    /**
-     * Get permission count for display
-     */
     public function getSelectedCountProperty(): int
     {
         return count($this->selectedPermissions);
     }
 
-    /**
-     * Get total permission count
-     */
     public function getTotalCountProperty(): int
     {
-        return Permission::count();
+        return Permission::where('guard_name', 'admin')->count();
     }
 
     public function render()

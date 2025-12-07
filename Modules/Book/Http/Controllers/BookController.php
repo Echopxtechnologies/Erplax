@@ -13,7 +13,7 @@ class BookController extends AdminController
      */
     public function index()
     {
-        $this->authorizeAdmin();
+        // $this->authorizeAdmin();
         $this->authorize('book.list.read');
 
         $books = Book::paginate(15);
@@ -26,8 +26,8 @@ class BookController extends AdminController
      */
     public function create()
     {
-        $this->authorizeAdmin();
-        $this->authorize('book.create.create');
+        // $this->authorizeAdmin();
+        // $this->authorize('book.create.create');
 
         return view('book::create');
     }

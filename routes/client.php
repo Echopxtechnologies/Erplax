@@ -18,6 +18,7 @@
     | Uses EnsureIsClient middleware for single session enforcement
     |
     */
+     Route::get('/client', [ClientLoginController::class, 'showLoginForm'])->name('login');
 
     Route::prefix('client')->name('client.')->group(function () {
 
@@ -29,6 +30,7 @@
         Route::middleware('guest')->group(function () {
             
             // Login
+            
             Route::get('/login', [ClientLoginController::class, 'showLoginForm'])->name('login');
             Route::post('/login', [ClientLoginController::class, 'login'])->name('login.submit');
 

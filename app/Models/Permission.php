@@ -16,6 +16,13 @@ class Permission extends SpatiePermission
     ];
 
     /**
+     * Default guard for new permissions
+     */
+    protected $attributes = [
+        'guard_name' => 'admin',  // ← Default to admin guard
+    ];
+
+    /**
      * Get the module this permission belongs to
      */
     public function module(): BelongsTo
@@ -25,7 +32,6 @@ class Permission extends SpatiePermission
 
     /**
      * Get module name from permission name
-     * e.g., "book.list.read" returns "book"
      */
     public function getModuleSlugAttribute(): string
     {
@@ -35,7 +41,6 @@ class Permission extends SpatiePermission
 
     /**
      * Get menu slug from permission name
-     * e.g., "book.list.read" returns "list"
      */
     public function getMenuSlugAttribute(): string
     {
@@ -45,7 +50,6 @@ class Permission extends SpatiePermission
 
     /**
      * Get action slug from permission name
-     * e.g., "book.list.read" returns "read"
      */
     public function getActionSlugAttribute(): string
     {
@@ -59,6 +63,14 @@ class Permission extends SpatiePermission
     public function scopeByModule($query, $moduleId)
     {
         return $query->where('module_id', $moduleId);
+    }
+
+    /**
+     * Scope for admin guard permissions
+     */
+    public function scopeAdmin($query)
+    {
+        return $query->where('guard_name', 'admin');
     }
 
     /**

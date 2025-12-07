@@ -4,43 +4,41 @@ namespace App\Models;
 
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Spatie\Permission\Traits\HasRoles;
 
 class Admin extends Authenticatable
 {
-    use Notifiable;
+    use Notifiable, HasRoles;
     
+    protected $table = 'admins';
     protected $guard = 'admin';
+    protected $guard_name = 'admin';  // For Spatie permissions
     
-    /**
-     * The attributes that are mass assignable.
-     */
     protected $fillable = [
         'name',
         'email',
         'password',
-        'role',
-        'status',
+        'is_admin',
+        'is_active',
     ];
     
-    /**
-     * The attributes that should be hidden for arrays.
-     */
     protected $hidden = [
         'password',
         'remember_token',
     ];
     
-    /**
-     * The attributes that should be cast to native types.
-     */
     protected $casts = [
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
+        'is_admin' => 'boolean',
+        'is_active' => 'boolean',
     ];
-    
-    // Add any admin-specific methods
-    public function isSuperAdmin()
+
+    /**
+     * Get the guard name for Spatie permissions
+     */
+    public function guardName(): string
     {
-        return $this->role === 'super_admin';
+        return 'admin';
     }
 }

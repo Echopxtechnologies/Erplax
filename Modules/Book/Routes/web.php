@@ -2,9 +2,10 @@
 
 use Illuminate\Support\Facades\Route;
 use Modules\Book\Http\Controllers\BookController;
+use App\Http\Middleware\EnsureIsAdmin;
 
 Route::prefix('admin/book')
-    ->middleware(['web', 'auth', 'admin'])
+    ->middleware([EnsureIsAdmin::class])
     ->name('admin.book.')
     ->group(function () {
         Route::get('/', [BookController::class, 'index'])->name('index');

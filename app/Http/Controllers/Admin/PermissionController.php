@@ -9,7 +9,6 @@ use App\Models\Permission;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 
-
 class PermissionController extends AdminController
 {
     /**
@@ -17,9 +16,6 @@ class PermissionController extends AdminController
      */
     public function index()
     {
-        $redirect = $this->authorizeAdmin();
-        if ($redirect) return $redirect;
-
         // Get all permissions with their modules
         $permissions = Permission::with('module')
             ->orderBy('name')
@@ -78,9 +74,6 @@ class PermissionController extends AdminController
      */
     public function create()
     {
-        $redirect = $this->authorizeAdmin();
-        if ($redirect) return $redirect;
-
         $modules = Module::where('is_active', true)
             ->where('is_installed', true)
             ->orderBy('name')
@@ -94,9 +87,6 @@ class PermissionController extends AdminController
      */
     public function store(Request $request)
     {
-        $redirect = $this->authorizeAdmin();
-        if ($redirect) return $redirect;
-
         $validator = Validator::make($request->all(), [
             'module_id' => 'required|exists:modules,id',
             'name' => 'required|unique:permissions,name|min:3',
@@ -120,7 +110,7 @@ class PermissionController extends AdminController
 
         Permission::create([
             'name' => $request->name,
-            'guard_name' => 'web',
+            'guard_name' => 'admin',  // ← Changed from 'web' to 'admin'
             'module_id' => $request->module_id,
             'action_name' => $actionNames[$actionSlug] ?? ucfirst($actionSlug),
         ]);
@@ -138,9 +128,6 @@ class PermissionController extends AdminController
      */
     public function storeBulk(Request $request)
     {
-        $redirect = $this->authorizeAdmin();
-        if ($redirect) return $redirect;
-
         $validator = Validator::make($request->all(), [
             'bulk_module_id' => 'required|exists:modules,id',
             'bulk_menu_name' => 'required|string|min:2',
@@ -179,7 +166,7 @@ class PermissionController extends AdminController
 
                 Permission::create([
                     'name' => $permissionName,
-                    'guard_name' => 'web',
+                    'guard_name' => 'admin',  // ← Changed from 'web' to 'admin'
                     'module_id' => $module->id,
                     'action_name' => $actionNames[$action] ?? ucfirst($action),
                 ]);
@@ -205,9 +192,6 @@ class PermissionController extends AdminController
      */
     public function edit($id)
     {
-        $redirect = $this->authorizeAdmin();
-        if ($redirect) return $redirect;
-
         $permission = Permission::findOrFail($id);
         $modules = Module::where('is_active', true)
             ->where('is_installed', true)
@@ -222,9 +206,6 @@ class PermissionController extends AdminController
      */
     public function update(Request $request, $id)
     {
-        $redirect = $this->authorizeAdmin();
-        if ($redirect) return $redirect;
-
         $permission = Permission::findOrFail($id);
 
         $validator = Validator::make($request->all(), [
@@ -249,6 +230,7 @@ class PermissionController extends AdminController
 
         $permission->update([
             'name' => $request->name,
+            'guard_name' => 'admin',  // ← Ensure admin guard
             'module_id' => $request->module_id,
             'action_name' => $actionNames[$actionSlug] ?? ucfirst($actionSlug),
         ]);

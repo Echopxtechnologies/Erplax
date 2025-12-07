@@ -5,17 +5,18 @@ namespace App\Http\Middleware;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\View;
 use Symfony\Component\HttpFoundation\Response;
 
 class EnsureIsAdmin
 {
-    /**
-     * Handle an incoming request.
-     */
     public function handle(Request $request, Closure $next): Response
     {
         // Check if user is authenticated via admin guard
         if (!Auth::guard('admin')->check()) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => 'Unauthenticated.'], 401);
+            }
             return redirect()->route('admin.login');
         }
 
@@ -23,28 +24,32 @@ class EnsureIsAdmin
 
         // Check if admin can access admin panel
         if (!$this->isAdminUser($admin)) {
-            // Admin is logged in but not authorized
             Auth::guard('admin')->logout();
-            $request->session()->invalidate();
+            $request->session()->regenerate();
             
             return redirect()->route('admin.login')
                 ->with('error', 'You do not have admin access.');
         }
 
+        // Share admin with all views
+        View::share('admin', $admin);
+        
+        // Also set as default auth user for compatibility with modules
+        Auth::setUser($admin);
+
         return $next($request);
     }
 
-    /**
-     * Check if user has admin access
-     */
     protected function isAdminUser($admin): bool
     {
-        // Check is_admin flag
-        if ($admin->is_admin) {
+        if (!$admin) {
+            return false;
+        }
+
+        if ($admin->is_admin ?? false) {
             return true;
         }
 
-        // Check if admin has any role via Spatie
         if (method_exists($admin, 'roles') && $admin->roles->count() > 0) {
             return true;
         }

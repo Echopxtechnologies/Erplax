@@ -10,58 +10,91 @@ use Illuminate\Support\Facades\Validator;
 
 class RoleController extends AdminController
 {
-    // Show roles list
+    /**
+     * Show roles list
+     */
     public function index()
     {
-        $roles = RoleModel::with('permissions')->latest()->paginate(10);
+        // Only get roles for admin guard
+        $roles = RoleModel::where('guard_name', 'admin')
+            ->with('permissions')
+            ->latest()
+            ->paginate(10);
+            
         return view('admin.settings.role_permission.role.role-management', compact('roles'));
     }
 
-    // Show create form
+    /**
+     * Show create form
+     */
     public function create()
     {
-        $permissions = PermissionModel::orderBy('name')->get();
+        // Only get permissions for admin guard
+        $permissions = PermissionModel::where('guard_name', 'admin')
+            ->orderBy('name')
+            ->get();
+            
         return view('admin.settings.role_permission.role.role-create', compact('permissions'));
     }
 
-    // Store new role
+    /**
+     * Store new role
+     */
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'name' => 'required|unique:roles|min:3'
+            'name' => 'required|min:3|unique:roles,name,NULL,id,guard_name,admin'
         ]);
 
         if ($validator->passes()) {
-            $role = RoleModel::create(['name' => $request->name]);
+            // Create role with admin guard
+            $role = RoleModel::create([
+                'name' => $request->name,
+                'guard_name' => 'admin'  // ← Admin guard
+            ]);
             
             // Sync permissions if any selected
             if ($request->has('permissions')) {
                 $role->syncPermissions($request->permissions);
             }
+
+            // Clear cache
+            app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
             
-            return redirect()->route('admin.settings.roles.index')->with('success', 'Role created successfully');
+            return redirect()
+                ->route('admin.settings.roles.index')
+                ->with('success', 'Role created successfully');
         } else {
-            return redirect()->route('admin.settings.roles.create')->withInput()->withErrors($validator);
+            return redirect()
+                ->route('admin.settings.roles.create')
+                ->withInput()
+                ->withErrors($validator);
         }
     }
 
-    // Show edit form
+    /**
+     * Show edit form
+     */
     public function edit($id)
     {
-        $role = RoleModel::findOrFail($id);
-        $permissions = PermissionModel::orderBy('name')->get();
+        $role = RoleModel::where('guard_name', 'admin')->findOrFail($id);
+        $permissions = PermissionModel::where('guard_name', 'admin')
+            ->orderBy('name')
+            ->get();
         $rolePermissions = $role->permissions->pluck('id')->toArray();
         
         return view('admin.settings.role_permission.role.role-edit', compact('role', 'permissions', 'rolePermissions'));
     }
 
-    // Update role
+    /**
+     * Update role
+     */
     public function update(Request $request, $id)
     {
-        $role = RoleModel::findOrFail($id);
+        $role = RoleModel::where('guard_name', 'admin')->findOrFail($id);
         
         $validator = Validator::make($request->all(), [
-            'name' => 'required|min:3|unique:roles,name,' . $id . ',id'
+            'name' => 'required|min:3|unique:roles,name,' . $id . ',id,guard_name,admin'
         ]);
 
         if ($validator->passes()) {
@@ -74,17 +107,27 @@ class RoleController extends AdminController
             } else {
                 $role->syncPermissions([]);
             }
+
+            // Clear cache
+            app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
             
-            return redirect()->route('admin.settings.roles.index')->with('success', 'Role updated successfully');
+            return redirect()
+                ->route('admin.settings.roles.index')
+                ->with('success', 'Role updated successfully');
         } else {
-            return redirect()->route('admin.settings.roles.edit', $id)->withInput()->withErrors($validator);
+            return redirect()
+                ->route('admin.settings.roles.edit', $id)
+                ->withInput()
+                ->withErrors($validator);
         }
     }
 
-    // Delete role
+    /**
+     * Delete role
+     */
     public function destroy($id)
     {
-        $role = RoleModel::find($id);
+        $role = RoleModel::where('guard_name', 'admin')->find($id);
         
         if ($role === null) {
             session()->flash('error', 'Role not found');
@@ -94,7 +137,20 @@ class RoleController extends AdminController
             ]);
         }
 
+        // Prevent deleting super-admin role
+        if ($role->name === 'super-admin') {
+            session()->flash('error', 'Cannot delete super-admin role');
+            return response()->json([
+                'status' => false,
+                'message' => 'Cannot delete super-admin role'
+            ]);
+        }
+
         $role->delete();
+
+        // Clear cache
+        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+
         session()->flash('success', 'Role deleted successfully');
         
         return response()->json([

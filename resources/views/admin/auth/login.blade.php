@@ -759,11 +759,6 @@
                 <!-- Login Form -->
                 <form method="POST" action="{{ route('admin.login.submit') }}" id="loginForm">
                     @csrf
-                        <!-- DEBUG: Remove after testing -->
-    <p style="color: #22c55e; font-size: 11px; margin-bottom: 10px;">
-        Session ID: {{ substr(session()->getId(), 0, 8) }}... | 
-        Token: {{ substr(csrf_token(), 0, 8) }}...
-    </p>
                     <!-- Email -->
                     <div class="form-group">
                         <label for="email" class="form-label">Email Address</label>
