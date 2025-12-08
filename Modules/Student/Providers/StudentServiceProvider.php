@@ -2,6 +2,7 @@
 
 namespace Modules\Student\Providers;
 
+use Illuminate\Support\Facades\Route; // ← REQUIRED!
 use Illuminate\Support\ServiceProvider;
 
 class StudentServiceProvider extends ServiceProvider
@@ -10,7 +11,11 @@ class StudentServiceProvider extends ServiceProvider
 
     public function boot()
     {
-        $this->loadRoutesFrom($this->modulePath . 'Routes/web.php');
+        // CRITICAL: Wrap in 'web' middleware!
+        Route::middleware('web')
+            ->group(fn () => $this->loadRoutesFrom(
+                $this->modulePath . 'Routes/web.php'));
+        
         $this->loadViewsFrom($this->modulePath . 'Resources/views', 'student');
         $this->loadMigrationsFrom($this->modulePath . 'Database/Migrations');
     }

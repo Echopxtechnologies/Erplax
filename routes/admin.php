@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\Admin\RolePermissionController;
 
+Route::get('/admin', [AdminLoginController::class, 'showLoginForm'])->name('login');
 Route::prefix('admin')->name('admin.')->group(function () {
 
     // Login routes - NO middleware at all

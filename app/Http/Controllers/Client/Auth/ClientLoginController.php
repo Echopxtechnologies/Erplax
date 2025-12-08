@@ -11,48 +11,25 @@ use Illuminate\Validation\ValidationException;
 use Illuminate\Auth\Events\Lockout;
 use App\Models\User;
 
-class ClientLoginController extends Controller
+class ClientLoginController extends Controller  // ← Changed from ClientController
 {
     /**
      * Show the client login form
      */
     public function showLoginForm()
     {
-        // If already logged in, check user type
-        if (Auth::check()) {
-            $user = Auth::user();
-            
-            // If client user (not admin), redirect to client dashboard
-            if (!$this->isAdminUser($user)) {
-                return redirect()->route('client.dashboard');
-            }
-            
-            // If admin user is logged in, logout and REDIRECT to get fresh CSRF token
-            Auth::logout();
-            request()->session()->invalidate();
-            request()->session()->regenerateToken();
-            
-            // IMPORTANT: Redirect to same page to get fresh CSRF token
-            return redirect()->route('client.login');
+        // If already logged in as client, redirect to dashboard
+        if (Auth::guard('web')->check()) {
+            return redirect()->route('client.dashboard');
+        }
+
+        // If admin is logged in, let them know
+        if (Auth::guard('admin')->check()) {
+            return redirect()->route('admin.dashboard')
+                ->with('info', 'You are logged in as admin. Logout first to access client portal.');
         }
 
         return view('client.auth.login');
-    }
-
-    /**
-     * Check if user is admin
-     */
-    protected function isAdminUser($user): bool
-    {
-        if ($user->is_admin) {
-            return true;
-        }
-
-        if (method_exists($user, 'roles') && $user->roles->count() > 0) {
-            return true;
-        }
-
-        return false;
     }
 
     /**
@@ -78,33 +55,19 @@ class ClientLoginController extends Controller
             ]);
         }
 
-        // Check if user is admin (should use admin login)
-        if ($this->isAdminUser($user)) {
-            throw ValidationException::withMessages([
-                'email' => __('Please use the admin login portal.'),
-            ]);
-        }
-
         // Check if account is active
-        if (isset($user->status) && $user->status !== 'active') {
+        if (!$user->isActive()) {
             throw ValidationException::withMessages([
                 'email' => __('Your account is not active. Please contact support.'),
             ]);
         }
 
-        // If someone else is logged in, logout first
-        if (Auth::check() && Auth::id() !== $user->id) {
-            Auth::logout();
-            $request->session()->invalidate();
-            $request->session()->regenerate(); // Regenerate to get new session
-        }
-
-        // Attempt to authenticate
-        if (Auth::attempt($credentials, $request->boolean('remember'))) {
+        // Attempt to authenticate with web guard
+        if (Auth::guard('web')->attempt($credentials, $request->boolean('remember'))) {
             
             RateLimiter::clear($this->throttleKey($request));
             
-            // Regenerate session for security
+            // Regenerate session for security (don't invalidate - preserves admin session)
             $request->session()->regenerate();
             
             // Store user type in session for quick checks
@@ -154,11 +117,12 @@ class ClientLoginController extends Controller
      */
     public function logout(Request $request)
     {
-        Auth::logout();
+        Auth::guard('web')->logout();
         
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
+        // Only regenerate, don't invalidate (preserves admin session if logged in)
+        $request->session()->regenerate();
+        $request->session()->forget('user_type');
 
-        return redirect()->route('client.login');
+        return redirect()->route('client.login')->with('success', 'Logged out successfully.');
     }
 }

@@ -10,6 +10,7 @@ class RouteServiceProvider extends ServiceProvider
     public function boot(): void
     {
         parent::boot();
+        $this->map(); // CRITICAL: Must call map() to register routes!
     }
 
     public function map(): void

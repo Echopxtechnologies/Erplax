@@ -14,7 +14,7 @@ class StudentController extends AdminController
     // DataTable Configuration
     protected $model = Student::class;
     protected $searchable = ['name', 'email', 'phone', 'course'];
-    protected $exportable = ['id', 'name', 'email', 'phone', 'course', 'status', 'admission_date', 'created_at'];
+    protected $exportable = ['id', 'name', 'email', 'phone', 'course'];
     protected $routePrefix = 'admin.student';
 
     public function index()

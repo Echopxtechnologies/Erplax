@@ -2,9 +2,10 @@
 
 use Illuminate\Support\Facades\Route;
 use Modules\Todo\Http\Controllers\TodoController;
+use App\Http\Middleware\EnsureIsAdmin; // ← USE THIS!
 
 Route::prefix('admin/todo')
-    ->middleware(['web', 'auth', 'admin'])
+    ->middleware([EnsureIsAdmin::class]) // ← NOT 'auth'!
     ->name('admin.todo.')
     ->group(function () {
         // List & DataTable
