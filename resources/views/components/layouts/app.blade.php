@@ -890,6 +890,43 @@
                 <a href="{{ route('admin.contacts.dummy3') }}" class="nav-item {{ request()->routeIs('admin.contacts.dummy3') ? 'active' : '' }}">Dummy 3</a>
             </div>
 
+            {{-- Inventory Menu --}}
+{{-- Inventory Menu --}}
+<div class="nav-item {{ request()->routeIs('admin.inventory.*') ? 'active' : '' }}" onclick="toggleSubmenu(this)" style="cursor: pointer;">
+    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+    </svg>
+    <span>Inventory</span>
+    <svg class="chevron" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M19 9l-7 7-7-7"></path>
+    </svg>
+</div>
+<div class="nav-submenu {{ request()->routeIs('admin.inventory.*') ? 'open' : '' }}">
+    <a href="{{ route('admin.inventory.dashboard') }}" class="nav-item {{ request()->routeIs('admin.inventory.dashboard') ? 'active' : '' }}">
+        Dashboard
+    </a>
+    <a href="{{ route('admin.inventory.products.index') }}" class="nav-item {{ request()->routeIs('admin.inventory.products.*') ? 'active' : '' }}">
+        Products
+    </a>
+    <a href="{{ route('admin.inventory.warehouses.index') }}" class="nav-item {{ request()->routeIs('admin.inventory.warehouses.*') ? 'active' : '' }}">
+        Warehouses
+    </a>
+    <a href="{{ route('admin.inventory.lots.index') }}" class="nav-item {{ request()->routeIs('admin.inventory.lots.*') ? 'active' : '' }}">
+        Lots/Batches
+    </a>
+    <a href="{{ route('admin.inventory.stock.receive') }}" class="nav-item {{ request()->routeIs('admin.inventory.stock.*') ? 'active' : '' }}">
+        Stock Movements
+    </a>
+    
+    <a href="{{ route('admin.inventory.reports.stock-summary') }}" class="nav-item {{ request()->routeIs('admin.inventory.reports.*') ? 'active' : '' }}">
+        Reports
+    </a>
+    <a href="{{ route('admin.inventory.settings.index') }}" class="nav-item {{ request()->routeIs('admin.inventory.settings.*') ? 'active' : '' }}">
+        Settings
+    </a>
+</div>
+
+
             {{-- Module menu items (non-core modules from Modules folder) --}}
             @foreach($activeModules as $module)
                 @if(!$module->is_core)
