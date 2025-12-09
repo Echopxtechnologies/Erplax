@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Crypt;
 
 class Option extends Model
 {
@@ -21,6 +22,16 @@ class Option extends Model
     protected $casts = [
         'is_public' => 'boolean',
         'autoload' => 'boolean',
+    ];
+
+    /**
+     * Keys that should be encrypted
+     */
+    protected static array $encryptedKeys = [
+        'mail_password',
+        'smtp_password',
+        'api_secret',
+        'secret_key',
     ];
 
     /*
@@ -43,7 +54,18 @@ class Option extends Model
                 return $default;
             }
 
-            return static::castValue($option->value, $option->type);
+            $value = static::castValue($option->value, $option->type);
+
+            // Decrypt if it's an encrypted key
+            if (in_array($key, static::$encryptedKeys) && $value) {
+                try {
+                    return Crypt::decryptString($value);
+                } catch (\Exception $e) {
+                    return $value; // Return as-is if decryption fails (legacy data)
+                }
+            }
+
+            return $value;
         } catch (\Exception $e) {
             return $default;
         }
@@ -54,7 +76,10 @@ class Option extends Model
      */
     public static function set(string $key, $value, array $attributes = []): self
     {
-        if (is_array($value) || is_object($value)) {
+        // Encrypt sensitive keys
+        if (in_array($key, static::$encryptedKeys) && $value) {
+            $value = Crypt::encryptString($value);
+        } elseif (is_array($value) || is_object($value)) {
             $value = json_encode($value);
         } elseif (is_bool($value)) {
             $value = $value ? '1' : '0';
@@ -190,6 +215,20 @@ class Option extends Model
     | Mail Settings Helpers
     |--------------------------------------------------------------------------
     */
+
+    public static function mailConfig(): array
+    {
+        return [
+            'mailer' => static::get('mail_mailer', 'smtp'),
+            'host' => static::get('mail_host', ''),
+            'port' => (int) static::get('mail_port', 587),
+            'username' => static::get('mail_username', ''),
+            'password' => static::get('mail_password', ''), // Auto-decrypted
+            'encryption' => static::get('mail_encryption', 'tls'),
+            'from_address' => static::get('mail_from_address', ''),
+            'from_name' => static::get('mail_from_name', static::companyName()),
+        ];
+    }
 
     public static function mailDriver(): string
     {

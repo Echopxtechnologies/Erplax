@@ -943,85 +943,121 @@ class AdminController extends Controller
     /**
      * Email Settings Page
      */
-    public function settingsEmail()
-    {
-        $data = [
-            'mail_mailer' => Option::get('mail_mailer', 'smtp'),
-            'mail_host' => Option::get('mail_host', ''),
-            'mail_port' => Option::get('mail_port', 587),
-            'mail_username' => Option::get('mail_username', ''),
-            'mail_password' => Option::get('mail_password', ''),
-            'mail_encryption' => Option::get('mail_encryption', 'tls'),
-            'mail_from_address' => Option::get('mail_from_address', ''),
-            'mail_from_name' => Option::get('mail_from_name', ''),
-        ];
+public function settingsEmail()
+{
+    $data = [
+        'mail_mailer' => Option::get('mail_mailer', 'smtp'),
+        'mail_host' => Option::get('mail_host', ''),
+        'mail_port' => Option::get('mail_port', 587),
+        'mail_username' => Option::get('mail_username', ''),
+        'mail_password' => Option::get('mail_password', ''),
+        'mail_encryption' => Option::get('mail_encryption', 'tls'),
+        'mail_from_address' => Option::get('mail_from_address', ''),
+        'mail_from_name' => Option::get('mail_from_name', ''),
+        // Email templates
+        'mail_test_subject' => Option::get('mail_test_subject', 'Test Email - {company_name}'),
+        'mail_test_body' => Option::get('mail_test_body', $this->getDefaultTestEmailBody()),
+        'mail_footer' => Option::get('mail_footer', $this->getDefaultEmailFooter()),
+    ];
 
-        return view('admin.settings.email', $data);
-    }
+    return view('admin.settings.email', $data);
+}
 
-    /**
-     * Save Email Settings
-     */
-    public function saveSettingsEmail(Request $request)
-    {
-        $request->validate([
-            'mail_mailer' => 'required|string',
-            'mail_host' => 'required|string|max:255',
-            'mail_port' => 'required|integer',
-            'mail_username' => 'nullable|string|max:255',
-            'mail_password' => 'nullable|string|max:255',
-            'mail_encryption' => 'nullable|string|in:tls,ssl,null',
-            'mail_from_address' => 'required|email|max:255',
-            'mail_from_name' => 'required|string|max:255',
-        ]);
+/**
+ * Get default test email body
+ */
+protected function getDefaultTestEmailBody(): string
+{
+    return '<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+    <h2 style="color: #333;">Test Email</h2>
+    <p>Hello,</p>
+    <p>This is a test email from <strong>{company_name}</strong>.</p>
+    <p>If you received this email, your mail settings are configured correctly!</p>
+    <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+    <p style="color: #666; font-size: 12px;">Sent at: {date_time}</p>
+</div>';
+}
 
-        Option::set('mail_mailer', $request->mail_mailer, ['group' => 'mail']);
-        Option::set('mail_host', $request->mail_host, ['group' => 'mail']);
-        Option::set('mail_port', $request->mail_port, ['group' => 'mail']);
-        Option::set('mail_username', $request->mail_username, ['group' => 'mail']);
+/**
+ * Get default email footer
+ */
+protected function getDefaultEmailFooter(): string
+{
+    return '<div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; text-align: center; color: #666; font-size: 12px;">
+    <p>{company_name}</p>
+    <p>{company_address}</p>
+    <p>© {year} All rights reserved.</p>
+</div>';
+}
+
+   /**
+ * Save Email Settings
+ */
+public function saveSettingsEmail(Request $request)
+{
+    $request->validate([
+        'mail_mailer' => 'required|string',
+        'mail_host' => 'required|string|max:255',
+        'mail_port' => 'required|integer',
+        'mail_username' => 'nullable|string|max:255',
+        'mail_password' => 'nullable|string|max:255',
+        'mail_encryption' => 'nullable|string|in:tls,ssl,null',
+        'mail_from_address' => 'required|email|max:255',
+        'mail_from_name' => 'required|string|max:255',
+        'mail_test_subject' => 'nullable|string|max:255',
+        'mail_test_body' => 'nullable|string',
+        'mail_footer' => 'nullable|string',
+    ]);
+
+    // SMTP settings
+    Option::set('mail_mailer', $request->mail_mailer, ['group' => 'mail']);
+    Option::set('mail_host', $request->mail_host, ['group' => 'mail']);
+    Option::set('mail_port', $request->mail_port, ['group' => 'mail']);
+    Option::set('mail_username', $request->mail_username, ['group' => 'mail']);
+    
+    // Only update password if provided
+    if ($request->filled('mail_password')) {
         Option::set('mail_password', $request->mail_password, ['group' => 'mail']);
-        Option::set('mail_encryption', $request->mail_encryption, ['group' => 'mail']);
-        Option::set('mail_from_address', $request->mail_from_address, ['group' => 'mail']);
-        Option::set('mail_from_name', $request->mail_from_name, ['group' => 'mail']);
-
-        Option::clearCache();
-
-        $this->logAction('Updated email settings');
-
-        return redirect()->back()->with('success', 'Email settings saved successfully!');
     }
+    
+    Option::set('mail_encryption', $request->mail_encryption, ['group' => 'mail']);
+    Option::set('mail_from_address', $request->mail_from_address, ['group' => 'mail']);
+    Option::set('mail_from_name', $request->mail_from_name, ['group' => 'mail']);
+
+    // Email templates
+    Option::set('mail_test_subject', $request->mail_test_subject, ['group' => 'mail']);
+    Option::set('mail_test_body', $request->mail_test_body, ['group' => 'mail']);
+    Option::set('mail_footer', $request->mail_footer, ['group' => 'mail']);
+
+    Option::clearCache();
+
+    $this->logAction('Updated email settings');
+
+    return redirect()->back()->with('success', 'Email settings saved successfully!');
+}
 
     /**
      * Send Test Email
      */
-    public function sendTestEmail(Request $request)
-    {
-        $request->validate([
-            'test_email' => 'required|email',
-        ]);
+    /**
+ * Send Test Email
+ */
+public function sendTestEmail(Request $request)
+{
+    $request->validate([
+        'test_email' => 'required|email',
+    ]);
 
-        try {
-            Config::set('mail.mailers.smtp.host', Option::get('mail_host'));
-            Config::set('mail.mailers.smtp.port', Option::get('mail_port'));
-            Config::set('mail.mailers.smtp.username', Option::get('mail_username'));
-            Config::set('mail.mailers.smtp.password', Option::get('mail_password'));
-            Config::set('mail.mailers.smtp.encryption', Option::get('mail_encryption') === 'null' ? null : Option::get('mail_encryption'));
-            Config::set('mail.from.address', Option::get('mail_from_address'));
-            Config::set('mail.from.name', Option::get('mail_from_name'));
+    $result = send_test_mail($request->test_email);
 
-            Mail::raw('This is a test email. If you received this, your email settings are working!', function ($message) use ($request) {
-                $message->to($request->test_email)
-                    ->subject('Test Email - ' . Option::companyName());
-            });
+    $this->logAction('Sent test email', ['to' => $request->test_email, 'success' => $result['success']]);
 
-            $this->logAction('Sent test email', ['to' => $request->test_email]);
-
-            return redirect()->back()->with('success', 'Test email sent to ' . $request->test_email);
-        } catch (\Exception $e) {
-            $this->logError('Test email failed', $e);
-            return redirect()->back()->with('error', 'Failed to send: ' . $e->getMessage());
-        }
+    if ($result['success']) {
+        return redirect()->back()->with('success', $result['message']);
     }
+
+    return redirect()->back()->with('error', $result['message']);
+}
 
     /**
      * Admin Logout

@@ -1,0 +1,11 @@
+{
+    "name": "StudentSponsor",
+    "alias": "studentsponsor",
+    "description": "Student Sponsor Portal Module",
+    "keywords": ["student", "sponsor", "portal", "school", "university"],
+    "priority": 0,
+    "providers": [
+        "Modules\\StudentSponsor\\Providers\\StudentSponsorServiceProvider"
+    ],
+    "files": []
+}
