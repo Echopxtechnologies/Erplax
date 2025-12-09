@@ -1,4 +1,5 @@
 <?php
+// 2025_12_03_070932_create_menu_role_table.php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -8,9 +9,11 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('menu_role', function (Blueprint $table) {
-            $table->unsignedBigInteger('menu_id')->after('id');
-            $table->unsignedBigInteger('role_id')->after('menu_id');
+        Schema::create('menu_role', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('menu_id');
+            $table->unsignedBigInteger('role_id');
+            $table->timestamps();
             
             $table->foreign('menu_id')
                 ->references('id')
@@ -28,10 +31,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::table('menu_role', function (Blueprint $table) {
-            $table->dropForeign(['menu_id']);
-            $table->dropForeign(['role_id']);
-            $table->dropColumn(['menu_id', 'role_id']);
-        });
+        Schema::dropIfExists('menu_role');
     }
 };

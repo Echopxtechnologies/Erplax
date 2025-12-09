@@ -1,4 +1,5 @@
 <?php
+// 2025_12_03_070352_create_menus_table.php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -10,8 +11,10 @@ return new class extends Migration
     {
         Schema::create('menus', function (Blueprint $table) {
             $table->id();
+            $table->unsignedBigInteger('module_id')->nullable();
             $table->unsignedBigInteger('parent_id')->nullable();
             $table->string('menu_name', 150);
+            $table->string('slug', 100)->nullable();
             $table->string('icon', 100)->nullable();
             $table->string('route', 191)->nullable();
             $table->string('category', 100)->nullable();
@@ -24,6 +27,11 @@ return new class extends Migration
             $table->foreign('parent_id')
                 ->references('id')
                 ->on('menus')
+                ->onDelete('cascade');
+            
+            $table->foreign('module_id')
+                ->references('id')
+                ->on('modules')
                 ->onDelete('cascade');
         });
     }

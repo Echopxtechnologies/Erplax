@@ -79,7 +79,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('/users/{id}', [AdminUserController::class, 'update'])->name('users.update');
             Route::delete('/users/{id}', [AdminUserController::class, 'destroy'])->name('users.destroy');
         });
-
+// Notification Routes
+Route::prefix('notifications')->name('notifications.')->group(function () {
+    Route::delete('/clear-all', [App\Http\Controllers\Admin\NotificationController::class, 'clearAll'])->name('clear-all');
+    Route::delete('/{id}', [App\Http\Controllers\Admin\NotificationController::class, 'destroy'])->name('destroy')->where('id', '[0-9]+');
+});
         //use from here
 Route::prefix('inventory')->name('inventory.')->group(function () {
     

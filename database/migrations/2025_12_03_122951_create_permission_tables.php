@@ -21,13 +21,23 @@ return new class extends Migration
         throw_if($teams && empty($columnNames['team_foreign_key'] ?? null), Exception::class, 'Error: team_foreign_key on config/permission.php not loaded. Run [php artisan config:clear] and try again.');
 
         Schema::create($tableNames['permissions'], static function (Blueprint $table) {
-            // $table->engine('InnoDB');
-            $table->bigIncrements('id'); // permission id
-            $table->string('name');       // For MyISAM use string('name', 225); // (or 166 for InnoDB with Redundant/Compact row format)
-            $table->string('guard_name'); // For MyISAM use string('guard_name', 25);
+            $table->bigIncrements('id');
+            $table->unsignedBigInteger('module_id')->nullable();
+            $table->string('name');
+            $table->string('action_name')->nullable();
+            $table->string('guard_name')->default('admin'); // Changed default to admin
+            $table->integer('sort_order')->default(0);
             $table->timestamps();
 
             $table->unique(['name', 'guard_name']);
+            
+            // Add this after table creation or use raw SQL
+        });
+        Schema::table($tableNames['permissions'], function (Blueprint $table) {
+            $table->foreign('module_id')
+                ->references('id')
+                ->on('modules')
+                ->onDelete('set null');
         });
 
         Schema::create($tableNames['roles'], static function (Blueprint $table) use ($teams, $columnNames) {
