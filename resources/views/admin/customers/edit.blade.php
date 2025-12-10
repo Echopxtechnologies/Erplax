@@ -1,7 +1,7 @@
 <x-layouts.app>
     <x-slot name="header">
         <div style="display:flex;align-items:center;justify-content:space-between;">
-            <h1 class="page-title" style="margin:0;">Add Customer</h1>
+            <h1 class="page-title" style="margin:0;">Edit Customer</h1>
             <a href="{{ route('admin.customers.index') }}" class="btn btn-light btn-sm">← Back</a>
         </div>
     </x-slot>
@@ -45,7 +45,6 @@
         .btn { padding:10px 20px; font-size:14px; font-weight:500; border-radius:6px; cursor:pointer; border:none; text-decoration:none; display:inline-flex; align-items:center; }
         .btn-p { background:#3b82f6; color:#fff; }
         .btn-p:hover { background:#2563eb; }
-        .btn-p:disabled { background:#93c5fd; cursor:not-allowed; }
         .btn-l { background:var(--card-bg, #f3f4f6); color:var(--text-primary, #374151); border:1px solid var(--card-border, #d1d5db); }
         .modal-o { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,.5); z-index:9999; display:flex; align-items:center; justify-content:center; }
         .modal-c { background:var(--card-bg, #fff); border-radius:12px; width:100%; max-width:400px; }
@@ -101,14 +100,15 @@
             </div>
         @endif
 
-        <form action="{{ route('admin.customers.store') }}" method="POST" id="customerForm" novalidate>
+        <form action="{{ route('admin.customers.update', $customer) }}" method="POST" id="customerForm" novalidate>
             @csrf
+            @method('PUT')
 
             {{-- Basic Information --}}
             <div class="ccard">
                 <div class="ccard-h">Basic Information</div>
                 <div class="ccard-b">
-                    @php $ctype = old('customer_type', 'individual'); @endphp
+                    @php $ctype = old('customer_type', $customer->customer_type ?? 'individual'); @endphp
                     <div class="frow"><div class="fcol-full">
                         <label class="flbl">Customer Type <span class="req">*</span></label>
                         <div class="rgroup">
@@ -121,26 +121,26 @@
                         <div class="fcol">
                             <label class="flbl" for="name">Name <span class="req">*</span></label>
                             <input type="text" name="name" id="name" class="finput @error('name') is-invalid @enderror" 
-                                   value="{{ old('name') }}" required minlength="2" maxlength="100" 
+                                   value="{{ old('name', $customer->name) }}" required minlength="2" maxlength="100" 
                                    placeholder="Enter full name">
                             @error('name')<div class="ferr">{{ $message }}</div>@enderror
-                            <div class="char-count"><span class="current">{{ strlen(old('name', '')) }}</span>/100</div>
+                            <div class="char-count"><span class="current">{{ strlen(old('name', $customer->name ?? '')) }}</span>/100</div>
                         </div>
                         <div class="fcol">
                             <label class="flbl" for="email">Email <span class="req">*</span></label>
                             <input type="email" name="email" id="email" class="finput @error('email') is-invalid @enderror" 
-                                   value="{{ old('email') }}" required maxlength="150" 
+                                   value="{{ old('email', $customer->email) }}" required maxlength="150" 
                                    placeholder="email@example.com">
                             @error('email')<div class="ferr">{{ $message }}</div>@enderror
-                            <div class="char-count"><span class="current">{{ strlen(old('email', '')) }}</span>/150</div>
+                            <div class="char-count"><span class="current">{{ strlen(old('email', $customer->email ?? '')) }}</span>/150</div>
                         </div>
                         <div class="fcol">
-                            <label class="flbl" for="phone">Phone <span class="req">*</span></label>
+                            <label class="flbl" for="phone">Phone</label>
                             <input type="tel" name="phone" id="phone" class="finput @error('phone') is-invalid @enderror" 
-                                   value="{{ old('phone') }}" required minlength="10" maxlength="20" 
+                                   value="{{ old('phone', $customer->phone) }}" minlength="10" maxlength="20" 
                                    placeholder="e.g., 9876543210">
                             @error('phone')<div class="ferr">{{ $message }}</div>@enderror
-                            <div class="fhelp">10-20 digits required</div>
+                            <div class="fhelp">10-20 digits only</div>
                         </div>
                     </div>
 
@@ -150,7 +150,7 @@
                             <select name="group_name" id="group_name" class="finput">
                                 <option value="">Select group</option>
                                 @foreach($groups ?? [] as $g)
-                                    <option value="{{ $g }}" {{ old('group_name')===$g?'selected':'' }}>{{ $g }}</option>
+                                    <option value="{{ $g }}" {{ old('group_name', $customer->group_name)===$g?'selected':'' }}>{{ $g }}</option>
                                 @endforeach
                             </select>
                             <button type="button" class="badd" onclick="openModal()" title="Add new group">+</button>
@@ -167,22 +167,22 @@
                     <div class="frow frow4">
                         <div class="fcol">
                             <label class="flbl">Company Name <span class="req" id="compReq">*</span></label>
-                            @livewire('admin.customers.company-search', ['value' => old('company', '')])
+                            @livewire('admin.customers.company-search', ['value' => old('company', $customer->company ?? '')])
                             @error('company')<div class="ferr">{{ $message }}</div>@enderror
                             {{-- <div class="fhelp">Must be unique</div> --}}
                         </div>
                         <div class="fcol">
                             <label class="flbl" for="designation">Designation</label>
                             <input type="text" name="designation" id="designation" class="finput @error('designation') is-invalid @enderror" 
-                                   value="{{ old('designation') }}" maxlength="100" 
+                                   value="{{ old('designation', $customer->designation) }}" maxlength="100" 
                                    placeholder="e.g., Manager, CEO">
                             @error('designation')<div class="ferr">{{ $message }}</div>@enderror
-                            <div class="char-count"><span class="current">{{ strlen(old('designation', '')) }}</span>/100</div>
+                            <div class="char-count"><span class="current">{{ strlen(old('designation', $customer->designation ?? '')) }}</span>/100</div>
                         </div>
                         <div class="fcol">
                             <label class="flbl" for="website">Website</label>
                             <input type="url" name="website" id="website" class="finput @error('website') is-invalid @enderror" 
-                                   value="{{ old('website') }}" maxlength="200" 
+                                   value="{{ old('website', $customer->website) }}" maxlength="200" 
                                    placeholder="https://example.com">
                             @error('website')<div class="ferr">{{ $message }}</div>@enderror
                             <div class="fhelp">Include https://</div>
@@ -190,10 +190,10 @@
                         <div class="fcol">
                             <label class="flbl" for="gst_number">GST Number</label>
                             <input type="text" name="gst_number" id="gst_number" class="finput @error('gst_number') is-invalid @enderror" 
-                                   value="{{ old('gst_number') }}" maxlength="20" 
+                                   value="{{ old('gst_number', $customer->gst_number) }}" maxlength="20" 
                                    placeholder="e.g., 29ABCDE1234F1Z5" style="text-transform:uppercase;">
                             @error('gst_number')<div class="ferr">{{ $message }}</div>@enderror
-                            <div class="char-count"><span class="current">{{ strlen(old('gst_number', '')) }}</span>/20</div>
+                            <div class="char-count"><span class="current">{{ strlen(old('gst_number', $customer->gst_number ?? '')) }}</span>/20</div>
                         </div>
                     </div>
                 </div>
@@ -210,26 +210,26 @@
                         <div class="frow"><div class="fcol-full">
                             <label class="flbl" for="address">Street Address</label>
                             <textarea name="address" id="address" class="finput @error('address') is-invalid @enderror" 
-                                      rows="2" maxlength="500" placeholder="Enter street address">{{ old('address') }}</textarea>
+                                      rows="2" maxlength="500" placeholder="Enter street address">{{ old('address', $customer->address) }}</textarea>
                             @error('address')<div class="ferr">{{ $message }}</div>@enderror
-                            <div class="char-count"><span class="current">{{ strlen(old('address', '')) }}</span>/500</div>
+                            <div class="char-count"><span class="current">{{ strlen(old('address', $customer->address ?? '')) }}</span>/500</div>
                         </div></div>
                         <div class="frow frow4">
                             <div class="fcol">
                                 <label class="flbl" for="city">City</label>
-                                <input type="text" name="city" id="city" class="finput" value="{{ old('city') }}" maxlength="100" placeholder="City">
+                                <input type="text" name="city" id="city" class="finput" value="{{ old('city', $customer->city) }}" maxlength="100" placeholder="City">
                             </div>
                             <div class="fcol">
                                 <label class="flbl" for="state">State</label>
-                                <input type="text" name="state" id="state" class="finput" value="{{ old('state') }}" maxlength="100" placeholder="State">
+                                <input type="text" name="state" id="state" class="finput" value="{{ old('state', $customer->state) }}" maxlength="100" placeholder="State">
                             </div>
                             <div class="fcol">
                                 <label class="flbl" for="zip_code">ZIP Code</label>
-                                <input type="text" name="zip_code" id="zip_code" class="finput" value="{{ old('zip_code') }}" maxlength="20" placeholder="ZIP Code">
+                                <input type="text" name="zip_code" id="zip_code" class="finput" value="{{ old('zip_code', $customer->zip_code) }}" maxlength="20" placeholder="ZIP Code">
                             </div>
                             <div class="fcol">
                                 <label class="flbl" for="country">Country</label>
-                                <input type="text" name="country" id="country" class="finput" value="{{ old('country', 'India') }}" maxlength="100" placeholder="Country">
+                                <input type="text" name="country" id="country" class="finput" value="{{ old('country', $customer->country) }}" maxlength="100" placeholder="Country">
                             </div>
                         </div>
                     </div>
@@ -239,25 +239,25 @@
                         </div>
                         <div class="frow"><div class="fcol-full">
                             <label class="flbl" for="shipping_address">Street Address</label>
-                            <textarea name="shipping_address" id="shipping_address" class="finput" rows="2" maxlength="500" placeholder="Enter shipping address">{{ old('shipping_address') }}</textarea>
-                            <div class="char-count"><span class="current">{{ strlen(old('shipping_address', '')) }}</span>/500</div>
+                            <textarea name="shipping_address" id="shipping_address" class="finput" rows="2" maxlength="500" placeholder="Enter shipping address">{{ old('shipping_address', $customer->shipping_address) }}</textarea>
+                            <div class="char-count"><span class="current">{{ strlen(old('shipping_address', $customer->shipping_address ?? '')) }}</span>/500</div>
                         </div></div>
                         <div class="frow frow4">
                             <div class="fcol">
                                 <label class="flbl" for="shipping_city">City</label>
-                                <input type="text" name="shipping_city" id="shipping_city" class="finput" value="{{ old('shipping_city') }}" maxlength="100" placeholder="City">
+                                <input type="text" name="shipping_city" id="shipping_city" class="finput" value="{{ old('shipping_city', $customer->shipping_city) }}" maxlength="100" placeholder="City">
                             </div>
                             <div class="fcol">
                                 <label class="flbl" for="shipping_state">State</label>
-                                <input type="text" name="shipping_state" id="shipping_state" class="finput" value="{{ old('shipping_state') }}" maxlength="100" placeholder="State">
+                                <input type="text" name="shipping_state" id="shipping_state" class="finput" value="{{ old('shipping_state', $customer->shipping_state) }}" maxlength="100" placeholder="State">
                             </div>
                             <div class="fcol">
                                 <label class="flbl" for="shipping_zip_code">ZIP Code</label>
-                                <input type="text" name="shipping_zip_code" id="shipping_zip_code" class="finput" value="{{ old('shipping_zip_code') }}" maxlength="20" placeholder="ZIP Code">
+                                <input type="text" name="shipping_zip_code" id="shipping_zip_code" class="finput" value="{{ old('shipping_zip_code', $customer->shipping_zip_code) }}" maxlength="20" placeholder="ZIP Code">
                             </div>
                             <div class="fcol">
                                 <label class="flbl" for="shipping_country">Country</label>
-                                <input type="text" name="shipping_country" id="shipping_country" class="finput" value="{{ old('shipping_country') }}" maxlength="100" placeholder="Country">
+                                <input type="text" name="shipping_country" id="shipping_country" class="finput" value="{{ old('shipping_country', $customer->shipping_country) }}" maxlength="100" placeholder="Country">
                             </div>
                         </div>
                     </div>
@@ -269,15 +269,15 @@
                 <div class="ccard-h">Additional Notes</div>
                 <div class="ccard-b">
                     <textarea name="notes" id="notes" class="finput @error('notes') is-invalid @enderror" 
-                              rows="3" maxlength="2000" placeholder="Any additional notes about this customer...">{{ old('notes') }}</textarea>
+                              rows="3" maxlength="2000" placeholder="Any additional notes about this customer...">{{ old('notes', $customer->notes) }}</textarea>
                     @error('notes')<div class="ferr">{{ $message }}</div>@enderror
-                    <div class="char-count"><span class="current">{{ strlen(old('notes', '')) }}</span>/2000</div>
+                    <div class="char-count"><span class="current">{{ strlen(old('notes', $customer->notes ?? '')) }}</span>/2000</div>
                 </div>
             </div>
 
             <div class="factions">
                 <a href="{{ route('admin.customers.index') }}" class="btn btn-l">Cancel</a>
-                <button type="submit" class="btn btn-p" id="submitBtn">💾 Create Customer</button>
+                <button type="submit" class="btn btn-p" id="submitBtn">💾 Update Customer</button>
             </div>
         </form>
     </div>
@@ -306,12 +306,10 @@
     document.addEventListener('DOMContentLoaded', function() {
         // Customer type toggle
         const compCard = document.getElementById('compCard');
-        const compFields = document.getElementById('compFields');
         
         function toggleComp() {
             const isCompany = document.querySelector('.ctype-radio:checked')?.value === 'company';
             compCard.style.display = isCompany ? 'block' : 'none';
-            // Toggle required on company name
             const compInput = document.querySelector('input[name="company"]');
             if(compInput) compInput.required = isCompany;
         }
@@ -348,7 +346,7 @@
             updateAllCharCounts();
         });
 
-        // Character count update
+        // Character count
         function updateCharCount(input) {
             const counter = input.closest('.fcol, .fcol-full')?.querySelector('.char-count .current');
             if (counter) {
@@ -373,24 +371,21 @@
             updateCharCount(input);
         });
 
-        // Real-time validation
+        // Validation
         function validateField(input) {
             const value = input.value.trim();
             let isValid = true;
             let errorMsg = '';
 
-            // Clear previous state
             input.classList.remove('is-invalid', 'is-valid');
             const existingErr = input.closest('.fcol, .fcol-full')?.querySelector('.ferr.client-error');
             if (existingErr) existingErr.remove();
 
-            // Required
             if (input.hasAttribute('required') && !value) {
                 isValid = false;
                 errorMsg = 'This field is required';
             }
 
-            // Min length
             if (isValid && input.hasAttribute('minlength') && value) {
                 const min = parseInt(input.getAttribute('minlength'));
                 if (value.length < min) {
@@ -399,47 +394,37 @@
                 }
             }
 
-            // Email
             if (isValid && input.type === 'email' && value) {
-                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                if (!emailRegex.test(value)) {
+                if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
                     isValid = false;
                     errorMsg = 'Please enter a valid email';
                 }
             }
 
-            // Phone
             if (isValid && input.type === 'tel' && value) {
-                const digits = value.replace(/\D/g, '');
-                if (digits.length < 10) {
+                if (value.replace(/\D/g, '').length < 10) {
                     isValid = false;
                     errorMsg = 'Phone must have at least 10 digits';
                 }
             }
 
-            // URL
             if (isValid && input.type === 'url' && value) {
                 try { new URL(value); } catch(e) {
                     isValid = false;
-                    errorMsg = 'Please enter a valid URL (include https://)';
+                    errorMsg = 'Please enter a valid URL';
                 }
             }
 
-            // Apply state
-            if (value) {
-                input.classList.add(isValid ? 'is-valid' : 'is-invalid');
-            }
+            if (value) input.classList.add(isValid ? 'is-valid' : 'is-invalid');
             if (!isValid && errorMsg) {
                 const errDiv = document.createElement('div');
                 errDiv.className = 'ferr client-error';
                 errDiv.textContent = errorMsg;
                 input.closest('.fcol, .fcol-full')?.appendChild(errDiv);
             }
-
             return isValid;
         }
 
-        // Validate on blur
         document.querySelectorAll('.finput:not([type="hidden"])').forEach(input => {
             input.addEventListener('blur', () => validateField(input));
             input.addEventListener('input', function() {
@@ -449,12 +434,10 @@
             });
         });
 
-        // Form submit validation
         document.getElementById('customerForm').addEventListener('submit', function(e) {
             let isValid = true;
             let firstError = null;
 
-            // Validate required fields
             this.querySelectorAll('.finput[required]').forEach(input => {
                 if (!validateField(input)) {
                     isValid = false;
@@ -462,9 +445,7 @@
                 }
             });
 
-            // Check company name for company type
-            const isCompany = document.querySelector('.ctype-radio[value="company"]').checked;
-            if (isCompany) {
+            if (document.querySelector('.ctype-radio[value="company"]').checked) {
                 const compInput = document.querySelector('input[name="company"]');
                 if (compInput && !compInput.value.trim()) {
                     isValid = false;
@@ -482,45 +463,29 @@
             }
         });
 
-        // Phone number - allow only digits
         document.getElementById('phone')?.addEventListener('input', function() {
             this.value = this.value.replace(/[^0-9+\-\s]/g, '');
         });
 
-        // GST number - uppercase
         document.getElementById('gst_number')?.addEventListener('input', function() {
             this.value = this.value.toUpperCase();
         });
     });
 
-    // Modal functions
     function openModal() {
         document.getElementById('grpModal').style.display = 'flex';
         document.getElementById('grp_name').value = '';
         document.getElementById('grp_err').style.display = 'none';
         document.getElementById('grp_name').focus();
     }
-    function closeModal() {
-        document.getElementById('grpModal').style.display = 'none';
-    }
-    document.getElementById('grpModal')?.addEventListener('click', e => {
-        if (e.target.id === 'grpModal') closeModal();
-    });
+    function closeModal() { document.getElementById('grpModal').style.display = 'none'; }
+    document.getElementById('grpModal')?.addEventListener('click', e => { if (e.target.id === 'grpModal') closeModal(); });
 
     function saveGrp() {
         const name = document.getElementById('grp_name').value.trim();
         const err = document.getElementById('grp_err');
-        
-        if (!name) {
-            err.textContent = 'Please enter a group name';
-            err.style.display = 'block';
-            return;
-        }
-        if (name.length > 50) {
-            err.textContent = 'Group name must be 50 characters or less';
-            err.style.display = 'block';
-            return;
-        }
+        if (!name) { err.textContent = 'Please enter a group name'; err.style.display = 'block'; return; }
+        if (name.length > 50) { err.textContent = 'Max 50 characters'; err.style.display = 'block'; return; }
 
         fetch('{{ route("admin.customers.addGroup") }}', {
             method: 'POST',
@@ -536,14 +501,7 @@
                 select.appendChild(option);
                 select.value = d.group_name;
                 closeModal();
-            } else {
-                err.textContent = d.message || 'Error adding group';
-                err.style.display = 'block';
-            }
-        })
-        .catch(() => {
-            err.textContent = 'Error connecting to server';
-            err.style.display = 'block';
+            } else { err.textContent = d.message || 'Error'; err.style.display = 'block'; }
         });
     }
     </script>

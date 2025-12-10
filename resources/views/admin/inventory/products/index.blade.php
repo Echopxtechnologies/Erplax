@@ -150,7 +150,6 @@
         padding: 0;
     }
 
-    /* Custom renders for DataTable */
     .product-name {
         font-weight: 600;
         color: var(--text-primary);
@@ -251,13 +250,14 @@
                 Product List
             </div>
             <div class="table-filters">
-                <select id="filterCategory" onchange="applyFilters()">
+                <!-- FIXED: Using data-dt-filter instead of onchange -->
+                <select data-dt-filter="category_id">
                     <option value="">All Categories</option>
                     @foreach($categories as $cat)
                         <option value="{{ $cat->id }}">{{ $cat->name }}</option>
                     @endforeach
                 </select>
-                <select id="filterBrand" onchange="applyFilters()">
+                <select data-dt-filter="brand_id">
                     <option value="">All Brands</option>
                     @foreach($brands as $brand)
                         <option value="{{ $brand->id }}">{{ $brand->name }}</option>
@@ -266,7 +266,8 @@
             </div>
         </div>
         <div class="table-card-body">
-            <table class="dt-table dt-search dt-export dt-perpage" 
+            <!-- ADDED: dt-import class for import functionality -->
+            <table class="dt-table dt-search dt-export dt-import dt-perpage" 
                    id="productsTable"
                    data-route="{{ route('admin.inventory.products.data') }}">
                 <thead>
@@ -278,7 +279,7 @@
                         <th class="dt-sort" data-col="brand_name">Brand</th>
                         <th class="dt-sort" data-col="purchase_price">Purchase</th>
                         <th class="dt-sort" data-col="sale_price">Sale</th>
-                        <th class="dt-sort" data-col="current_stock">Stock</th>
+                        <th class="dt-sort" data-col="current_stock" data-render="stock">Stock</th>
                         <th data-col="status" data-render="status">Status</th>
                         <th data-render="actions">Actions</th>
                     </tr>
@@ -304,20 +305,6 @@ window.dtRenders.stock = function(data, row) {
     let stockClass = row.is_low_stock ? 'stock-low' : 'stock-ok';
     return `<span class="${stockClass}">${row.current_stock} ${row.unit}</span>`;
 };
-
-// Apply filters
-function applyFilters() {
-    let category = document.getElementById('filterCategory').value;
-    let brand = document.getElementById('filterBrand').value;
-    
-    // Get the DataTable instance and reload with filters
-    if (window.dtInstance && window.dtInstance['productsTable']) {
-        window.dtInstance['productsTable'].reload({
-            category_id: category,
-            brand_id: brand
-        });
-    }
-}
 </script>
 
 @include('core::datatable')

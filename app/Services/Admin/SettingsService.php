@@ -56,11 +56,18 @@ class SettingsService
                     'sort_order' => 2,
                 ],
                 [
+                    'title' => 'Cron Jobs',
+                    'icon' => 'clock',
+                    'route' => 'admin.cronjob.index',
+                    'permission' => 'settings.cronjob.read',
+                    'sort_order' => 3,
+                ],
+                [
                     'title' => 'Roles/Permission',
                     'icon' => 'shield',
                     'route' => null,
                     'permission' => 'settings.roles.read',
-                    'sort_order' => 3,
+                    'sort_order' => 4,
                     'children' => [
                         [
                             'title' => 'Permission',

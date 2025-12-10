@@ -48,6 +48,19 @@ class InventoryController extends Controller
     }
 
     // ==================== PRODUCTS ====================
+    protected $productImportable = [
+        'name'           => 'required|string|max:191',
+        'sku'            => 'required|string|max:50|unique:products,sku',
+        'barcode'        => 'nullable|string|max:50',
+        'category_id'    => 'nullable|exists:product_categories,id',
+        'brand_id'       => 'nullable|exists:brands,id',
+        'unit_id'        => 'nullable|exists:units,id',
+        'purchase_price' => 'required|numeric|min:0',
+        'sale_price'     => 'required|numeric|min:0',
+        'hsn_code'       => 'nullable|string|max:20',
+        'min_stock_level'=> 'nullable|numeric|min:0',
+        'max_stock_level'=> 'nullable|numeric|min:0',
+    ];
     public function productsIndex()
     {
         $stats = [
@@ -1170,7 +1183,153 @@ public function stockTransferStore(Request $request)
         
         return view('admin.inventory.stock.movements', compact('movements', 'products', 'warehouses', 'transfers'));
     }
-   
+ /**
+ * Stock Movements Data for DataTable
+ * Filters work EXACTLY like search - as direct query params
+ */
+public function stockMovementsData(Request $request)
+{
+    $query = StockMovement::with(['product.unit', 'warehouse', 'rack', 'unit', 'creator']);
+
+    // Search - direct param
+    if ($search = $request->get('search')) {
+        $query->where(function ($q) use ($search) {
+            $q->where('reference_no', 'like', "%{$search}%")
+                ->orWhere('reason', 'like', "%{$search}%")
+                ->orWhereHas('product', function ($q2) use ($search) {
+                    $q2->where('name', 'like', "%{$search}%")
+                        ->orWhere('sku', 'like', "%{$search}%");
+                });
+        });
+    }
+
+    // Filters - direct params (SAME AS SEARCH!)
+    if ($request->filled('product_id')) {
+        $query->where('product_id', $request->product_id);
+    }
+    
+    if ($request->filled('warehouse_id')) {
+        $query->where('warehouse_id', $request->warehouse_id);
+    }
+    
+    if ($request->filled('movement_type')) {
+        $query->where('movement_type', $request->movement_type);
+    }
+    
+    if ($request->filled('from_date')) {
+        $query->whereDate('created_at', '>=', $request->from_date);
+    }
+    
+    if ($request->filled('to_date')) {
+        $query->whereDate('created_at', '<=', $request->to_date);
+    }
+
+    // Sorting
+    $sortField = $request->get('sort', 'created_at');
+    $sortDir = $request->get('dir', 'desc');
+    $query->orderBy($sortField, $sortDir);
+
+    $perPage = $request->get('per_page', 25);
+    $data = $query->paginate($perPage);
+
+    // Get transfer details
+    $transferRefNos = collect($data->items())
+        ->where('movement_type', 'TRANSFER')
+        ->pluck('reference_no')
+        ->map(fn($ref) => str_replace('-IN', '', $ref))
+        ->unique()
+        ->toArray();
+
+    $transfers = [];
+    if (!empty($transferRefNos)) {
+        $transfers = StockTransfer::with(['fromWarehouse', 'toWarehouse', 'fromRack', 'toRack'])
+            ->whereIn('transfer_no', $transferRefNos)
+            ->get()
+            ->keyBy('transfer_no')
+            ->toArray();
+    }
+
+    $items = collect($data->items())->map(function ($item) use ($transfers) {
+        $unitName = $item->unit->short_name ?? $item->product->unit->short_name ?? 'PCS';
+        $isPositive = in_array($item->movement_type, ['IN', 'RETURN']);
+        
+        $isTransferOut = $item->movement_type == 'TRANSFER' && !str_contains($item->reference_no, '-IN');
+        $isTransferIn = $item->movement_type == 'TRANSFER' && str_contains($item->reference_no, '-IN');
+        
+        $transferNo = str_replace('-IN', '', $item->reference_no);
+        $transfer = $transfers[$transferNo] ?? null;
+        
+        $warehouseName = $item->warehouse->name ?? '-';
+        $rackCode = $item->rack->code ?? '';
+        $locationDisplay = $warehouseName . ($rackCode ? " ({$rackCode})" : '');
+        
+        $fromWarehouse = '-';
+        $fromWarehouseCode = '';
+        $fromRackCode = '';
+        $fromRackName = '';
+        $toWarehouse = '-';
+        $toWarehouseCode = '';
+        $toRackCode = '';
+        $toRackName = '';
+        $isSameWarehouse = false;
+        
+        if ($transfer) {
+            $fromWarehouse = $transfer['from_warehouse']['name'] ?? '-';
+            $fromWarehouseCode = $transfer['from_warehouse']['code'] ?? '';
+            $fromRackCode = $transfer['from_rack']['code'] ?? '';
+            $fromRackName = $transfer['from_rack']['name'] ?? '';
+            $toWarehouse = $transfer['to_warehouse']['name'] ?? '-';
+            $toWarehouseCode = $transfer['to_warehouse']['code'] ?? '';
+            $toRackCode = $transfer['to_rack']['code'] ?? '';
+            $toRackName = $transfer['to_rack']['name'] ?? '';
+            $isSameWarehouse = ($transfer['from_warehouse_id'] ?? 0) == ($transfer['to_warehouse_id'] ?? 1);
+            
+            $locationDisplay = "From: {$fromWarehouse}" . ($fromRackCode ? " ({$fromRackCode})" : '') . 
+                               " → To: {$toWarehouse}" . ($toRackCode ? " ({$toRackCode})" : '');
+        }
+        
+        return [
+            'id' => $item->id,
+            'reference_no' => $item->reference_no ?? '-',
+            'created_at' => $item->created_at->format('d M Y'),
+            'created_time' => $item->created_at->format('h:i A'),
+            'movement_type' => $item->movement_type,
+            'product_name' => $item->product->name ?? '-',
+            'product_sku' => $item->product->sku ?? '-',
+            'product_initials' => strtoupper(substr($item->product->name ?? 'P', 0, 2)),
+            'qty' => number_format($item->qty, 2),
+            'qty_display' => ($isPositive ? '+' : '-') . number_format($item->qty, 2),
+            'unit' => $unitName,
+            'is_positive' => $isPositive,
+            'reason' => $item->reason ?? '-',
+            'created_by' => $item->creator->name ?? 'System',
+            'created_by_initial' => strtoupper(substr($item->creator->name ?? 'S', 0, 1)),
+            'location_display' => $locationDisplay,
+            'warehouse_name' => $warehouseName,
+            'rack_code' => $rackCode,
+            'rack_name' => $item->rack->name ?? '',
+            'is_transfer' => $item->movement_type == 'TRANSFER',
+            'is_transfer_out' => $isTransferOut,
+            'is_transfer_in' => $isTransferIn,
+            'from_warehouse' => $fromWarehouse,
+            'from_warehouse_code' => $fromWarehouseCode,
+            'from_rack_code' => $fromRackCode,
+            'from_rack_name' => $fromRackName,
+            'to_warehouse' => $toWarehouse,
+            'to_warehouse_code' => $toWarehouseCode,
+            'to_rack_code' => $toRackCode,
+            'to_rack_name' => $toRackName,
+            'is_same_warehouse' => $isSameWarehouse,
+        ];
+    });
+
+    return response()->json([
+        'data' => $items,
+        'total' => $data->total(),
+        'current_page' => $data->currentPage(),
+        'last_page' => $data->lastPage(),
+    ]);
+}
     public function stockDeliver()
     {
         $products = Product::where('is_active', true)->orderBy('name')->get();

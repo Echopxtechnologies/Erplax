@@ -25,6 +25,6 @@ Route::get('dashboard', function () {
     // Not logged in - redirect to client login
     return redirect()->route('client.login');
 })->name('dashboard');
-
+Route::get('/cron/index', [App\Http\Controllers\Admin\CronJobController::class, 'webRun']);
 require __DIR__.'/admin.php';
 require __DIR__.'/client.php';

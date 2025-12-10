@@ -11,6 +11,10 @@ use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\Admin\RolePermissionController;
 use App\Http\Controllers\Admin\InventoryController;
+use App\Http\Controllers\Admin\CronJobController;
+use App\Http\Controllers\Admin\Customers\Index as CustomersIndexController;
+use App\Http\Controllers\Admin\Customers\Form as CustomersFormController;
+use App\Http\Controllers\Admin\Customers\CustomerController;
 
 Route::get('/admin', [AdminLoginController::class, 'showLoginForm'])->name('login');
 Route::prefix('admin')->name('admin.')->group(function () {
@@ -79,6 +83,60 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('/users/{id}', [AdminUserController::class, 'update'])->name('users.update');
             Route::delete('/users/{id}', [AdminUserController::class, 'destroy'])->name('users.destroy');
         });
+        Route::prefix('cronjob')->name('cronjob.')->group(function () {
+            Route::get('/', [CronJobController::class, 'index'])->name('index');
+            Route::get('/create', [CronJobController::class, 'create'])->name('create');
+            Route::post('/', [CronJobController::class, 'store'])->name('store');
+            Route::get('/{cronjob}', [CronJobController::class, 'show'])->name('show');
+            Route::get('/{cronjob}/edit', [CronJobController::class, 'edit'])->name('edit');
+            Route::put('/{cronjob}', [CronJobController::class, 'update'])->name('update');
+            Route::delete('/{cronjob}', [CronJobController::class, 'destroy'])->name('destroy');
+            
+            // Actions
+            Route::patch('/{cronjob}/toggle', [CronJobController::class, 'toggle'])->name('toggle');
+            Route::post('/run-all', [CronJobController::class, 'runAll'])->name('run-all');
+            Route::post('/{cronjob}/run', [CronJobController::class, 'runSingle'])->name('run-single');
+            
+            // Logs
+            Route::get('/logs/all', [CronJobController::class, 'logs'])->name('logs');
+            Route::delete('/logs/clear', [CronJobController::class, 'clearLogs'])->name('clear-logs');
+        });
+
+        Route::prefix('customers')->name('customers.')->group(function () {
+
+    Route::get('/',        [CustomersIndexController::class, 'index'])->name('index');
+    Route::get('/data',    [CustomersIndexController::class, 'data'])->name('data');
+    Route::get('/template', [CustomersIndexController::class, 'template'])->name('template');  // ← ADD THIS
+    Route::post('/import', [CustomersIndexController::class, 'import'])->name('import');
+    Route::post('/bulk-delete', [CustomerController::class, 'bulkDelete'])->name('bulkDelete');
+
+
+    Route::get('/',        [CustomersIndexController::class, 'index'])->name('index');
+    Route::get('/data',    [CustomersIndexController::class, 'data'])->name('data');
+
+    // Static routes FIRST
+    Route::get('/search-company', [CustomerController::class, 'searchCompany'])->name('searchCompany');
+    Route::post('/add-group', [CustomerController::class, 'addGroup'])->name('addGroup');
+    Route::post('/bulk-delete', [CustomerController::class, 'bulkDelete'])->name('bulkDelete');  // ← ADD HERE
+
+    Route::get('/create',  [CustomersFormController::class, 'create'])->name('create');
+    Route::post('/',       [CustomersFormController::class, 'store'])->name('store');
+
+    // Dynamic routes with {customer} LAST
+    Route::get('/{customer}', [CustomersFormController::class, 'show'])->name('show');
+    Route::get('/{customer}/edit', [CustomersFormController::class, 'edit'])->name('edit');
+    Route::put('/{customer}',      [CustomersFormController::class, 'update'])->name('update');
+    Route::delete('/{customer}',   [CustomersFormController::class, 'destroy'])->name('destroy');
+});
+
+
+
+
+
+
+
+
+
 // Notification Routes
 Route::prefix('notifications')->name('notifications.')->group(function () {
     Route::delete('/clear-all', [App\Http\Controllers\Admin\NotificationController::class, 'clearAll'])->name('clear-all');
@@ -133,6 +191,8 @@ Route::prefix('inventory')->name('inventory.')->group(function () {
     // ==================== STOCK MOVEMENTS ====================
     Route::prefix('stock')->name('stock.')->group(function () {
         Route::get('/movements', [InventoryController::class, 'stockMovements'])->name('movements');
+        Route::get('/movements/data', [InventoryController::class, 'stockMovementsData'])->name('movements.data');  // ADD THIS LINE
+    
         // Receive Goods (IN)
         Route::get('/receive', [InventoryController::class, 'stockReceive'])->name('receive');
         Route::post('/receive', [InventoryController::class, 'stockReceiveStore'])->name('receive.store');

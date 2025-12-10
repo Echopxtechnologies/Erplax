@@ -37,7 +37,7 @@ class BookController extends AdminController
      */
     public function store(Request $request)
     {
-        $this->authorizeAdmin();
+        // $this->authorizeAdmin();
         $this->authorize('book.create.create');
         try {
             $validated = $this->validateRequest($request, [

@@ -2,11 +2,11 @@
     <div style="padding: 20px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
             <h1>Book Management</h1>
-            @can('book.create.create')
+            {{-- @can('book.create.create') --}}
             <a href="{{ route('admin.book.create') }}" style="background: #3498DB; color: white; padding: 10px 20px; border-radius: 5px; text-decoration: none;">
                 + Add New Book
             </a>
-            @endcan
+            {{-- @endcan --}}
         </div>
 
         @if(session('success'))

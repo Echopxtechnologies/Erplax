@@ -1,10 +1,19 @@
 <x-layouts.app>
 <style>
+    .page-container {
+        padding: 20px;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
     .page-header {
         display: flex;
         align-items: center;
         gap: 16px;
         margin-bottom: 24px;
+        max-width: 700px;
+        margin-left: auto;
+        margin-right: auto;
     }
     
     .back-btn {
@@ -19,6 +28,7 @@
         color: var(--text-muted);
         text-decoration: none;
         transition: all 0.2s;
+        flex-shrink: 0;
     }
     
     .back-btn:hover {
@@ -52,6 +62,8 @@
         border: 1px solid var(--card-border);
         border-radius: 12px;
         max-width: 700px;
+        margin: 0 auto;
+        width: 100%;
     }
     
     .form-card-header {
@@ -233,6 +245,9 @@
         border-radius: 8px;
         margin-bottom: 20px;
         font-size: 14px;
+        max-width: 700px;
+        margin-left: auto;
+        margin-right: auto;
     }
     
     .alert-error {
@@ -265,7 +280,7 @@
     }
 </style>
 
-<div style="padding: 20px;">
+<div class="page-container">
     <!-- Header -->
     <div class="page-header">
         <a href="{{ route('admin.inventory.racks.index') }}" class="back-btn">
