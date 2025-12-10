@@ -132,6 +132,7 @@ Route::prefix('inventory')->name('inventory.')->group(function () {
 
     // ==================== STOCK MOVEMENTS ====================
     Route::prefix('stock')->name('stock.')->group(function () {
+        Route::get('/movements', [InventoryController::class, 'stockMovements'])->name('movements');
         // Receive Goods (IN)
         Route::get('/receive', [InventoryController::class, 'stockReceive'])->name('receive');
         Route::post('/receive', [InventoryController::class, 'stockReceiveStore'])->name('receive.store');
@@ -157,6 +158,22 @@ Route::prefix('inventory')->name('inventory.')->group(function () {
     Route::post('/transfer', [InventoryController::class, 'stockTransferStore'])->name('transfer.store');
     });
 
+    // Racks
+    Route::get('/racks', [InventoryController::class, 'racksIndex'])->name('racks.index');
+    Route::get('/racks/data', [InventoryController::class, 'racksData'])->name('racks.data');
+    Route::get('/racks/create', [InventoryController::class, 'racksCreate'])->name('racks.create');
+    Route::post('/racks', [InventoryController::class, 'racksStore'])->name('racks.store');
+    Route::get('/racks/{id}/edit', [InventoryController::class, 'racksEdit'])->name('racks.edit');
+    Route::put('/racks/{id}', [InventoryController::class, 'racksUpdate'])->name('racks.update');
+    Route::delete('/racks/{id}', [InventoryController::class, 'racksDestroy'])->name('racks.destroy');
+    Route::get('/racks/by-warehouse/{warehouseId}', [InventoryController::class, 'racksByWarehouse']);
+
+    // Units (in settings)
+    Route::get('/settings/units/data', [InventoryController::class, 'unitsData'])->name('settings.units.data');
+    Route::post('/settings/units', [InventoryController::class, 'unitsStore'])->name('settings.units.store');
+    Route::put('/settings/units/{id}', [InventoryController::class, 'unitsUpdate'])->name('settings.units.update');
+    Route::delete('/settings/units/{id}', [InventoryController::class, 'unitsDestroy'])->name('settings.units.destroy');
+   
     // ==================== REPORTS ====================
     Route::prefix('reports')->name('reports.')->group(function () {
         Route::get('/stock-summary', [InventoryController::class, 'reportStockSummary'])->name('stock-summary');

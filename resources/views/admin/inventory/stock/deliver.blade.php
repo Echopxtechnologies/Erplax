@@ -155,7 +155,13 @@
     }
     
     .stock-info.show {
-        display: block;
+        display: flex;
+        align-items: center;
+        gap: 20px;
+    }
+    
+    .stock-info-item {
+        flex: 1;
     }
     
     .stock-info-label {
@@ -287,6 +293,7 @@
                         @foreach($products as $product)
                             <option value="{{ $product->id }}" 
                                 data-batch="{{ $product->is_batch_managed ? '1' : '0' }}"
+                                data-unit="{{ $product->unit_id }}"
                                 {{ old('product_id', request('product_id')) == $product->id ? 'selected' : '' }}>
                                 {{ $product->name }} ({{ $product->sku }})
                             </option>
@@ -295,17 +302,26 @@
                     @error('product_id')<div class="form-help" style="color: #ef4444;">{{ $message }}</div>@enderror
                 </div>
 
-                <div class="form-group">
-                    <label class="form-label">Warehouse <span class="required">*</span></label>
-                    <select name="warehouse_id" id="warehouse_id" class="form-control" required onchange="checkStock()">
-                        <option value="">-- Select Warehouse --</option>
-                        @foreach($warehouses as $warehouse)
-                            <option value="{{ $warehouse->id }}" {{ $warehouse->is_default ? 'selected' : '' }}>
-                                {{ $warehouse->name }} {{ $warehouse->is_default ? '(Default)' : '' }}
-                            </option>
-                        @endforeach
-                    </select>
-                    @error('warehouse_id')<div class="form-help" style="color: #ef4444;">{{ $message }}</div>@enderror
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Warehouse <span class="required">*</span></label>
+                        <select name="warehouse_id" id="warehouse_id" class="form-control" required onchange="onWarehouseChange()">
+                            <option value="">-- Select Warehouse --</option>
+                            @foreach($warehouses as $warehouse)
+                                <option value="{{ $warehouse->id }}" {{ $warehouse->is_default ? 'selected' : '' }}>
+                                    {{ $warehouse->name }} {{ $warehouse->is_default ? '(Default)' : '' }}
+                                </option>
+                            @endforeach
+                        </select>
+                        @error('warehouse_id')<div class="form-help" style="color: #ef4444;">{{ $message }}</div>@enderror
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Rack / Location</label>
+                        <select name="rack_id" id="rack_id" class="form-control" onchange="checkStock()">
+                            <option value="">-- Select Rack (Optional) --</option>
+                        </select>
+                        <div class="form-help">Pick from specific rack location</div>
+                    </div>
                 </div>
 
                 <div class="form-group" id="lotGroup" style="display: none;">
@@ -317,21 +333,38 @@
                 </div>
 
                 <div class="stock-info" id="stockInfo">
-                    <div class="stock-info-label">Available Stock</div>
-                    <div class="stock-info-value" id="currentStock">0</div>
+                    <div class="stock-info-item">
+                        <div class="stock-info-label">Available Stock</div>
+                        <div class="stock-info-value" id="currentStockWrapper">
+                            <span id="currentStock">0</span> <small id="stockUnit">PCS</small>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">Quantity <span class="required">*</span></label>
-                        <input type="number" name="qty" id="qty" class="form-control" step="any" min="0" placeholder="Enter quantity" value="{{ old('qty') }}" required>
+                        <input type="number" name="qty" id="qty" class="form-control" step="any" min="0.001" placeholder="Enter quantity" value="{{ old('qty') }}" required>
                         <div class="form-help" id="qtyHelp">Enter quantity to deliver</div>
                         @error('qty')<div class="form-help" style="color: #ef4444;">{{ $message }}</div>@enderror
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Reason</label>
-                        <input type="text" name="reason" class="form-control" placeholder="e.g., Sales Order #456" value="{{ old('reason', 'Stock delivered') }}">
+                        <label class="form-label">Unit <span class="required">*</span></label>
+                        <select name="unit_id" id="unit_id" class="form-control" required>
+                            <option value="">-- Select Unit --</option>
+                            @foreach($units as $unit)
+                                <option value="{{ $unit->id }}" {{ old('unit_id') == $unit->id ? 'selected' : '' }}>
+                                    {{ $unit->name }} ({{ $unit->short_name }})
+                                </option>
+                            @endforeach
+                        </select>
+                        @error('unit_id')<div class="form-help" style="color: #ef4444;">{{ $message }}</div>@enderror
                     </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Reason</label>
+                    <input type="text" name="reason" class="form-control" placeholder="e.g., Sales Order #456" value="{{ old('reason', 'Stock delivered') }}">
                 </div>
 
                 <div class="form-group">
@@ -361,91 +394,102 @@ function onProductChange() {
     let productId = document.getElementById('product_id').value;
     let selectedOption = document.getElementById('product_id').selectedOptions[0];
     let isBatchManaged = selectedOption && selectedOption.dataset.batch === '1';
+    let productUnitId = selectedOption ? selectedOption.dataset.unit : '';
+    
+    // Set default unit based on product
+    if (productUnitId) {
+        document.getElementById('unit_id').value = productUnitId;
+    }
     
     if (isBatchManaged && productId) {
         document.getElementById('lotGroup').style.display = 'block';
         loadLots(productId);
     } else {
         document.getElementById('lotGroup').style.display = 'none';
-        // Reset lot dropdown
         let lotSelect = document.getElementById('lot_id');
-        lotSelect.innerHTML = '';
-        let defaultOpt = document.createElement('option');
-        defaultOpt.value = '';
-        defaultOpt.textContent = '-- Select Lot (Optional) --';
-        lotSelect.appendChild(defaultOpt);
+        lotSelect.innerHTML = '<option value="">-- Select Lot (Optional) --</option>';
     }
     
     checkStock();
 }
 
+function onWarehouseChange() {
+    let warehouseId = document.getElementById('warehouse_id').value;
+    loadRacks(warehouseId);
+    checkStock();
+}
+
+function loadRacks(warehouseId) {
+    let select = document.getElementById('rack_id');
+    select.innerHTML = '<option value="">-- Select Rack (Optional) --</option>';
+    
+    if (!warehouseId) return;
+    
+    fetch('{{ url("admin/inventory/racks/by-warehouse") }}/' + warehouseId)
+        .then(response => response.json())
+        .then(racks => {
+            if (racks && racks.length > 0) {
+                racks.forEach(function(rack) {
+                    let option = document.createElement('option');
+                    option.value = rack.id;
+                    option.textContent = rack.code + ' - ' + rack.name + (rack.zone ? ' (' + rack.zone + ')' : '');
+                    select.appendChild(option);
+                });
+            }
+        })
+        .catch(error => console.error('Error loading racks:', error));
+}
+
 function checkStock() {
     let productId = document.getElementById('product_id').value;
     let warehouseId = document.getElementById('warehouse_id').value;
-    let lotSelect = document.getElementById('lot_id');
-    let lotId = lotSelect ? lotSelect.value : '';
+    let rackId = document.getElementById('rack_id').value;
+    let lotId = document.getElementById('lot_id').value;
     
     if (productId && warehouseId) {
         let url = '{{ route("admin.inventory.stock.check") }}?product_id=' + productId + '&warehouse_id=' + warehouseId;
-        if (lotId) {
-            url += '&lot_id=' + lotId;
-        }
+        if (rackId) url += '&rack_id=' + rackId;
+        if (lotId) url += '&lot_id=' + lotId;
         
         fetch(url)
             .then(response => response.json())
             .then(data => {
                 availableStock = parseFloat(data.quantity) || 0;
                 let stockEl = document.getElementById('currentStock');
+                let wrapperEl = document.getElementById('currentStockWrapper');
                 stockEl.textContent = availableStock;
+                document.getElementById('stockUnit').textContent = data.unit || 'PCS';
                 
                 if (availableStock <= 0) {
-                    stockEl.classList.add('low');
+                    wrapperEl.classList.add('low');
                 } else {
-                    stockEl.classList.remove('low');
+                    wrapperEl.classList.remove('low');
                 }
                 
                 document.getElementById('stockInfo').classList.add('show');
-                document.getElementById('qtyHelp').textContent = 'Max available: ' + availableStock;
+                document.getElementById('qtyHelp').textContent = 'Max available: ' + availableStock + ' ' + (data.unit || 'PCS');
             })
-            .catch(error => {
-                console.error('Error checking stock:', error);
-            });
+            .catch(error => console.error('Error checking stock:', error));
     } else {
         document.getElementById('stockInfo').classList.remove('show');
+        document.getElementById('qtyHelp').textContent = 'Enter quantity to deliver';
     }
 }
 
 function loadLots(productId) {
     let select = document.getElementById('lot_id');
-    
-    // Clear and add loading option
-    select.innerHTML = '';
-    let loadingOpt = document.createElement('option');
-    loadingOpt.value = '';
-    loadingOpt.textContent = 'Loading lots...';
-    select.appendChild(loadingOpt);
+    select.innerHTML = '<option value="">Loading lots...</option>';
     
     fetch('{{ url("admin/inventory/lots/by-product") }}/' + productId)
         .then(response => response.json())
         .then(lots => {
-            // Clear select
-            select.innerHTML = '';
-            
-            // Add default option
-            let defaultOpt = document.createElement('option');
-            defaultOpt.value = '';
-            defaultOpt.textContent = '-- Select Lot (Optional) --';
-            select.appendChild(defaultOpt);
-            
-            // Add lot options
+            select.innerHTML = '<option value="">-- Select Lot (Optional) --</option>';
             if (lots && lots.length > 0) {
                 lots.forEach(function(lot) {
                     let option = document.createElement('option');
                     option.value = lot.id;
                     let text = lot.lot_no;
-                    if (lot.expiry_date) {
-                        text += ' (Exp: ' + lot.expiry_date + ')';
-                    }
+                    if (lot.expiry_date) text += ' (Exp: ' + lot.expiry_date + ')';
                     option.textContent = text;
                     select.appendChild(option);
                 });
@@ -453,22 +497,20 @@ function loadLots(productId) {
         })
         .catch(error => {
             console.error('Error loading lots:', error);
-            select.innerHTML = '';
-            let errorOpt = document.createElement('option');
-            errorOpt.value = '';
-            errorOpt.textContent = '-- Select Lot (Optional) --';
-            select.appendChild(errorOpt);
+            select.innerHTML = '<option value="">-- Select Lot (Optional) --</option>';
         });
 }
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
-    // Check if product is pre-selected
+    let warehouseId = document.getElementById('warehouse_id').value;
+    if (warehouseId) {
+        loadRacks(warehouseId);
+    }
+    
     let productId = document.getElementById('product_id').value;
     if (productId) {
         onProductChange();
-    } else {
-        checkStock();
     }
 });
 </script>

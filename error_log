@@ -690,3 +690,38 @@ Stack trace:
 [09-Dec-2025 16:00:26 UTC] PHP Fatal error:  Cannot declare class App\Livewire\Admin\RolePermissionManager, because the name is already in use in /home/erpbangalorein/public_html/erp.erpbangalore.in/app/Http/Controllers/Admin/RolePermissionController.php on line 11
 [09-Dec-2025 16:00:30 UTC] PHP Fatal error:  Cannot declare class App\Livewire\Admin\RolePermissionManager, because the name is already in use in /home/erpbangalorein/public_html/erp.erpbangalore.in/app/Http/Controllers/Admin/RolePermissionController.php on line 11
 [10-Dec-2025 04:19:51 UTC] PHP Fatal error:  Cannot declare class App\Livewire\Admin\RolePermissionManager, because the name is already in use in /home/erpbangalorein/public_html/erp.erpbangalore.in/app/Http/Controllers/Admin/RolePermissionController.php on line 11
+[10-Dec-2025 05:46:06 UTC] PHP Fatal error:  Cannot declare class App\Livewire\Admin\RolePermissionManager, because the name is already in use in /home/erpbangalorein/public_html/erp.erpbangalore.in/app/Http/Controllers/Admin/RolePermissionController.php on line 11
+[10-Dec-2025 05:46:15 UTC] PHP Fatal error:  Cannot declare class App\Livewire\Admin\RolePermissionManager, because the name is already in use in /home/erpbangalorein/public_html/erp.erpbangalore.in/app/Http/Controllers/Admin/RolePermissionController.php on line 11
+[10-Dec-2025 05:46:19 UTC] PHP Fatal error:  Cannot declare class App\Livewire\Admin\RolePermissionManager, because the name is already in use in /home/erpbangalorein/public_html/erp.erpbangalore.in/app/Http/Controllers/Admin/RolePermissionController.php on line 11
+[10-Dec-2025 06:13:38 UTC] PHP Fatal error:  Cannot declare class App\Livewire\Admin\RolePermissionManager, because the name is already in use in /home/erpbangalorein/public_html/erp.erpbangalore.in/app/Http/Controllers/Admin/RolePermissionController.php on line 11
+[10-Dec-2025 06:31:03 UTC] PHP Fatal error:  Cannot declare class App\Livewire\Admin\RolePermissionManager, because the name is already in use in /home/erpbangalorein/public_html/erp.erpbangalore.in/app/Http/Controllers/Admin/RolePermissionController.php on line 11
+[10-Dec-2025 06:31:09 UTC] PHP Fatal error:  Cannot declare class App\Livewire\Admin\RolePermissionManager, because the name is already in use in /home/erpbangalorein/public_html/erp.erpbangalore.in/app/Http/Controllers/Admin/RolePermissionController.php on line 11
+[10-Dec-2025 06:31:14 UTC] PHP Fatal error:  Cannot declare class App\Livewire\Admin\RolePermissionManager, because the name is already in use in /home/erpbangalorein/public_html/erp.erpbangalore.in/app/Http/Controllers/Admin/RolePermissionController.php on line 11
+[10-Dec-2025 06:32:23 UTC] PHP Fatal error:  Cannot declare class App\Livewire\Admin\RolePermissionManager, because the name is already in use in /home/erpbangalorein/public_html/erp.erpbangalore.in/app/Http/Controllers/Admin/RolePermissionController.php on line 11
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[10-Dec-2025 06:34:48 UTC] PHP Fatal error:  Cannot declare class App\Livewire\Admin\RolePermissionManager, because the name is already in use in /home/erpbangalorein/public_html/erp.erpbangalore.in/app/Http/Controllers/Admin/RolePermissionController.php on line 11
+[10-Dec-2025 06:34:48 UTC] PHP Fatal error:  Cannot declare class App\Livewire\Admin\RolePermissionManager, because the name is already in use in /home/erpbangalorein/public_html/erp.erpbangalore.in/app/Http/Controllers/Admin/RolePermissionController.php on line 11
+[10-Dec-2025 07:17:50 UTC] PHP Fatal error:  Cannot declare class App\Livewire\Admin\RolePermissionManager, because the name is already in use in /home/erpbangalorein/public_html/erp.erpbangalore.in/app/Http/Controllers/Admin/RolePermissionController.php on line 11
+[10-Dec-2025 07:17:50 UTC] PHP Fatal error:  Cannot declare class App\Livewire\Admin\RolePermissionManager, because the name is already in use in /home/erpbangalorein/public_html/erp.erpbangalore.in/app/Http/Controllers/Admin/RolePermissionController.php on line 11
+[10-Dec-2025 07:22:53 UTC] PHP Fatal error:  Cannot declare class App\Livewire\Admin\RolePermissionManager, because the name is already in use in /home/erpbangalorein/public_html/erp.erpbangalore.in/app/Http/Controllers/Admin/RolePermissionController.php on line 11
+[10-Dec-2025 07:22:53 UTC] PHP Fatal error:  Cannot declare class App\Livewire\Admin\RolePermissionManager, because the name is already in use in /home/erpbangalorein/public_html/erp.erpbangalore.in/app/Http/Controllers/Admin/RolePermissionController.php on line 11
+[10-Dec-2025 08:24:21 UTC] PHP Fatal error:  Cannot declare class App\Livewire\Admin\RolePermissionManager, because the name is already in use in /home/erpbangalorein/public_html/erp.erpbangalore.in/app/Http/Controllers/Admin/RolePermissionController.php on line 11
+[10-Dec-2025 08:24:21 UTC] PHP Fatal error:  Cannot declare class App\Livewire\Admin\RolePermissionManager, because the name is already in use in /home/erpbangalorein/public_html/erp.erpbangalore.in/app/Http/Controllers/Admin/RolePermissionController.php on line 11

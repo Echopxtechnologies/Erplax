@@ -203,6 +203,39 @@
     .btn-secondary:hover {
         background: var(--card-border);
     }
+
+    .current-stock-info {
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 24px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
+    
+    .current-stock-info svg {
+        width: 24px;
+        height: 24px;
+        color: #059669;
+    }
+    
+    .current-stock-info-content {
+        flex: 1;
+    }
+    
+    .current-stock-info-label {
+        font-size: 12px;
+        color: #166534;
+        margin-bottom: 2px;
+    }
+    
+    .current-stock-info-value {
+        font-size: 18px;
+        font-weight: 700;
+        color: #059669;
+    }
 </style>
 
 <div style="padding: 20px;">
@@ -222,6 +255,22 @@
             <h3 class="form-card-title">Edit: {{ $product->name }}</h3>
         </div>
         <div class="form-card-body">
+            <!-- Current Stock Info -->
+            <div class="current-stock-info">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                </svg>
+                <div class="current-stock-info-content">
+                    <div class="current-stock-info-label">Current Total Stock</div>
+                    <div class="current-stock-info-value">
+                        {{ $product->current_stock ?? 0 }} {{ $product->unit?->short_name ?? 'PCS' }}
+                    </div>
+                </div>
+                <a href="{{ route('admin.inventory.products.show', $product->id) }}" class="btn btn-secondary" style="padding: 8px 16px; font-size: 13px;">
+                    View Details
+                </a>
+            </div>
+
             <form action="{{ route('admin.inventory.products.update', $product->id) }}" method="POST">
                 @csrf
                 @method('PUT')
@@ -271,12 +320,22 @@
 
                     <div class="form-row">
                         <div class="form-group">
-                            <label class="form-label">Unit</label>
-                            <input type="text" name="unit" class="form-control" value="{{ old('unit', $product->unit) }}">
+                            <label class="form-label">Unit <span class="required">*</span></label>
+                            <select name="unit_id" class="form-control" required>
+                                <option value="">-- Select Unit --</option>
+                                @foreach($units as $unit)
+                                    <option value="{{ $unit->id }}" {{ old('unit_id', $product->unit_id) == $unit->id ? 'selected' : '' }}>
+                                        {{ $unit->name }} ({{ $unit->short_name }})
+                                    </option>
+                                @endforeach
+                            </select>
+                            <div class="form-help">Base unit of measurement for this product</div>
+                            @error('unit_id')<div class="form-help" style="color: #ef4444;">{{ $message }}</div>@enderror
                         </div>
                         <div class="form-group">
                             <label class="form-label">HSN Code</label>
                             <input type="text" name="hsn_code" class="form-control" value="{{ old('hsn_code', $product->hsn_code) }}">
+                            <div class="form-help">Harmonized System Nomenclature code for GST</div>
                         </div>
                     </div>
                 </div>
@@ -289,10 +348,12 @@
                         <div class="form-group">
                             <label class="form-label">Purchase Price <span class="required">*</span></label>
                             <input type="number" name="purchase_price" class="form-control" step="0.01" min="0" value="{{ old('purchase_price', $product->purchase_price) }}" required>
+                            @error('purchase_price')<div class="form-help" style="color: #ef4444;">{{ $message }}</div>@enderror
                         </div>
                         <div class="form-group">
                             <label class="form-label">Sale Price <span class="required">*</span></label>
                             <input type="number" name="sale_price" class="form-control" step="0.01" min="0" value="{{ old('sale_price', $product->sale_price) }}" required>
+                            @error('sale_price')<div class="form-help" style="color: #ef4444;">{{ $message }}</div>@enderror
                         </div>
                     </div>
                 </div>
@@ -304,11 +365,13 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label">Minimum Stock Level</label>
-                            <input type="number" name="min_stock_level" class="form-control" min="0" value="{{ old('min_stock_level', $product->min_stock_level) }}">
+                            <input type="number" name="min_stock_level" class="form-control" step="0.001" min="0" value="{{ old('min_stock_level', $product->min_stock_level) }}">
+                            <div class="form-help">Alert when stock falls below this level</div>
                         </div>
                         <div class="form-group">
                             <label class="form-label">Maximum Stock Level</label>
-                            <input type="number" name="max_stock_level" class="form-control" min="0" value="{{ old('max_stock_level', $product->max_stock_level) }}">
+                            <input type="number" name="max_stock_level" class="form-control" step="0.001" min="0" value="{{ old('max_stock_level', $product->max_stock_level) }}">
+                            <div class="form-help">Maximum stock to maintain</div>
                         </div>
                     </div>
 
@@ -318,12 +381,14 @@
                                 <input type="checkbox" name="is_batch_managed" value="1" {{ old('is_batch_managed', $product->is_batch_managed) ? 'checked' : '' }}>
                                 <span class="form-check-label">Enable Batch/Lot Management</span>
                             </label>
+                            <div class="form-help">Track expiry dates and batch numbers</div>
                         </div>
                         <div class="form-group">
                             <label class="form-check">
                                 <input type="checkbox" name="is_active" value="1" {{ old('is_active', $product->is_active) ? 'checked' : '' }}>
                                 <span class="form-check-label">Active</span>
                             </label>
+                            <div class="form-help">Inactive products won't appear in stock operations</div>
                         </div>
                     </div>
                 </div>

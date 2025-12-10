@@ -44,7 +44,7 @@
     .page-header h1 svg {
         width: 28px;
         height: 28px;
-        color: #2563eb;
+        color: #0891b2;
     }
 
     .form-card {
@@ -57,14 +57,14 @@
     .form-card-header {
         padding: 20px 24px;
         border-bottom: 1px solid var(--card-border);
-        background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+        background: linear-gradient(135deg, #cffafe, #a5f3fc);
         border-radius: 12px 12px 0 0;
     }
     
     .form-card-title {
         font-size: 16px;
         font-weight: 600;
-        color: #1e40af;
+        color: #155e75;
         margin: 0;
         display: flex;
         align-items: center;
@@ -146,8 +146,8 @@
     }
 
     .stock-info {
-        background: #eff6ff;
-        border: 1px solid #bfdbfe;
+        background: #ecfeff;
+        border: 1px solid #a5f3fc;
         border-radius: 8px;
         padding: 12px 16px;
         margin-bottom: 20px;
@@ -155,19 +155,25 @@
     }
     
     .stock-info.show {
-        display: block;
+        display: flex;
+        align-items: center;
+        gap: 20px;
+    }
+    
+    .stock-info-item {
+        flex: 1;
     }
     
     .stock-info-label {
         font-size: 12px;
-        color: #1e40af;
+        color: #155e75;
         margin-bottom: 4px;
     }
     
     .stock-info-value {
         font-size: 20px;
         font-weight: 700;
-        color: #2563eb;
+        color: #0891b2;
     }
 
     .form-actions {
@@ -198,14 +204,14 @@
         height: 18px;
     }
     
-    .btn-blue {
-        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    .btn-cyan {
+        background: linear-gradient(135deg, #0891b2, #0e7490);
         color: #fff;
     }
     
-    .btn-blue:hover {
+    .btn-cyan:hover {
         transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        box-shadow: 0 4px 12px rgba(8, 145, 178, 0.3);
     }
     
     .btn-secondary {
@@ -235,31 +241,6 @@
         background: #fee2e2;
         color: #991b1b;
         border: 1px solid #fecaca;
-    }
-
-    .info-box {
-        background: #eff6ff;
-        border: 1px solid #bfdbfe;
-        border-radius: 8px;
-        padding: 12px 16px;
-        margin-bottom: 20px;
-        display: flex;
-        align-items: flex-start;
-        gap: 10px;
-    }
-    
-    .info-box svg {
-        width: 20px;
-        height: 20px;
-        color: #2563eb;
-        flex-shrink: 0;
-        margin-top: 2px;
-    }
-    
-    .info-box p {
-        margin: 0;
-        font-size: 13px;
-        color: #1e40af;
     }
 </style>
 
@@ -294,17 +275,10 @@
                 <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/>
                 </svg>
-                Record Customer / Supplier Return
+                Return Goods to Stock
             </h3>
         </div>
         <div class="form-card-body">
-            <div class="info-box">
-                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                </svg>
-                <p>Use this form to record returned goods. This will increase the stock in the selected warehouse.</p>
-            </div>
-
             <form action="{{ route('admin.inventory.stock.returns.store') }}" method="POST">
                 @csrf
 
@@ -315,6 +289,7 @@
                         @foreach($products as $product)
                             <option value="{{ $product->id }}" 
                                 data-batch="{{ $product->is_batch_managed ? '1' : '0' }}"
+                                data-unit="{{ $product->unit_id }}"
                                 {{ old('product_id', request('product_id')) == $product->id ? 'selected' : '' }}>
                                 {{ $product->name }} ({{ $product->sku }})
                             </option>
@@ -323,17 +298,26 @@
                     @error('product_id')<div class="form-help" style="color: #ef4444;">{{ $message }}</div>@enderror
                 </div>
 
-                <div class="form-group">
-                    <label class="form-label">Warehouse <span class="required">*</span></label>
-                    <select name="warehouse_id" id="warehouse_id" class="form-control" required onchange="checkStock()">
-                        <option value="">-- Select Warehouse --</option>
-                        @foreach($warehouses as $warehouse)
-                            <option value="{{ $warehouse->id }}" {{ $warehouse->is_default ? 'selected' : '' }}>
-                                {{ $warehouse->name }} {{ $warehouse->is_default ? '(Default)' : '' }}
-                            </option>
-                        @endforeach
-                    </select>
-                    @error('warehouse_id')<div class="form-help" style="color: #ef4444;">{{ $message }}</div>@enderror
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Warehouse <span class="required">*</span></label>
+                        <select name="warehouse_id" id="warehouse_id" class="form-control" required onchange="onWarehouseChange()">
+                            <option value="">-- Select Warehouse --</option>
+                            @foreach($warehouses as $warehouse)
+                                <option value="{{ $warehouse->id }}" {{ $warehouse->is_default ? 'selected' : '' }}>
+                                    {{ $warehouse->name }} {{ $warehouse->is_default ? '(Default)' : '' }}
+                                </option>
+                            @endforeach
+                        </select>
+                        @error('warehouse_id')<div class="form-help" style="color: #ef4444;">{{ $message }}</div>@enderror
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Rack / Location</label>
+                        <select name="rack_id" id="rack_id" class="form-control" onchange="checkStock()">
+                            <option value="">-- Select Rack (Optional) --</option>
+                        </select>
+                        <div class="form-help">Return to specific rack location</div>
+                    </div>
                 </div>
 
                 <div class="form-group" id="lotGroup" style="display: none;">
@@ -341,46 +325,68 @@
                     <select name="lot_id" id="lot_id" class="form-control" onchange="checkStock()">
                         <option value="">-- Select Lot (Optional) --</option>
                     </select>
-                    <div class="form-help">Select the lot this return belongs to</div>
+                    <div class="form-help">Return to specific lot if batch managed</div>
                 </div>
 
                 <div class="stock-info" id="stockInfo">
-                    <div class="stock-info-label">Current Stock (Before Return)</div>
-                    <div class="stock-info-value" id="currentStock">0</div>
+                    <div class="stock-info-item">
+                        <div class="stock-info-label">Current Stock</div>
+                        <div class="stock-info-value"><span id="currentStock">0</span> <small id="stockUnit">PCS</small></div>
+                    </div>
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">Return Quantity <span class="required">*</span></label>
-                        <input type="number" name="qty" class="form-control" step="any" min="0" placeholder="Enter quantity" value="{{ old('qty') }}" required>
+                        <input type="number" name="qty" class="form-control" step="any" min="0.001" placeholder="Enter quantity" value="{{ old('qty') }}" required>
                         @error('qty')<div class="form-help" style="color: #ef4444;">{{ $message }}</div>@enderror
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Return Reason <span class="required">*</span></label>
-                        <select name="reason" class="form-control" required>
-                            <option value="">-- Select Reason --</option>
-                            <option value="Customer Return - Defective" {{ old('reason') == 'Customer Return - Defective' ? 'selected' : '' }}>Customer Return - Defective</option>
-                            <option value="Customer Return - Wrong Item" {{ old('reason') == 'Customer Return - Wrong Item' ? 'selected' : '' }}>Customer Return - Wrong Item</option>
-                            <option value="Customer Return - Not Needed" {{ old('reason') == 'Customer Return - Not Needed' ? 'selected' : '' }}>Customer Return - Not Needed</option>
-                            <option value="Supplier Return - Damaged" {{ old('reason') == 'Supplier Return - Damaged' ? 'selected' : '' }}>Supplier Return - Damaged</option>
-                            <option value="Rejected Goods" {{ old('reason') == 'Rejected Goods' ? 'selected' : '' }}>Rejected Goods</option>
-                            <option value="Other" {{ old('reason') == 'Other' ? 'selected' : '' }}>Other</option>
+                        <label class="form-label">Unit <span class="required">*</span></label>
+                        <select name="unit_id" id="unit_id" class="form-control" required>
+                            <option value="">-- Select Unit --</option>
+                            @foreach($units as $unit)
+                                <option value="{{ $unit->id }}" {{ old('unit_id') == $unit->id ? 'selected' : '' }}>
+                                    {{ $unit->name }} ({{ $unit->short_name }})
+                                </option>
+                            @endforeach
                         </select>
+                        @error('unit_id')<div class="form-help" style="color: #ef4444;">{{ $message }}</div>@enderror
                     </div>
                 </div>
 
                 <div class="form-group">
+                    <label class="form-label">Return Reason <span class="required">*</span></label>
+                    <select name="return_reason" class="form-control" required>
+                        <option value="">-- Select Reason --</option>
+                        <option value="Customer Return" {{ old('return_reason') == 'Customer Return' ? 'selected' : '' }}>Customer Return</option>
+                        <option value="Damaged Goods" {{ old('return_reason') == 'Damaged Goods' ? 'selected' : '' }}>Damaged Goods</option>
+                        <option value="Wrong Delivery" {{ old('return_reason') == 'Wrong Delivery' ? 'selected' : '' }}>Wrong Delivery</option>
+                        <option value="Quality Issue" {{ old('return_reason') == 'Quality Issue' ? 'selected' : '' }}>Quality Issue</option>
+                        <option value="Excess Stock" {{ old('return_reason') == 'Excess Stock' ? 'selected' : '' }}>Excess Stock</option>
+                        <option value="Other" {{ old('return_reason') == 'Other' ? 'selected' : '' }}>Other</option>
+                    </select>
+                    @error('return_reason')<div class="form-help" style="color: #ef4444;">{{ $message }}</div>@enderror
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Reference</label>
+                    <input type="text" name="reason" class="form-control" placeholder="e.g., Return Order #789, Invoice #456" value="{{ old('reason') }}">
+                    <div class="form-help">Reference number or additional context</div>
+                </div>
+
+                <div class="form-group">
                     <label class="form-label">Notes</label>
-                    <textarea name="notes" class="form-control" placeholder="Additional details about the return...">{{ old('notes') }}</textarea>
+                    <textarea name="notes" class="form-control" placeholder="Additional notes about the return...">{{ old('notes') }}</textarea>
                 </div>
 
                 <!-- Actions -->
                 <div class="form-actions">
-                    <button type="submit" class="btn btn-blue">
+                    <button type="submit" class="btn btn-cyan">
                         <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/>
                         </svg>
-                        Record Return
+                        Process Return
                     </button>
                     <a href="{{ route('admin.inventory.dashboard') }}" class="btn btn-secondary">Cancel</a>
                 </div>
@@ -394,45 +400,71 @@ function onProductChange() {
     let productId = document.getElementById('product_id').value;
     let selectedOption = document.getElementById('product_id').selectedOptions[0];
     let isBatchManaged = selectedOption && selectedOption.dataset.batch === '1';
+    let productUnitId = selectedOption ? selectedOption.dataset.unit : '';
+    
+    // Set default unit based on product
+    if (productUnitId) {
+        document.getElementById('unit_id').value = productUnitId;
+    }
     
     if (isBatchManaged && productId) {
         document.getElementById('lotGroup').style.display = 'block';
         loadLots(productId);
     } else {
         document.getElementById('lotGroup').style.display = 'none';
-        // Reset lot dropdown
         let lotSelect = document.getElementById('lot_id');
-        lotSelect.innerHTML = '';
-        let defaultOpt = document.createElement('option');
-        defaultOpt.value = '';
-        defaultOpt.textContent = '-- Select Lot (Optional) --';
-        lotSelect.appendChild(defaultOpt);
+        lotSelect.innerHTML = '<option value="">-- Select Lot (Optional) --</option>';
     }
     
     checkStock();
 }
 
+function onWarehouseChange() {
+    let warehouseId = document.getElementById('warehouse_id').value;
+    loadRacks(warehouseId);
+    checkStock();
+}
+
+function loadRacks(warehouseId) {
+    let select = document.getElementById('rack_id');
+    select.innerHTML = '<option value="">-- Select Rack (Optional) --</option>';
+    
+    if (!warehouseId) return;
+    
+    fetch('{{ url("admin/inventory/racks/by-warehouse") }}/' + warehouseId)
+        .then(response => response.json())
+        .then(racks => {
+            if (racks && racks.length > 0) {
+                racks.forEach(function(rack) {
+                    let option = document.createElement('option');
+                    option.value = rack.id;
+                    option.textContent = rack.code + ' - ' + rack.name + (rack.zone ? ' (' + rack.zone + ')' : '');
+                    select.appendChild(option);
+                });
+            }
+        })
+        .catch(error => console.error('Error loading racks:', error));
+}
+
 function checkStock() {
     let productId = document.getElementById('product_id').value;
     let warehouseId = document.getElementById('warehouse_id').value;
-    let lotSelect = document.getElementById('lot_id');
-    let lotId = lotSelect ? lotSelect.value : '';
+    let rackId = document.getElementById('rack_id').value;
+    let lotId = document.getElementById('lot_id').value;
     
     if (productId && warehouseId) {
         let url = '{{ route("admin.inventory.stock.check") }}?product_id=' + productId + '&warehouse_id=' + warehouseId;
-        if (lotId) {
-            url += '&lot_id=' + lotId;
-        }
+        if (rackId) url += '&rack_id=' + rackId;
+        if (lotId) url += '&lot_id=' + lotId;
         
         fetch(url)
             .then(response => response.json())
             .then(data => {
                 document.getElementById('currentStock').textContent = data.quantity || 0;
+                document.getElementById('stockUnit').textContent = data.unit || 'PCS';
                 document.getElementById('stockInfo').classList.add('show');
             })
-            .catch(error => {
-                console.error('Error checking stock:', error);
-            });
+            .catch(error => console.error('Error checking stock:', error));
     } else {
         document.getElementById('stockInfo').classList.remove('show');
     }
@@ -440,35 +472,18 @@ function checkStock() {
 
 function loadLots(productId) {
     let select = document.getElementById('lot_id');
-    
-    // Clear and add loading option
-    select.innerHTML = '';
-    let loadingOpt = document.createElement('option');
-    loadingOpt.value = '';
-    loadingOpt.textContent = 'Loading lots...';
-    select.appendChild(loadingOpt);
+    select.innerHTML = '<option value="">Loading lots...</option>';
     
     fetch('{{ url("admin/inventory/lots/by-product") }}/' + productId)
         .then(response => response.json())
         .then(lots => {
-            // Clear select
-            select.innerHTML = '';
-            
-            // Add default option
-            let defaultOpt = document.createElement('option');
-            defaultOpt.value = '';
-            defaultOpt.textContent = '-- Select Lot (Optional) --';
-            select.appendChild(defaultOpt);
-            
-            // Add lot options
+            select.innerHTML = '<option value="">-- Select Lot (Optional) --</option>';
             if (lots && lots.length > 0) {
                 lots.forEach(function(lot) {
                     let option = document.createElement('option');
                     option.value = lot.id;
                     let text = lot.lot_no;
-                    if (lot.expiry_date) {
-                        text += ' (Exp: ' + lot.expiry_date + ')';
-                    }
+                    if (lot.expiry_date) text += ' (Exp: ' + lot.expiry_date + ')';
                     option.textContent = text;
                     select.appendChild(option);
                 });
@@ -476,22 +491,20 @@ function loadLots(productId) {
         })
         .catch(error => {
             console.error('Error loading lots:', error);
-            select.innerHTML = '';
-            let errorOpt = document.createElement('option');
-            errorOpt.value = '';
-            errorOpt.textContent = '-- Select Lot (Optional) --';
-            select.appendChild(errorOpt);
+            select.innerHTML = '<option value="">-- Select Lot (Optional) --</option>';
         });
 }
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
-    // Check if product is pre-selected
+    let warehouseId = document.getElementById('warehouse_id').value;
+    if (warehouseId) {
+        loadRacks(warehouseId);
+    }
+    
     let productId = document.getElementById('product_id').value;
     if (productId) {
         onProductChange();
-    } else {
-        checkStock();
     }
 });
 </script>

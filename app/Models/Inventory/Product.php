@@ -11,10 +11,10 @@ class Product extends Model
     protected $fillable = [
         'category_id',
         'brand_id',
+        'unit_id',
         'name',
         'sku',
         'barcode',
-        'unit',
         'purchase_price',
         'sale_price',
         'hsn_code',
@@ -27,8 +27,8 @@ class Product extends Model
     protected $casts = [
         'purchase_price' => 'decimal:2',
         'sale_price' => 'decimal:2',
-        'min_stock_level' => 'integer',
-        'max_stock_level' => 'integer',
+        'min_stock_level' => 'decimal:3',
+        'max_stock_level' => 'decimal:3',
         'is_batch_managed' => 'boolean',
         'is_active' => 'boolean',
     ];
@@ -43,6 +43,16 @@ class Product extends Model
         return $this->belongsTo(Brand::class);
     }
 
+    public function unit(): BelongsTo
+    {
+        return $this->belongsTo(Unit::class);
+    }
+
+    public function productUnits(): HasMany
+    {
+        return $this->hasMany(ProductUnit::class);
+    }
+
     public function lots(): HasMany
     {
         return $this->hasMany(Lot::class);
@@ -53,10 +63,53 @@ class Product extends Model
         return $this->hasMany(StockMovement::class);
     }
 
+    public function stockLevels(): HasMany
+    {
+        return $this->hasMany(StockLevel::class);
+    }
+
+    /**
+     * Get unit short name for display
+     */
+    public function getUnitNameAttribute(): string
+    {
+        return $this->unit->short_name ?? 'PCS';
+    }
+
+    /**
+     * Get current stock (calculated from stock_levels table)
+     */
     public function getCurrentStockAttribute(): float
     {
-        return $this->stockMovements()
-            ->selectRaw("SUM(CASE WHEN movement_type IN ('IN', 'RETURN') THEN qty WHEN movement_type = 'OUT' THEN -qty ELSE qty END) as total")
-            ->value('total') ?? 0;
+        return $this->stockLevels()->sum('qty') ?? 0;
+    }
+
+    /**
+     * Get stock by warehouse
+     */
+    public function getStockByWarehouse($warehouseId): float
+    {
+        return $this->stockLevels()
+            ->where('warehouse_id', $warehouseId)
+            ->sum('qty') ?? 0;
+    }
+
+    /**
+     * Get stock by warehouse and rack
+     */
+    public function getStockByRack($warehouseId, $rackId): float
+    {
+        return $this->stockLevels()
+            ->where('warehouse_id', $warehouseId)
+            ->where('rack_id', $rackId)
+            ->sum('qty') ?? 0;
+    }
+
+    /**
+     * Check if stock is low
+     */
+    public function getIsLowStockAttribute(): bool
+    {
+        return $this->current_stock <= $this->min_stock_level;
     }
 }

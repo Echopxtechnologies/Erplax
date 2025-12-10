@@ -274,12 +274,24 @@
 
                     <div class="form-row">
                         <div class="form-group">
-                            <label class="form-label">Unit</label>
-                            <input type="text" name="unit" class="form-control" placeholder="e.g., PCS, KG, LTR" value="{{ old('unit', 'PCS') }}">
+                            <label class="form-label">Unit <span class="required">*</span></label>
+                            <select name="unit_id" class="form-control" required>
+                                <option value="">-- Select Unit --</option>
+                                @foreach($units as $unit)
+                                    <option value="{{ $unit->id }}" 
+                                        {{ old('unit_id') == $unit->id ? 'selected' : '' }}
+                                        {{ $unit->short_name == 'PCS' ? 'selected' : '' }}>
+                                        {{ $unit->name }} ({{ $unit->short_name }})
+                                    </option>
+                                @endforeach
+                            </select>
+                            <div class="form-help">Base unit of measurement for this product</div>
+                            @error('unit_id')<div class="form-help" style="color: #ef4444;">{{ $message }}</div>@enderror
                         </div>
                         <div class="form-group">
                             <label class="form-label">HSN Code</label>
                             <input type="text" name="hsn_code" class="form-control" placeholder="e.g., 8471" value="{{ old('hsn_code') }}">
+                            <div class="form-help">Harmonized System Nomenclature code for GST</div>
                         </div>
                     </div>
                 </div>
@@ -309,12 +321,12 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label">Minimum Stock Level</label>
-                            <input type="number" name="min_stock_level" class="form-control" min="0" placeholder="0" value="{{ old('min_stock_level', 0) }}">
+                            <input type="number" name="min_stock_level" class="form-control" step="0.001" min="0" placeholder="0" value="{{ old('min_stock_level', 0) }}">
                             <div class="form-help">Alert when stock falls below this level</div>
                         </div>
                         <div class="form-group">
                             <label class="form-label">Maximum Stock Level</label>
-                            <input type="number" name="max_stock_level" class="form-control" min="0" placeholder="0" value="{{ old('max_stock_level', 0) }}">
+                            <input type="number" name="max_stock_level" class="form-control" step="0.001" min="0" placeholder="0" value="{{ old('max_stock_level', 0) }}">
                             <div class="form-help">Maximum stock to maintain</div>
                         </div>
                     </div>

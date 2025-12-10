@@ -2,8 +2,8 @@
 <style>
     .page-header {
         display: flex;
-        justify-content: space-between;
         align-items: center;
+        justify-content: space-between;
         margin-bottom: 24px;
     }
     
@@ -14,7 +14,7 @@
         margin: 0;
         display: flex;
         align-items: center;
-        gap: 12px;
+        gap: 10px;
     }
     
     .page-header h1 svg {
@@ -23,237 +23,155 @@
         color: var(--primary);
     }
 
-    /* Settings Grid */
-    .settings-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 24px;
-    }
-    
-    @media (max-width: 1024px) {
-        .settings-grid {
-            grid-template-columns: 1fr;
-        }
-    }
-
-    /* Section Card */
-    .section-card {
-        background: var(--card-bg);
-        border: 1px solid var(--card-border);
-        border-radius: 16px;
-        overflow: hidden;
-    }
-    
-    .section-header {
-        padding: 20px 24px;
-        border-bottom: 1px solid var(--card-border);
+    /* Tabs */
+    .settings-tabs {
         display: flex;
-        justify-content: space-between;
-        align-items: center;
-        background: linear-gradient(135deg, rgba(59, 130, 246, 0.05), rgba(59, 130, 246, 0.02));
-    }
-    
-    .section-header.purple {
-        background: linear-gradient(135deg, rgba(139, 92, 246, 0.05), rgba(139, 92, 246, 0.02));
-    }
-    
-    .section-title-wrap {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-    }
-    
-    .section-icon {
-        width: 44px;
-        height: 44px;
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: linear-gradient(135deg, var(--primary), #2563eb);
-        color: #fff;
-    }
-    
-    .section-icon.purple {
-        background: linear-gradient(135deg, #8b5cf6, #7c3aed);
-    }
-    
-    .section-icon svg {
-        width: 22px;
-        height: 22px;
-    }
-    
-    .section-title {
-        font-size: 18px;
-        font-weight: 600;
-        color: var(--text-primary);
-        margin: 0;
-    }
-    
-    .section-subtitle {
-        font-size: 13px;
-        color: var(--text-muted);
-        margin-top: 2px;
-    }
-    
-    .section-count {
-        background: var(--body-bg);
-        padding: 6px 14px;
-        border-radius: 20px;
-        font-size: 13px;
-        font-weight: 600;
-        color: var(--text-muted);
-    }
-    
-    .section-body {
-        padding: 20px 24px;
-        max-height: 500px;
-        overflow-y: auto;
-    }
-
-    /* Add Button */
-    .add-item-btn {
-        display: flex;
-        align-items: center;
-        justify-content: center;
         gap: 8px;
-        width: 100%;
-        padding: 14px;
-        border: 2px dashed var(--card-border);
-        border-radius: 12px;
+        margin-bottom: 24px;
+        border-bottom: 1px solid var(--card-border);
+        padding-bottom: 0;
+    }
+    
+    .tab-btn {
+        padding: 12px 20px;
+        border: none;
         background: transparent;
         color: var(--text-muted);
         font-size: 14px;
         font-weight: 500;
         cursor: pointer;
+        border-bottom: 2px solid transparent;
+        margin-bottom: -1px;
         transition: all 0.2s;
-        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
     }
     
-    .add-item-btn:hover {
-        border-color: var(--primary);
+    .tab-btn:hover {
+        color: var(--text-primary);
+    }
+    
+    .tab-btn.active {
         color: var(--primary);
-        background: rgba(59, 130, 246, 0.05);
+        border-bottom-color: var(--primary);
     }
     
-    .add-item-btn svg {
-        width: 20px;
-        height: 20px;
+    .tab-btn svg {
+        width: 18px;
+        height: 18px;
+    }
+    
+    .tab-content {
+        display: none;
+    }
+    
+    .tab-content.active {
+        display: block;
+    }
+
+    /* Cards Grid */
+    .settings-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 20px;
+    }
+
+    .settings-card {
+        background: var(--card-bg);
+        border: 1px solid var(--card-border);
+        border-radius: 12px;
+        overflow: hidden;
+    }
+    
+    .settings-card-header {
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--card-border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    
+    .settings-card-title {
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .settings-card-title svg {
+        width: 18px;
+        height: 18px;
+        color: var(--primary);
+    }
+    
+    .settings-card-body {
+        padding: 20px;
+        max-height: 400px;
+        overflow-y: auto;
     }
 
     /* Category Tree */
     .category-tree {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
+        list-style: none;
+        padding: 0;
+        margin: 0;
     }
     
     .category-item {
-        background: var(--body-bg);
-        border: 1px solid var(--card-border);
-        border-radius: 10px;
-        overflow: hidden;
-        transition: all 0.2s;
+        border-bottom: 1px solid var(--card-border);
     }
     
-    .category-item:hover {
-        border-color: var(--primary);
-        box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
+    .category-item:last-child {
+        border-bottom: none;
     }
     
-    .category-main {
+    .category-row {
         display: flex;
         align-items: center;
-        padding: 12px 16px;
-        gap: 12px;
+        padding: 10px 0;
+        gap: 10px;
     }
     
     .category-toggle {
         width: 24px;
         height: 24px;
-        border-radius: 6px;
         display: flex;
         align-items: center;
         justify-content: center;
-        background: var(--card-bg);
-        border: 1px solid var(--card-border);
         cursor: pointer;
-        transition: all 0.2s;
-        flex-shrink: 0;
-    }
-    
-    .category-toggle:hover {
-        background: var(--primary);
-        border-color: var(--primary);
-        color: #fff;
-    }
-    
-    .category-toggle svg {
-        width: 14px;
-        height: 14px;
+        color: var(--text-muted);
         transition: transform 0.2s;
     }
     
-    .category-toggle.open svg {
+    .category-toggle.expanded {
         transform: rotate(90deg);
     }
     
-    .category-toggle.no-children {
+    .category-toggle.hidden {
         visibility: hidden;
     }
     
-    .category-color {
-        width: 8px;
-        height: 32px;
-        border-radius: 4px;
-        flex-shrink: 0;
-    }
-    
-    .category-info {
-        flex: 1;
-        min-width: 0;
+    .category-toggle svg {
+        width: 16px;
+        height: 16px;
     }
     
     .category-name {
+        flex: 1;
         font-size: 14px;
-        font-weight: 600;
         color: var(--text-primary);
-        display: flex;
-        align-items: center;
-        gap: 8px;
     }
     
     .category-code {
-        font-size: 11px;
-        color: var(--text-muted);
-        background: var(--card-bg);
-        padding: 2px 8px;
-        border-radius: 4px;
-        font-family: monospace;
-    }
-    
-    .category-meta {
         font-size: 12px;
         color: var(--text-muted);
-        margin-top: 2px;
-    }
-    
-    .category-badge {
-        padding: 4px 10px;
-        border-radius: 20px;
-        font-size: 11px;
-        font-weight: 600;
-        flex-shrink: 0;
-    }
-    
-    .badge-active {
-        background: #d1fae5;
-        color: #065f46;
-    }
-    
-    .badge-inactive {
-        background: #fee2e2;
-        color: #991b1b;
+        background: var(--body-bg);
+        padding: 2px 8px;
+        border-radius: 4px;
     }
     
     .category-actions {
@@ -263,183 +181,332 @@
         transition: opacity 0.2s;
     }
     
-    .category-item:hover .category-actions {
+    .category-row:hover .category-actions {
         opacity: 1;
     }
     
-    .action-btn {
-        width: 32px;
-        height: 32px;
+    .category-children {
+        list-style: none;
+        padding-left: 34px;
+        margin: 0;
+        display: none;
+    }
+    
+    .category-children.show {
+        display: block;
+    }
+
+    /* Brand/Unit Grid */
+    .item-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 12px;
+    }
+    
+    .item-card {
+        background: var(--body-bg);
+        border: 1px solid var(--card-border);
         border-radius: 8px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border: none;
-        background: var(--card-bg);
-        color: var(--text-muted);
+        padding: 12px;
+        text-align: center;
         cursor: pointer;
         transition: all 0.2s;
     }
     
-    .action-btn:hover {
-        background: var(--primary);
-        color: #fff;
-    }
-    
-    .action-btn.delete:hover {
-        background: #dc2626;
-    }
-    
-    .action-btn svg {
-        width: 16px;
-        height: 16px;
-    }
-    
-    /* Subcategories */
-    .category-children {
-        display: none;
-        padding: 0 16px 12px 52px;
-    }
-    
-    .category-children.open {
-        display: block;
-    }
-    
-    .subcategory-item {
-        display: flex;
-        align-items: center;
-        padding: 10px 14px;
-        background: var(--card-bg);
-        border-radius: 8px;
-        margin-top: 8px;
-        gap: 10px;
-        border: 1px solid transparent;
-        transition: all 0.2s;
-    }
-    
-    .subcategory-item:hover {
-        border-color: var(--card-border);
-    }
-    
-    .subcategory-item:hover .category-actions {
-        opacity: 1;
-    }
-    
-    .subcategory-dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        flex-shrink: 0;
-    }
-
-    /* Brand Cards */
-    .brands-grid {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 12px;
-    }
-    
-    @media (max-width: 640px) {
-        .brands-grid {
-            grid-template-columns: 1fr;
-        }
-    }
-    
-    .brand-card {
-        background: var(--body-bg);
-        border: 1px solid var(--card-border);
-        border-radius: 12px;
-        padding: 16px;
-        display: flex;
-        align-items: center;
-        gap: 14px;
-        transition: all 0.2s;
-        position: relative;
-    }
-    
-    .brand-card:hover {
+    .item-card:hover {
         border-color: var(--primary);
-        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
-        transform: translateY(-2px);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     }
     
-    .brand-logo {
-        width: 56px;
-        height: 56px;
-        border-radius: 12px;
-        background: var(--card-bg);
-        border: 1px solid var(--card-border);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        overflow: hidden;
-        flex-shrink: 0;
+    .item-card-name {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-primary);
+        margin-bottom: 4px;
     }
     
-    .brand-logo img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-    }
-    
-    .brand-logo svg {
-        width: 28px;
-        height: 28px;
+    .item-card-code {
+        font-size: 11px;
         color: var(--text-muted);
     }
     
-    .brand-info {
-        flex: 1;
-        min-width: 0;
+    .item-card-status {
+        margin-top: 8px;
+        font-size: 11px;
+        padding: 2px 8px;
+        border-radius: 10px;
+        display: inline-block;
     }
     
-    .brand-name {
-        font-size: 15px;
-        font-weight: 600;
-        color: var(--text-primary);
-        margin-bottom: 4px;
+    .item-card-status.active {
+        background: #d1fae5;
+        color: #065f46;
+    }
+    
+    .item-card-status.inactive {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    /* Unit List */
+    .unit-list {
         display: flex;
-        align-items: center;
+        flex-direction: column;
         gap: 8px;
     }
     
-    .brand-desc {
-        font-size: 12px;
-        color: var(--text-muted);
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-    
-    .brand-status {
-        position: absolute;
-        top: 10px;
-        right: 10px;
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-    }
-    
-    .brand-status.active {
-        background: #10b981;
-        box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
-    }
-    
-    .brand-status.inactive {
-        background: #ef4444;
-        box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
-    }
-    
-    .brand-actions {
+    .unit-item {
         display: flex;
-        flex-direction: column;
+        align-items: center;
+        padding: 10px 12px;
+        background: var(--body-bg);
+        border: 1px solid var(--card-border);
+        border-radius: 8px;
+        gap: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .unit-item:hover {
+        border-color: var(--primary);
+    }
+    
+    .unit-short {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--primary);
+        min-width: 50px;
+    }
+    
+    .unit-info {
+        flex: 1;
+    }
+    
+    .unit-name {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-primary);
+    }
+    
+    .unit-conversion {
+        font-size: 11px;
+        color: var(--text-muted);
+    }
+    
+    .unit-actions {
+        display: flex;
         gap: 4px;
         opacity: 0;
         transition: opacity 0.2s;
     }
     
-    .brand-card:hover .brand-actions {
+    .unit-item:hover .unit-actions {
         opacity: 1;
+    }
+
+    /* Buttons */
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 8px 16px;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        border: none;
+        text-decoration: none;
+        transition: all 0.2s;
+    }
+    
+    .btn svg {
+        width: 16px;
+        height: 16px;
+    }
+    
+    .btn-sm {
+        padding: 6px 10px;
+        font-size: 12px;
+    }
+    
+    .btn-sm svg {
+        width: 14px;
+        height: 14px;
+    }
+    
+    .btn-primary {
+        background: var(--primary);
+        color: #fff;
+    }
+    
+    .btn-primary:hover {
+        background: var(--primary-hover);
+    }
+    
+    .btn-ghost {
+        background: transparent;
+        color: var(--text-muted);
+        padding: 6px;
+    }
+    
+    .btn-ghost:hover {
+        background: var(--body-bg);
+        color: var(--text-primary);
+    }
+    
+    .btn-danger {
+        background: transparent;
+        color: #dc2626;
+        padding: 6px;
+    }
+    
+    .btn-danger:hover {
+        background: #fee2e2;
+    }
+
+    /* Modal */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.5);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        padding: 20px;
+    }
+    
+    .modal-overlay.show {
+        display: flex;
+    }
+    
+    .modal {
+        background: var(--card-bg);
+        border-radius: 12px;
+        width: 100%;
+        max-width: 500px;
+        max-height: 90vh;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .modal-header {
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--card-border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    
+    .modal-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin: 0;
+    }
+    
+    .modal-close {
+        background: none;
+        border: none;
+        padding: 4px;
+        cursor: pointer;
+        color: var(--text-muted);
+    }
+    
+    .modal-close:hover {
+        color: var(--text-primary);
+    }
+    
+    .modal-close svg {
+        width: 20px;
+        height: 20px;
+    }
+    
+    .modal-body {
+        padding: 20px;
+        overflow-y: auto;
+    }
+    
+    .modal-footer {
+        padding: 16px 20px;
+        border-top: 1px solid var(--card-border);
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+    }
+
+    /* Form */
+    .form-group {
+        margin-bottom: 16px;
+    }
+    
+    .form-group:last-child {
+        margin-bottom: 0;
+    }
+    
+    .form-label {
+        display: block;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-primary);
+        margin-bottom: 6px;
+    }
+    
+    .form-label .required {
+        color: #ef4444;
+    }
+    
+    .form-control {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid var(--card-border);
+        border-radius: 6px;
+        font-size: 14px;
+        background: var(--card-bg);
+        color: var(--text-primary);
+        box-sizing: border-box;
+    }
+    
+    .form-control:focus {
+        outline: none;
+        border-color: var(--primary);
+    }
+    
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+    }
+    
+    .form-help {
+        font-size: 11px;
+        color: var(--text-muted);
+        margin-top: 4px;
+    }
+
+    /* Alert */
+    .alert {
+        padding: 12px 16px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        font-size: 14px;
+    }
+    
+    .alert-success {
+        background: #d1fae5;
+        color: #065f46;
+        border: 1px solid #a7f3d0;
+    }
+    
+    .alert-error {
+        background: #fee2e2;
+        color: #991b1b;
+        border: 1px solid #fecaca;
     }
 
     /* Empty State */
@@ -455,411 +522,6 @@
         margin-bottom: 12px;
         opacity: 0.5;
     }
-    
-    .empty-state p {
-        margin: 0;
-        font-size: 14px;
-    }
-
-    /* Modal */
-    .modal-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.6);
-        backdrop-filter: blur(4px);
-        display: none;
-        align-items: center;
-        justify-content: center;
-        z-index: 1000;
-        padding: 20px;
-    }
-    
-    .modal-overlay.show {
-        display: flex;
-    }
-    
-    .modal {
-        background: var(--card-bg);
-        border-radius: 16px;
-        width: 100%;
-        max-width: 480px;
-        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
-        animation: modalSlide 0.3s ease;
-    }
-    
-    @keyframes modalSlide {
-        from {
-            opacity: 0;
-            transform: translateY(-20px) scale(0.95);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-        }
-    }
-    
-    .modal-header {
-        padding: 20px 24px;
-        border-bottom: 1px solid var(--card-border);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-    
-    .modal-title {
-        font-size: 18px;
-        font-weight: 600;
-        color: var(--text-primary);
-        margin: 0;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-    
-    .modal-title-icon {
-        width: 36px;
-        height: 36px;
-        border-radius: 10px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: linear-gradient(135deg, var(--primary), #2563eb);
-        color: #fff;
-    }
-    
-    .modal-title-icon svg {
-        width: 18px;
-        height: 18px;
-    }
-    
-    .modal-close {
-        width: 36px;
-        height: 36px;
-        border-radius: 10px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: var(--body-bg);
-        border: none;
-        color: var(--text-muted);
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-    
-    .modal-close:hover {
-        background: #fee2e2;
-        color: #dc2626;
-    }
-    
-    .modal-close svg {
-        width: 18px;
-        height: 18px;
-    }
-    
-    .modal-body {
-        padding: 24px;
-    }
-    
-    .modal-footer {
-        padding: 16px 24px;
-        border-top: 1px solid var(--card-border);
-        display: flex;
-        justify-content: flex-end;
-        gap: 12px;
-        background: var(--body-bg);
-        border-radius: 0 0 16px 16px;
-    }
-
-    /* Form */
-    .form-group {
-        margin-bottom: 20px;
-    }
-    
-    .form-group:last-child {
-        margin-bottom: 0;
-    }
-    
-    .form-label {
-        display: block;
-        font-size: 13px;
-        font-weight: 600;
-        color: var(--text-primary);
-        margin-bottom: 8px;
-    }
-    
-    .form-label .required {
-        color: #ef4444;
-    }
-    
-    .form-control {
-        width: 100%;
-        padding: 12px 16px;
-        border: 1px solid var(--card-border);
-        border-radius: 10px;
-        font-size: 14px;
-        background: var(--card-bg);
-        color: var(--text-primary);
-        transition: all 0.2s;
-        box-sizing: border-box;
-    }
-    
-    .form-control:focus {
-        outline: none;
-        border-color: var(--primary);
-        box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
-    }
-    
-    .form-control::placeholder {
-        color: var(--text-muted);
-    }
-    
-    textarea.form-control {
-        min-height: 80px;
-        resize: vertical;
-    }
-
-    .form-row {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 16px;
-    }
-
-    .form-switch {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 12px 16px;
-        background: var(--body-bg);
-        border-radius: 10px;
-    }
-    
-    .switch {
-        position: relative;
-        width: 44px;
-        height: 24px;
-    }
-    
-    .switch input {
-        opacity: 0;
-        width: 0;
-        height: 0;
-    }
-    
-    .switch-slider {
-        position: absolute;
-        cursor: pointer;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: var(--card-border);
-        border-radius: 24px;
-        transition: 0.3s;
-    }
-    
-    .switch-slider:before {
-        position: absolute;
-        content: "";
-        height: 18px;
-        width: 18px;
-        left: 3px;
-        bottom: 3px;
-        background: white;
-        border-radius: 50%;
-        transition: 0.3s;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-    }
-    
-    .switch input:checked + .switch-slider {
-        background: #10b981;
-    }
-    
-    .switch input:checked + .switch-slider:before {
-        transform: translateX(20px);
-    }
-    
-    .switch-label {
-        font-size: 14px;
-        color: var(--text-primary);
-    }
-
-    /* Logo Upload */
-    .logo-upload {
-        display: flex;
-        align-items: center;
-        gap: 16px;
-    }
-    
-    .logo-preview-box {
-        width: 80px;
-        height: 80px;
-        border-radius: 12px;
-        border: 2px dashed var(--card-border);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        overflow: hidden;
-        background: var(--body-bg);
-        flex-shrink: 0;
-    }
-    
-    .logo-preview-box img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-    }
-    
-    .logo-preview-box svg {
-        width: 32px;
-        height: 32px;
-        color: var(--text-muted);
-    }
-    
-    .logo-upload-info {
-        flex: 1;
-    }
-    
-    .logo-upload-btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 8px 16px;
-        background: var(--body-bg);
-        border: 1px solid var(--card-border);
-        border-radius: 8px;
-        font-size: 13px;
-        font-weight: 500;
-        color: var(--text-primary);
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-    
-    .logo-upload-btn:hover {
-        border-color: var(--primary);
-        color: var(--primary);
-    }
-    
-    .logo-upload-btn svg {
-        width: 16px;
-        height: 16px;
-    }
-    
-    .logo-upload-hint {
-        font-size: 12px;
-        color: var(--text-muted);
-        margin-top: 6px;
-    }
-
-    /* Buttons */
-    .btn {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        padding: 12px 24px;
-        border-radius: 10px;
-        font-size: 14px;
-        font-weight: 600;
-        cursor: pointer;
-        border: none;
-        text-decoration: none;
-        transition: all 0.2s;
-    }
-    
-    .btn svg {
-        width: 18px;
-        height: 18px;
-    }
-    
-    .btn-primary {
-        background: linear-gradient(135deg, var(--primary), #2563eb);
-        color: #fff;
-    }
-    
-    .btn-primary:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
-    }
-    
-    .btn-secondary {
-        background: var(--card-bg);
-        color: var(--text-primary);
-        border: 1px solid var(--card-border);
-    }
-    
-    .btn-secondary:hover {
-        background: var(--body-bg);
-    }
-
-    /* Alert */
-    .alert {
-        padding: 14px 18px;
-        border-radius: 12px;
-        margin-bottom: 20px;
-        font-size: 14px;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        animation: alertSlide 0.3s ease;
-    }
-    
-    @keyframes alertSlide {
-        from {
-            opacity: 0;
-            transform: translateY(-10px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-    
-    .alert svg {
-        width: 20px;
-        height: 20px;
-        flex-shrink: 0;
-    }
-    
-    .alert-success {
-        background: linear-gradient(135deg, #d1fae5, #a7f3d0);
-        color: #065f46;
-        border: 1px solid #6ee7b7;
-    }
-    
-    .alert-error {
-        background: linear-gradient(135deg, #fee2e2, #fecaca);
-        color: #991b1b;
-        border: 1px solid #fca5a5;
-    }
-
-    /* Color picker dots */
-    .color-options {
-        display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
-        margin-top: 8px;
-    }
-    
-    .color-option {
-        width: 28px;
-        height: 28px;
-        border-radius: 50%;
-        cursor: pointer;
-        border: 3px solid transparent;
-        transition: all 0.2s;
-    }
-    
-    .color-option:hover {
-        transform: scale(1.1);
-    }
-    
-    .color-option.selected {
-        border-color: var(--text-primary);
-        box-shadow: 0 0 0 2px var(--card-bg);
-    }
 </style>
 
 <div style="padding: 20px;">
@@ -874,196 +536,223 @@
         </h1>
     </div>
 
-    <div id="alertContainer"></div>
+    @if(session('success'))
+        <div class="alert alert-success">{{ session('success') }}</div>
+    @endif
 
-    <!-- Settings Grid -->
-    <div class="settings-grid">
-        <!-- Categories Section -->
-        <div class="section-card">
-            <div class="section-header">
-                <div class="section-title-wrap">
-                    <div class="section-icon">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
-                        </svg>
-                    </div>
-                    <div>
-                        <h2 class="section-title">Categories</h2>
-                        <p class="section-subtitle">Organize your products</p>
-                    </div>
-                </div>
-                <span class="section-count" id="categoryCount">{{ $categories->count() }}</span>
-            </div>
-            <div class="section-body">
-                <button class="add-item-btn" onclick="openCategoryModal()">
+    <!-- Tabs -->
+    <div class="settings-tabs">
+        <button class="tab-btn active" onclick="showTab('categories')">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+            </svg>
+            Categories
+        </button>
+        <button class="tab-btn" onclick="showTab('brands')">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+            </svg>
+            Brands
+        </button>
+        <button class="tab-btn" onclick="showTab('units')">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"/>
+            </svg>
+            Units
+        </button>
+    </div>
+
+    <!-- Categories Tab -->
+    <div id="tab-categories" class="tab-content active">
+        <div class="settings-card">
+            <div class="settings-card-header">
+                <h3 class="settings-card-title">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                    </svg>
+                    Product Categories
+                </h3>
+                <button class="btn btn-primary btn-sm" onclick="openCategoryModal()">
                     <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
                     </svg>
-                    Add New Category
+                    Add Category
                 </button>
-
-                <div class="category-tree" id="categoryTree">
-                    @forelse($categories->whereNull('parent_id') as $category)
-                        @php
-                            $colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4'];
-                            $color = $colors[$loop->index % count($colors)];
-                        @endphp
-                        <div class="category-item" data-id="{{ $category->id }}">
-                            <div class="category-main">
-                                <button class="category-toggle {{ $category->children->count() > 0 ? '' : 'no-children' }}" onclick="toggleChildren(this)">
-                                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
-                                    </svg>
-                                </button>
-                                <div class="category-color" style="background: {{ $color }};"></div>
-                                <div class="category-info">
-                                    <div class="category-name">
-                                        {{ $category->name }}
-                                        <span class="category-code">{{ $category->code }}</span>
-                                    </div>
-                                    <div class="category-meta">
-                                        {{ $category->children->count() }} subcategories • Order: {{ $category->sort_order }}
+            </div>
+            <div class="settings-card-body">
+                @if($categories->count() > 0)
+                    <ul class="category-tree">
+                        @foreach($categories as $category)
+                            <li class="category-item">
+                                <div class="category-row">
+                                    <span class="category-toggle {{ $category->children->count() > 0 ? '' : 'hidden' }}" onclick="toggleCategory(this)">
+                                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+                                        </svg>
+                                    </span>
+                                    <span class="category-name">{{ $category->name }}</span>
+                                    <span class="category-code">{{ $category->code }}</span>
+                                    <div class="category-actions">
+                                        <button class="btn btn-ghost btn-sm" onclick="editCategory({{ $category->id }}, '{{ $category->code }}', '{{ $category->name }}', {{ $category->parent_id ?? 'null' }}, '{{ $category->description }}', {{ $category->sort_order ?? 0 }})">
+                                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                            </svg>
+                                        </button>
+                                        <button class="btn btn-danger btn-sm" onclick="deleteCategory({{ $category->id }})">
+                                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                            </svg>
+                                        </button>
                                     </div>
                                 </div>
-                                <span class="category-badge {{ $category->is_active ? 'badge-active' : 'badge-inactive' }}">
-                                    {{ $category->is_active ? 'Active' : 'Inactive' }}
+                                @if($category->children->count() > 0)
+                                    <ul class="category-children">
+                                        @foreach($category->children as $child)
+                                            <li class="category-item">
+                                                <div class="category-row">
+                                                    <span class="category-toggle hidden"></span>
+                                                    <span class="category-name">{{ $child->name }}</span>
+                                                    <span class="category-code">{{ $child->code }}</span>
+                                                    <div class="category-actions">
+                                                        <button class="btn btn-ghost btn-sm" onclick="editCategory({{ $child->id }}, '{{ $child->code }}', '{{ $child->name }}', {{ $child->parent_id ?? 'null' }}, '{{ $child->description }}', {{ $child->sort_order ?? 0 }})">
+                                                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                                            </svg>
+                                                        </button>
+                                                        <button class="btn btn-danger btn-sm" onclick="deleteCategory({{ $child->id }})">
+                                                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                                            </svg>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </li>
+                                        @endforeach
+                                    </ul>
+                                @endif
+                            </li>
+                        @endforeach
+                    </ul>
+                @else
+                    <div class="empty-state">
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                        </svg>
+                        <p>No categories yet. Add your first category!</p>
+                    </div>
+                @endif
+            </div>
+        </div>
+    </div>
+
+    <!-- Brands Tab -->
+    <div id="tab-brands" class="tab-content">
+        <div class="settings-card">
+            <div class="settings-card-header">
+                <h3 class="settings-card-title">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+                    </svg>
+                    Product Brands
+                </h3>
+                <button class="btn btn-primary btn-sm" onclick="openBrandModal()">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    Add Brand
+                </button>
+            </div>
+            <div class="settings-card-body">
+                @if($brands->count() > 0)
+                    <div class="item-grid">
+                        @foreach($brands as $brand)
+                            <div class="item-card" onclick="editBrand({{ $brand->id }}, '{{ $brand->name }}', '{{ $brand->description }}', {{ $brand->is_active ? 'true' : 'false' }})">
+                                <div class="item-card-name">{{ $brand->name }}</div>
+                                <div class="item-card-code">{{ Str::limit($brand->description, 30) ?: 'No description' }}</div>
+                                <span class="item-card-status {{ $brand->is_active ? 'active' : 'inactive' }}">
+                                    {{ $brand->is_active ? 'Active' : 'Inactive' }}
                                 </span>
-                                <div class="category-actions">
-                                    <button class="action-btn" onclick="editCategory({{ json_encode($category) }})">
+                            </div>
+                        @endforeach
+                    </div>
+                @else
+                    <div class="empty-state">
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+                        </svg>
+                        <p>No brands yet. Add your first brand!</p>
+                    </div>
+                @endif
+            </div>
+        </div>
+    </div>
+
+    <!-- Units Tab -->
+    <div id="tab-units" class="tab-content">
+        <div class="settings-card">
+            <div class="settings-card-header">
+                <h3 class="settings-card-title">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"/>
+                    </svg>
+                    Units of Measurement
+                </h3>
+                <button class="btn btn-primary btn-sm" onclick="openUnitModal()">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    Add Unit
+                </button>
+            </div>
+            <div class="settings-card-body">
+                @if($units->count() > 0)
+                    <div class="unit-list">
+                        @foreach($units as $unit)
+                            <div class="unit-item" onclick="editUnit({{ $unit->id }}, '{{ $unit->name }}', '{{ $unit->short_name }}', {{ $unit->base_unit_id ?? 'null' }}, {{ $unit->conversion_factor }}, {{ $unit->is_active ? 'true' : 'false' }})">
+                                <span class="unit-short">{{ $unit->short_name }}</span>
+                                <div class="unit-info">
+                                    <div class="unit-name">{{ $unit->name }}</div>
+                                    <div class="unit-conversion">
+                                        @if($unit->base_unit_id && $unit->baseUnit)
+                                            1 {{ $unit->short_name }} = {{ $unit->conversion_factor }} {{ $unit->baseUnit->short_name }}
+                                        @else
+                                            Base Unit ({{ $unit->conversion_factor }})
+                                        @endif
+                                    </div>
+                                </div>
+                                <div class="unit-actions">
+                                    <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); editUnit({{ $unit->id }}, '{{ $unit->name }}', '{{ $unit->short_name }}', {{ $unit->base_unit_id ?? 'null' }}, {{ $unit->conversion_factor }}, {{ $unit->is_active ? 'true' : 'false' }})">
                                         <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                                         </svg>
                                     </button>
-                                    <button class="action-btn delete" onclick="deleteCategory({{ $category->id }})">
+                                    <button class="btn btn-danger btn-sm" onclick="event.stopPropagation(); deleteUnit({{ $unit->id }})">
                                         <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                                         </svg>
                                     </button>
                                 </div>
                             </div>
-                            @if($category->children->count() > 0)
-                                <div class="category-children">
-                                    @foreach($category->children as $child)
-                                        <div class="subcategory-item" data-id="{{ $child->id }}">
-                                            <div class="subcategory-dot" style="background: {{ $color }};"></div>
-                                            <div class="category-info">
-                                                <div class="category-name">
-                                                    {{ $child->name }}
-                                                    <span class="category-code">{{ $child->code }}</span>
-                                                </div>
-                                            </div>
-                                            <span class="category-badge {{ $child->is_active ? 'badge-active' : 'badge-inactive' }}">
-                                                {{ $child->is_active ? 'Active' : 'Inactive' }}
-                                            </span>
-                                            <div class="category-actions">
-                                                <button class="action-btn" onclick="editCategory({{ json_encode($child) }})">
-                                                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                                                    </svg>
-                                                </button>
-                                                <button class="action-btn delete" onclick="deleteCategory({{ $child->id }})">
-                                                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                                                    </svg>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    @endforeach
-                                </div>
-                            @endif
-                        </div>
-                    @empty
-                        <div class="empty-state">
-                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
-                            </svg>
-                            <p>No categories yet. Add your first category!</p>
-                        </div>
-                    @endforelse
-                </div>
-            </div>
-        </div>
-
-        <!-- Brands Section -->
-        <div class="section-card">
-            <div class="section-header purple">
-                <div class="section-title-wrap">
-                    <div class="section-icon purple">
+                        @endforeach
+                    </div>
+                @else
+                    <div class="empty-state">
                         <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"/>
                         </svg>
+                        <p>No units yet. Run the migration to seed default units!</p>
                     </div>
-                    <div>
-                        <h2 class="section-title">Brands</h2>
-                        <p class="section-subtitle">Manage product brands</p>
-                    </div>
-                </div>
-                <span class="section-count" id="brandCount">{{ $brands->count() }}</span>
-            </div>
-            <div class="section-body">
-                <button class="add-item-btn" onclick="openBrandModal()">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
-                    </svg>
-                    Add New Brand
-                </button>
-
-                <div class="brands-grid" id="brandsGrid">
-                    @forelse($brands as $brand)
-                        <div class="brand-card" data-id="{{ $brand->id }}">
-                            <div class="brand-status {{ $brand->is_active ? 'active' : 'inactive' }}"></div>
-                            <div class="brand-logo">
-                                @if($brand->logo)
-                                    <img src="{{ asset('storage/' . $brand->logo) }}" alt="{{ $brand->name }}">
-                                @else
-                                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
-                                    </svg>
-                                @endif
-                            </div>
-                            <div class="brand-info">
-                                <div class="brand-name">{{ $brand->name }}</div>
-                                <div class="brand-desc">{{ $brand->description ?: 'No description' }}</div>
-                            </div>
-                            <div class="brand-actions">
-                                <button class="action-btn" onclick="editBrand({{ json_encode($brand) }})">
-                                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                                    </svg>
-                                </button>
-                                <button class="action-btn delete" onclick="deleteBrand({{ $brand->id }})">
-                                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                                    </svg>
-                                </button>
-                            </div>
-                        </div>
-                    @empty
-                        <div class="empty-state" style="grid-column: 1 / -1;">
-                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
-                            </svg>
-                            <p>No brands yet. Add your first brand!</p>
-                        </div>
-                    @endforelse
-                </div>
+                @endif
             </div>
         </div>
     </div>
 </div>
 
 <!-- Category Modal -->
-<div class="modal-overlay" id="categoryModal">
+<div id="categoryModal" class="modal-overlay">
     <div class="modal">
         <div class="modal-header">
-            <h3 class="modal-title">
-                <span class="modal-title-icon">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
-                    </svg>
-                </span>
-                <span id="categoryModalTitle">Add Category</span>
-            </h3>
+            <h3 class="modal-title" id="categoryModalTitle">Add Category</h3>
             <button class="modal-close" onclick="closeCategoryModal()">
                 <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
@@ -1071,173 +760,175 @@
             </button>
         </div>
         <form id="categoryForm" onsubmit="saveCategory(event)">
-            <input type="hidden" id="categoryId" name="id">
             <div class="modal-body">
+                <input type="hidden" id="categoryId" value="">
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">Code <span class="required">*</span></label>
-                        <input type="text" name="code" id="catCode" class="form-control" placeholder="e.g., ELEC" required>
+                        <input type="text" id="categoryCode" class="form-control" placeholder="e.g., ELEC" required>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Sort Order</label>
-                        <input type="number" name="sort_order" id="catSortOrder" class="form-control" value="0" min="0">
+                        <label class="form-label">Name <span class="required">*</span></label>
+                        <input type="text" id="categoryName" class="form-control" placeholder="e.g., Electronics" required>
                     </div>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Name <span class="required">*</span></label>
-                    <input type="text" name="name" id="catName" class="form-control" placeholder="Category name" required>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Parent Category</label>
-                    <select name="parent_id" id="catParentId" class="form-control">
-                        <option value="">— Root Category —</option>
-                        @foreach($categories->whereNull('parent_id') as $cat)
+                    <select id="categoryParent" class="form-control">
+                        <option value="">-- None (Top Level) --</option>
+                        @foreach($categories as $cat)
                             <option value="{{ $cat->id }}">{{ $cat->name }}</option>
                         @endforeach
                     </select>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Description</label>
-                    <textarea name="description" id="catDescription" class="form-control" placeholder="Optional description"></textarea>
+                    <textarea id="categoryDescription" class="form-control" rows="2" placeholder="Optional description"></textarea>
                 </div>
-                <div class="form-group" id="catActiveGroup" style="display: none;">
-                    <div class="form-switch">
-                        <label class="switch">
-                            <input type="checkbox" name="is_active" id="catIsActive" value="1" checked>
-                            <span class="switch-slider"></span>
-                        </label>
-                        <span class="switch-label">Active Category</span>
-                    </div>
+                <div class="form-group">
+                    <label class="form-label">Sort Order</label>
+                    <input type="number" id="categorySortOrder" class="form-control" min="0" value="0">
                 </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" onclick="closeCategoryModal()">Cancel</button>
-                <button type="submit" class="btn btn-primary">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
-                    </svg>
-                    Save Category
-                </button>
+                <button type="submit" class="btn btn-primary">Save Category</button>
             </div>
         </form>
     </div>
 </div>
 
 <!-- Brand Modal -->
-<div class="modal-overlay" id="brandModal">
+<div id="brandModal" class="modal-overlay">
     <div class="modal">
         <div class="modal-header">
-            <h3 class="modal-title">
-                <span class="modal-title-icon" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
-                    </svg>
-                </span>
-                <span id="brandModalTitle">Add Brand</span>
-            </h3>
+            <h3 class="modal-title" id="brandModalTitle">Add Brand</h3>
             <button class="modal-close" onclick="closeBrandModal()">
                 <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
                 </svg>
             </button>
         </div>
-        <form id="brandForm" onsubmit="saveBrand(event)" enctype="multipart/form-data">
-            <input type="hidden" id="brandId" name="id">
+        <form id="brandForm" onsubmit="saveBrand(event)">
             <div class="modal-body">
+                <input type="hidden" id="brandId" value="">
                 <div class="form-group">
-                    <label class="form-label">Brand Name <span class="required">*</span></label>
-                    <input type="text" name="name" id="brandName" class="form-control" placeholder="e.g., Apple, Samsung" required>
+                    <label class="form-label">Name <span class="required">*</span></label>
+                    <input type="text" id="brandName" class="form-control" placeholder="e.g., Samsung" required>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Description</label>
-                    <textarea name="description" id="brandDescription" class="form-control" placeholder="Brief description of the brand"></textarea>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Logo</label>
-                    <div class="logo-upload">
-                        <div class="logo-preview-box" id="logoPreviewBox">
-                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                            </svg>
-                        </div>
-                        <div class="logo-upload-info">
-                            <label class="logo-upload-btn">
-                                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
-                                </svg>
-                                Upload Logo
-                                <input type="file" name="logo" id="brandLogo" accept="image/*" style="display: none;" onchange="previewLogo(this)">
-                            </label>
-                            <p class="logo-upload-hint">PNG, JPG up to 2MB</p>
-                        </div>
-                    </div>
+                    <textarea id="brandDescription" class="form-control" rows="2" placeholder="Optional description"></textarea>
                 </div>
                 <div class="form-group" id="brandActiveGroup" style="display: none;">
-                    <div class="form-switch">
-                        <label class="switch">
-                            <input type="checkbox" name="is_active" id="brandIsActive" value="1" checked>
-                            <span class="switch-slider"></span>
-                        </label>
-                        <span class="switch-label">Active Brand</span>
-                    </div>
+                    <label class="form-label">
+                        <input type="checkbox" id="brandIsActive" checked> Active
+                    </label>
                 </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" onclick="closeBrandModal()">Cancel</button>
-                <button type="submit" class="btn btn-primary">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
-                    </svg>
-                    Save Brand
-                </button>
+                <button type="submit" class="btn btn-primary">Save Brand</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Unit Modal -->
+<div id="unitModal" class="modal-overlay">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 class="modal-title" id="unitModalTitle">Add Unit</h3>
+            <button class="modal-close" onclick="closeUnitModal()">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        <form id="unitForm" onsubmit="saveUnit(event)">
+            <div class="modal-body">
+                <input type="hidden" id="unitId" value="">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Name <span class="required">*</span></label>
+                        <input type="text" id="unitName" class="form-control" placeholder="e.g., Kilogram" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Short Name <span class="required">*</span></label>
+                        <input type="text" id="unitShortName" class="form-control" placeholder="e.g., KG" required>
+                        <div class="form-help">Abbreviation used in displays</div>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Base Unit</label>
+                        <select id="unitBaseUnit" class="form-control">
+                            <option value="">-- None (This is a base unit) --</option>
+                            @foreach($units as $unit)
+                                <option value="{{ $unit->id }}">{{ $unit->name }} ({{ $unit->short_name }})</option>
+                            @endforeach
+                        </select>
+                        <div class="form-help">Select if this unit converts to another</div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Conversion Factor <span class="required">*</span></label>
+                        <input type="number" id="unitConversionFactor" class="form-control" step="any" min="0.0001" value="1" required>
+                        <div class="form-help">How many base units equal 1 of this unit</div>
+                    </div>
+                </div>
+                <div class="form-group" id="unitActiveGroup" style="display: none;">
+                    <label class="form-label">
+                        <input type="checkbox" id="unitIsActive" checked> Active
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeUnitModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Unit</button>
             </div>
         </form>
     </div>
 </div>
 
 <script>
-const csrfToken = '{{ csrf_token() }}';
-
-// Toggle category children
-function toggleChildren(btn) {
-    if (btn.classList.contains('no-children')) return;
+// Tab Switching
+function showTab(tabName) {
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
     
-    btn.classList.toggle('open');
-    const children = btn.closest('.category-item').querySelector('.category-children');
+    document.querySelector(`[onclick="showTab('${tabName}')"]`).classList.add('active');
+    document.getElementById(`tab-${tabName}`).classList.add('active');
+}
+
+// Category Tree Toggle
+function toggleCategory(el) {
+    el.classList.toggle('expanded');
+    let children = el.closest('.category-item').querySelector('.category-children');
     if (children) {
-        children.classList.toggle('open');
+        children.classList.toggle('show');
     }
 }
 
-// Alert helper
-function showAlert(message, type = 'success') {
-    const container = document.getElementById('alertContainer');
-    const icon = type === 'success' 
-        ? '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>'
-        : '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
-    
-    container.innerHTML = `<div class="alert alert-${type}">${icon} ${message}</div>`;
-    setTimeout(() => container.innerHTML = '', 5000);
-}
-
-// Logo preview
-function previewLogo(input) {
-    const preview = document.getElementById('logoPreviewBox');
-    if (input.files && input.files[0]) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            preview.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
-        };
-        reader.readAsDataURL(input.files[0]);
-    }
-}
-
-// ============ CATEGORIES ============
+// Category Modal
 function openCategoryModal() {
     document.getElementById('categoryModalTitle').textContent = 'Add Category';
-    document.getElementById('categoryForm').reset();
     document.getElementById('categoryId').value = '';
-    document.getElementById('catActiveGroup').style.display = 'none';
+    document.getElementById('categoryCode').value = '';
+    document.getElementById('categoryName').value = '';
+    document.getElementById('categoryParent').value = '';
+    document.getElementById('categoryDescription').value = '';
+    document.getElementById('categorySortOrder').value = '0';
+    document.getElementById('categoryModal').classList.add('show');
+}
+
+function editCategory(id, code, name, parentId, description, sortOrder) {
+    document.getElementById('categoryModalTitle').textContent = 'Edit Category';
+    document.getElementById('categoryId').value = id;
+    document.getElementById('categoryCode').value = code;
+    document.getElementById('categoryName').value = name;
+    document.getElementById('categoryParent').value = parentId || '';
+    document.getElementById('categoryDescription').value = description || '';
+    document.getElementById('categorySortOrder').value = sortOrder || 0;
     document.getElementById('categoryModal').classList.add('show');
 }
 
@@ -1245,57 +936,35 @@ function closeCategoryModal() {
     document.getElementById('categoryModal').classList.remove('show');
 }
 
-function editCategory(category) {
-    document.getElementById('categoryModalTitle').textContent = 'Edit Category';
-    document.getElementById('categoryId').value = category.id;
-    document.getElementById('catCode').value = category.code;
-    document.getElementById('catName').value = category.name;
-    document.getElementById('catParentId').value = category.parent_id || '';
-    document.getElementById('catDescription').value = category.description || '';
-    document.getElementById('catSortOrder').value = category.sort_order || 0;
-    document.getElementById('catIsActive').checked = category.is_active;
-    document.getElementById('catActiveGroup').style.display = 'block';
-    document.getElementById('categoryModal').classList.add('show');
-}
-
 function saveCategory(e) {
     e.preventDefault();
-    
-    const id = document.getElementById('categoryId').value;
-    const url = id 
-        ? '{{ url("admin/inventory/settings/categories") }}/' + id 
-        : '{{ route("admin.inventory.settings.categories.store") }}';
-    
-    const formData = {
-        code: document.getElementById('catCode').value,
-        name: document.getElementById('catName').value,
-        parent_id: document.getElementById('catParentId').value || null,
-        description: document.getElementById('catDescription').value,
-        sort_order: document.getElementById('catSortOrder').value,
-        is_active: document.getElementById('catIsActive').checked ? 1 : 0
+    let id = document.getElementById('categoryId').value;
+    let data = {
+        code: document.getElementById('categoryCode').value,
+        name: document.getElementById('categoryName').value,
+        parent_id: document.getElementById('categoryParent').value || null,
+        description: document.getElementById('categoryDescription').value,
+        sort_order: document.getElementById('categorySortOrder').value,
+        _token: '{{ csrf_token() }}'
     };
     
+    let url = id ? '{{ url("admin/inventory/settings/categories") }}/' + id : '{{ route("admin.inventory.settings.categories.store") }}';
+    let method = id ? 'PUT' : 'POST';
+    
     fetch(url, {
-        method: id ? 'PUT' : 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': csrfToken
-        },
-        body: JSON.stringify(formData)
+        method: method,
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify(data)
     })
     .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            closeCategoryModal();
-            showAlert(data.message);
-            setTimeout(() => location.reload(), 1000);
+    .then(result => {
+        if (result.success) {
+            location.reload();
         } else {
-            showAlert(data.message || 'Error saving category', 'error');
+            alert(result.message || 'Error saving category');
         }
     })
-    .catch(error => {
-        showAlert('Error saving category', 'error');
-    });
+    .catch(error => alert('Error: ' + error));
 }
 
 function deleteCategory(id) {
@@ -1303,32 +972,36 @@ function deleteCategory(id) {
     
     fetch('{{ url("admin/inventory/settings/categories") }}/' + id, {
         method: 'DELETE',
-        headers: { 'X-CSRF-TOKEN': csrfToken }
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
     })
     .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showAlert(data.message);
-            setTimeout(() => location.reload(), 1000);
+    .then(result => {
+        if (result.success) {
+            location.reload();
         } else {
-            showAlert(data.message || 'Error deleting category', 'error');
+            alert(result.message || 'Error deleting category');
         }
     })
-    .catch(error => {
-        showAlert('Error deleting category', 'error');
-    });
+    .catch(error => alert('Error: ' + error));
 }
 
-// ============ BRANDS ============
+// Brand Modal
 function openBrandModal() {
     document.getElementById('brandModalTitle').textContent = 'Add Brand';
-    document.getElementById('brandForm').reset();
     document.getElementById('brandId').value = '';
+    document.getElementById('brandName').value = '';
+    document.getElementById('brandDescription').value = '';
     document.getElementById('brandActiveGroup').style.display = 'none';
-    document.getElementById('logoPreviewBox').innerHTML = `
-        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-        </svg>`;
+    document.getElementById('brandModal').classList.add('show');
+}
+
+function editBrand(id, name, description, isActive) {
+    document.getElementById('brandModalTitle').textContent = 'Edit Brand';
+    document.getElementById('brandId').value = id;
+    document.getElementById('brandName').value = name;
+    document.getElementById('brandDescription').value = description || '';
+    document.getElementById('brandIsActive').checked = isActive;
+    document.getElementById('brandActiveGroup').style.display = 'block';
     document.getElementById('brandModal').classList.add('show');
 }
 
@@ -1336,104 +1009,125 @@ function closeBrandModal() {
     document.getElementById('brandModal').classList.remove('show');
 }
 
-function editBrand(brand) {
-    document.getElementById('brandModalTitle').textContent = 'Edit Brand';
-    document.getElementById('brandId').value = brand.id;
-    document.getElementById('brandName').value = brand.name;
-    document.getElementById('brandDescription').value = brand.description || '';
-    document.getElementById('brandIsActive').checked = brand.is_active;
-    document.getElementById('brandActiveGroup').style.display = 'block';
-    
-    const preview = document.getElementById('logoPreviewBox');
-    if (brand.logo) {
-        preview.innerHTML = `<img src="/storage/${brand.logo}" alt="${brand.name}">`;
-    } else {
-        preview.innerHTML = `
-            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-            </svg>`;
-    }
-    
-    document.getElementById('brandModal').classList.add('show');
-}
-
 function saveBrand(e) {
     e.preventDefault();
-    
-    const id = document.getElementById('brandId').value;
-    const url = id 
-        ? '{{ url("admin/inventory/settings/brands") }}/' + id 
-        : '{{ route("admin.inventory.settings.brands.store") }}';
-    
-    const formData = new FormData();
-    formData.append('name', document.getElementById('brandName').value);
-    formData.append('description', document.getElementById('brandDescription').value);
-    formData.append('is_active', document.getElementById('brandIsActive').checked ? 1 : 0);
-    
-    const logoFile = document.getElementById('brandLogo').files[0];
-    if (logoFile) {
-        formData.append('logo', logoFile);
-    }
+    let id = document.getElementById('brandId').value;
+    let data = {
+        name: document.getElementById('brandName').value,
+        description: document.getElementById('brandDescription').value,
+        _token: '{{ csrf_token() }}'
+    };
     
     if (id) {
-        formData.append('_method', 'PUT');
+        data.is_active = document.getElementById('brandIsActive').checked;
     }
+    
+    let url = id ? '{{ url("admin/inventory/settings/brands") }}/' + id : '{{ route("admin.inventory.settings.brands.store") }}';
+    let method = id ? 'PUT' : 'POST';
     
     fetch(url, {
-        method: 'POST',
-        headers: { 'X-CSRF-TOKEN': csrfToken },
-        body: formData
+        method: method,
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify(data)
     })
     .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            closeBrandModal();
-            showAlert(data.message);
-            setTimeout(() => location.reload(), 1000);
+    .then(result => {
+        if (result.success) {
+            location.reload();
         } else {
-            showAlert(data.message || 'Error saving brand', 'error');
+            alert(result.message || 'Error saving brand');
         }
     })
-    .catch(error => {
-        showAlert('Error saving brand', 'error');
-    });
+    .catch(error => alert('Error: ' + error));
 }
 
-function deleteBrand(id) {
-    if (!confirm('Are you sure you want to delete this brand?')) return;
+// Unit Modal
+function openUnitModal() {
+    document.getElementById('unitModalTitle').textContent = 'Add Unit';
+    document.getElementById('unitId').value = '';
+    document.getElementById('unitName').value = '';
+    document.getElementById('unitShortName').value = '';
+    document.getElementById('unitBaseUnit').value = '';
+    document.getElementById('unitConversionFactor').value = '1';
+    document.getElementById('unitActiveGroup').style.display = 'none';
+    document.getElementById('unitModal').classList.add('show');
+}
+
+function editUnit(id, name, shortName, baseUnitId, conversionFactor, isActive) {
+    document.getElementById('unitModalTitle').textContent = 'Edit Unit';
+    document.getElementById('unitId').value = id;
+    document.getElementById('unitName').value = name;
+    document.getElementById('unitShortName').value = shortName;
+    document.getElementById('unitBaseUnit').value = baseUnitId || '';
+    document.getElementById('unitConversionFactor').value = conversionFactor;
+    document.getElementById('unitIsActive').checked = isActive;
+    document.getElementById('unitActiveGroup').style.display = 'block';
+    document.getElementById('unitModal').classList.add('show');
+}
+
+function closeUnitModal() {
+    document.getElementById('unitModal').classList.remove('show');
+}
+
+function saveUnit(e) {
+    e.preventDefault();
+    let id = document.getElementById('unitId').value;
+    let data = {
+        name: document.getElementById('unitName').value,
+        short_name: document.getElementById('unitShortName').value,
+        base_unit_id: document.getElementById('unitBaseUnit').value || null,
+        conversion_factor: document.getElementById('unitConversionFactor').value,
+        _token: '{{ csrf_token() }}'
+    };
     
-    fetch('{{ url("admin/inventory/settings/brands") }}/' + id, {
-        method: 'DELETE',
-        headers: { 'X-CSRF-TOKEN': csrfToken }
+    if (id) {
+        data.is_active = document.getElementById('unitIsActive').checked;
+    }
+    
+    let url = id ? '{{ url("admin/inventory/settings/units") }}/' + id : '{{ route("admin.inventory.settings.units.store") }}';
+    let method = id ? 'PUT' : 'POST';
+    
+    fetch(url, {
+        method: method,
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify(data)
     })
     .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showAlert(data.message);
-            setTimeout(() => location.reload(), 1000);
+    .then(result => {
+        if (result.success) {
+            location.reload();
         } else {
-            showAlert(data.message || 'Error deleting brand', 'error');
+            alert(result.message || 'Error saving unit');
         }
     })
-    .catch(error => {
-        showAlert('Error deleting brand', 'error');
-    });
+    .catch(error => alert('Error: ' + error));
 }
 
-// Close modals
-document.getElementById('categoryModal').addEventListener('click', function(e) {
-    if (e.target === this) closeCategoryModal();
-});
+function deleteUnit(id) {
+    if (!confirm('Are you sure you want to delete this unit?')) return;
+    
+    fetch('{{ url("admin/inventory/settings/units") }}/' + id, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            location.reload();
+        } else {
+            alert(result.message || 'Error deleting unit');
+        }
+    })
+    .catch(error => alert('Error: ' + error));
+}
 
-document.getElementById('brandModal').addEventListener('click', function(e) {
-    if (e.target === this) closeBrandModal();
-});
-
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
-        closeCategoryModal();
-        closeBrandModal();
-    }
+// Close modals on overlay click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+    overlay.addEventListener('click', function(e) {
+        if (e.target === this) {
+            this.classList.remove('show');
+        }
+    });
 });
 </script>
 </x-layouts.app>

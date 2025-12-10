@@ -10,6 +10,10 @@ use App\Models\Inventory\Brand;
 use App\Models\Inventory\Warehouse;
 use App\Models\Inventory\Lot;
 use App\Models\Inventory\StockMovement;
+use App\Models\Inventory\Unit;
+use App\Models\Inventory\Rack;
+use App\Models\Inventory\StockLevel;
+use App\Models\Inventory\StockTransfer;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -23,6 +27,7 @@ class InventoryController extends Controller
             'totalCategories' => ProductCategory::where('is_active', true)->count(),
             'totalBrands' => Brand::where('is_active', true)->count(),
             'totalWarehouses' => Warehouse::where('is_active', true)->count(),
+            'totalRacks' => Rack::where('is_active', true)->count(),
         ];
         
         $lowStockProducts = Product::where('is_active', true)
@@ -34,7 +39,7 @@ class InventoryController extends Controller
                 return $stock < $product->min_stock_level;
             })->take(10);
         
-        $recentMovements = StockMovement::with(['product', 'warehouse'])
+        $recentMovements = StockMovement::with(['product', 'warehouse', 'rack', 'unit'])
             ->orderBy('created_at', 'desc')
             ->take(10)
             ->get();
@@ -59,7 +64,7 @@ class InventoryController extends Controller
 
     public function productsData(Request $request)
     {
-        $query = Product::with(['category', 'brand'])->select('products.*');
+        $query = Product::with(['category', 'brand', 'unit'])->select('products.*');
 
         if ($search = $request->get('search')) {
             $query->where(function ($q) use ($search) {
@@ -92,7 +97,7 @@ class InventoryController extends Controller
                 'name' => $item->name,
                 'category_name' => $item->category?->name ?? '-',
                 'brand_name' => $item->brand?->name ?? '-',
-                'unit' => $item->unit ?? 'PCS',
+                'unit' => $item->unit?->short_name ?? 'PCS',
                 'purchase_price' => number_format($item->purchase_price, 2),
                 'sale_price' => number_format($item->sale_price, 2),
                 'current_stock' => $currentStock,
@@ -118,7 +123,8 @@ class InventoryController extends Controller
     {
         $categories = ProductCategory::where('is_active', true)->orderBy('name')->get();
         $brands = Brand::where('is_active', true)->orderBy('name')->get();
-        return view('admin.inventory.products.create', compact('categories', 'brands'));
+        $units = Unit::where('is_active', true)->orderBy('name')->get();
+        return view('admin.inventory.products.create', compact('categories', 'brands', 'units'));
     }
 
     public function productsStore(Request $request)
@@ -129,7 +135,7 @@ class InventoryController extends Controller
             'barcode' => 'nullable|string|max:50',
             'category_id' => 'nullable|exists:product_categories,id',
             'brand_id' => 'nullable|exists:brands,id',
-            'unit' => 'nullable|string|max:20',
+            'unit_id' => 'nullable|exists:units,id',
             'purchase_price' => 'required|numeric|min:0',
             'sale_price' => 'required|numeric|min:0',
             'hsn_code' => 'nullable|string|max:20',
@@ -138,7 +144,12 @@ class InventoryController extends Controller
             'is_batch_managed' => 'boolean',
         ]);
         
-        $validated['unit'] = $validated['unit'] ?? 'PCS';
+        // Default to PCS unit if not specified
+        if (empty($validated['unit_id'])) {
+            $defaultUnit = Unit::where('short_name', 'PCS')->first();
+            $validated['unit_id'] = $defaultUnit?->id;
+        }
+        
         $validated['is_active'] = true;
         $validated['is_batch_managed'] = $request->has('is_batch_managed');
         
@@ -148,25 +159,24 @@ class InventoryController extends Controller
             ->with('success', 'Product created successfully!');
     }
 
+    /**
+     * Show product details
+     */
     public function productsShow($id)
     {
-        $product = Product::with(['category', 'brand'])->findOrFail($id);
+        $product = Product::with(['category', 'brand', 'unit'])->findOrFail($id);
         
-        $stockByWarehouse = StockMovement::where('product_id', $id)
-            ->select('warehouse_id')
-            ->selectRaw("SUM(CASE 
-                WHEN movement_type IN ('IN', 'RETURN') THEN qty 
-                WHEN movement_type = 'OUT' THEN -qty 
-                WHEN movement_type = 'ADJUSTMENT' THEN qty 
-                ELSE 0 END) as total_qty")
-            ->groupBy('warehouse_id')
-            ->with('warehouse')
+        // Get stock by warehouse/rack from stock_levels table
+        $stockByWarehouse = StockLevel::with(['warehouse', 'rack'])
+            ->where('product_id', $id)
+            ->where('qty', '>', 0)
             ->get();
         
-        $movements = StockMovement::where('product_id', $id)
-            ->with(['warehouse', 'lot'])
+        // Get recent movements
+        $movements = StockMovement::with(['warehouse', 'rack'])
+            ->where('product_id', $id)
             ->orderBy('created_at', 'desc')
-            ->take(20)
+            ->limit(10)
             ->get();
         
         return view('admin.inventory.products.show', compact('product', 'stockByWarehouse', 'movements'));
@@ -177,8 +187,9 @@ class InventoryController extends Controller
         $product = Product::findOrFail($id);
         $categories = ProductCategory::where('is_active', true)->orderBy('name')->get();
         $brands = Brand::where('is_active', true)->orderBy('name')->get();
+        $units = Unit::where('is_active', true)->orderBy('name')->get();
         
-        return view('admin.inventory.products.edit', compact('product', 'categories', 'brands'));
+        return view('admin.inventory.products.edit', compact('product', 'categories', 'brands', 'units'));
     }
 
     public function productsUpdate(Request $request, $id)
@@ -191,7 +202,7 @@ class InventoryController extends Controller
             'barcode' => 'nullable|string|max:50',
             'category_id' => 'nullable|exists:product_categories,id',
             'brand_id' => 'nullable|exists:brands,id',
-            'unit' => 'nullable|string|max:20',
+            'unit_id' => 'nullable|exists:units,id',
             'purchase_price' => 'required|numeric|min:0',
             'sale_price' => 'required|numeric|min:0',
             'hsn_code' => 'nullable|string|max:20',
@@ -241,7 +252,7 @@ class InventoryController extends Controller
 
     public function warehousesData(Request $request)
     {
-        $query = Warehouse::query();
+        $query = Warehouse::withCount('racks');
 
         if ($search = $request->get('search')) {
             $query->where(function ($q) use ($search) {
@@ -266,6 +277,7 @@ class InventoryController extends Controller
                 'city' => $item->city ?? '-',
                 'state' => $item->state ?? '-',
                 'type' => $item->type,
+                'racks_count' => $item->racks_count,
                 'contact_person' => $item->contact_person ?? '-',
                 'phone' => $item->phone ?? '-',
                 'is_default' => $item->is_default,
@@ -319,7 +331,7 @@ class InventoryController extends Controller
 
     public function warehousesEdit($id)
     {
-        $warehouse = Warehouse::findOrFail($id);
+        $warehouse = Warehouse::with('racks')->findOrFail($id);
         return view('admin.inventory.warehouses.edit', compact('warehouse'));
     }
 
@@ -376,8 +388,178 @@ class InventoryController extends Controller
             return response()->json(['success' => false, 'message' => 'Cannot delete warehouse with stock movements'], 422);
         }
         
+        if (Rack::where('warehouse_id', $id)->exists()) {
+            return response()->json(['success' => false, 'message' => 'Cannot delete warehouse with racks. Delete racks first.'], 422);
+        }
+        
         $warehouse->delete();
         return response()->json(['success' => true, 'message' => 'Warehouse deleted successfully']);
+    }
+
+    // ==================== RACKS ====================
+    public function racksIndex()
+    {
+        $stats = [
+            'total' => Rack::count(),
+            'active' => Rack::where('is_active', true)->count(),
+        ];
+        
+        $warehouses = Warehouse::where('is_active', true)->orderBy('name')->get();
+        
+        return view('admin.inventory.racks.index', compact('stats', 'warehouses'));
+    }
+
+    public function racksData(Request $request)
+    {
+        $query = Rack::with('warehouse');
+
+        if ($search = $request->get('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('code', 'like', "%{$search}%")
+                    ->orWhere('zone', 'like', "%{$search}%");
+            });
+        }
+
+        if ($request->filled('warehouse_id')) {
+            $query->where('warehouse_id', $request->warehouse_id);
+        }
+
+        $sortField = $request->get('sort', 'id');
+        $sortDir = $request->get('dir', 'desc');
+        $query->orderBy($sortField, $sortDir);
+
+        $perPage = $request->get('per_page', 25);
+        $data = $query->paginate($perPage);
+
+        $items = collect($data->items())->map(function ($item) {
+            return [
+                'id' => $item->id,
+                'code' => $item->code,
+                'name' => $item->name,
+                'warehouse_name' => $item->warehouse?->name ?? '-',
+                'zone' => $item->zone ?? '-',
+                'aisle' => $item->aisle ?? '-',
+                'level' => $item->level ?? '-',
+                'full_location' => $item->full_location,
+                'is_active' => $item->is_active,
+                'status' => $item->is_active ? 'Active' : 'Inactive',
+            ];
+        });
+
+        return response()->json([
+            'data' => $items,
+            'total' => $data->total(),
+            'current_page' => $data->currentPage(),
+            'last_page' => $data->lastPage(),
+        ]);
+    }
+
+    public function racksCreate()
+    {
+        $warehouses = Warehouse::where('is_active', true)->orderBy('name')->get();
+        $units = Unit::where('is_active', true)->orderBy('name')->get();
+        return view('admin.inventory.racks.create', compact('warehouses', 'units'));
+    }
+
+    public function racksStore(Request $request)
+    {
+        $validated = $request->validate([
+            'warehouse_id' => 'required|exists:warehouses,id',
+            'code' => 'required|string|max:50',
+            'name' => 'required|string|max:191',
+            'zone' => 'nullable|string|max:50',
+            'aisle' => 'nullable|string|max:50',
+            'level' => 'nullable|string|max:50',
+            'capacity' => 'nullable|numeric|min:0',
+            'capacity_unit_id' => 'nullable|exists:units,id',
+            'description' => 'nullable|string',
+        ]);
+        
+        // Check unique code within warehouse
+        $exists = Rack::where('warehouse_id', $validated['warehouse_id'])
+            ->where('code', $validated['code'])
+            ->exists();
+            
+        if ($exists) {
+            return back()->with('error', 'Rack code already exists in this warehouse')->withInput();
+        }
+        
+        $validated['is_active'] = true;
+        Rack::create($validated);
+        
+        return redirect()->route('admin.inventory.racks.index')
+            ->with('success', 'Rack created successfully!');
+    }
+
+    public function racksEdit($id)
+    {
+        $rack = Rack::findOrFail($id);
+        $warehouses = Warehouse::where('is_active', true)->orderBy('name')->get();
+        $units = Unit::where('is_active', true)->orderBy('name')->get();
+        return view('admin.inventory.racks.edit', compact('rack', 'warehouses', 'units'));
+    }
+
+    public function racksUpdate(Request $request, $id)
+    {
+        $rack = Rack::findOrFail($id);
+        
+        $validated = $request->validate([
+            'warehouse_id' => 'required|exists:warehouses,id',
+            'code' => 'required|string|max:50',
+            'name' => 'required|string|max:191',
+            'zone' => 'nullable|string|max:50',
+            'aisle' => 'nullable|string|max:50',
+            'level' => 'nullable|string|max:50',
+            'capacity' => 'nullable|numeric|min:0',
+            'capacity_unit_id' => 'nullable|exists:units,id',
+            'description' => 'nullable|string',
+            'is_active' => 'boolean',
+        ]);
+        
+        // Check unique code within warehouse (excluding current)
+        $exists = Rack::where('warehouse_id', $validated['warehouse_id'])
+            ->where('code', $validated['code'])
+            ->where('id', '!=', $id)
+            ->exists();
+            
+        if ($exists) {
+            return back()->with('error', 'Rack code already exists in this warehouse')->withInput();
+        }
+        
+        $validated['is_active'] = $request->has('is_active');
+        $rack->update($validated);
+        
+        return redirect()->route('admin.inventory.racks.index')
+            ->with('success', 'Rack updated successfully!');
+    }
+
+    public function racksDeactivate($id)
+    {
+        Rack::where('id', $id)->update(['is_active' => false]);
+        return response()->json(['success' => true, 'message' => 'Rack deactivated']);
+    }
+
+    public function racksDestroy($id)
+    {
+        $rack = Rack::findOrFail($id);
+        
+        if (StockLevel::where('rack_id', $id)->where('qty', '>', 0)->exists()) {
+            return response()->json(['success' => false, 'message' => 'Cannot delete rack with stock'], 422);
+        }
+        
+        $rack->delete();
+        return response()->json(['success' => true, 'message' => 'Rack deleted successfully']);
+    }
+
+    public function racksByWarehouse($warehouseId)
+    {
+        $racks = Rack::where('warehouse_id', $warehouseId)
+            ->where('is_active', true)
+            ->orderBy('code')
+            ->get(['id', 'code', 'name', 'zone']);
+        
+        return response()->json($racks);
     }
 
     // ==================== LOTS ====================
@@ -456,7 +638,7 @@ class InventoryController extends Controller
     {
         $validated = $request->validate([
             'product_id' => 'required|exists:products,id',
-            'lot_no' => 'required|string|max:100|unique:lots,lot_no,NULL,id,product_id,' . $request->product_id,
+            'lot_no' => 'required|string|max:100',
             'initial_qty' => 'required|numeric|min:0',
             'purchase_price' => 'nullable|numeric|min:0',
             'sale_price' => 'nullable|numeric|min:0',
@@ -464,11 +646,19 @@ class InventoryController extends Controller
             'expiry_date' => 'nullable|date|after_or_equal:manufacturing_date',
             'status' => 'required|in:AVAILABLE,RESERVED,EXPIRED,CONSUMED',
             'remarks' => 'nullable|string',
-        ],[
-        'lot_no.unique' => 'This lot number already exists for the selected product.',
-        'expiry_date.after_or_equal' => 'Expiry date must be after manufacturing date.',
-    ]
-    );
+        ], [
+            'lot_no.unique' => 'This lot number already exists for the selected product.',
+            'expiry_date.after_or_equal' => 'Expiry date must be after manufacturing date.',
+        ]);
+        
+        // Check unique lot_no for product
+        $exists = Lot::where('product_id', $validated['product_id'])
+            ->where('lot_no', $validated['lot_no'])
+            ->exists();
+            
+        if ($exists) {
+            return back()->with('error', 'This lot number already exists for the selected product.')->withInput();
+        }
         
         Lot::create($validated);
         
@@ -531,9 +721,6 @@ class InventoryController extends Controller
         return response()->json($lots);
     }
 
-    /**
-     * Check if lot number exists (AJAX)
-     */
     public function lotsCheck(Request $request)
     {
         $lotNo = $request->get('lot_no');
@@ -541,7 +728,6 @@ class InventoryController extends Controller
         
         $query = Lot::where('lot_no', $lotNo);
         
-        // If product_id provided, check within that product only
         if ($productId) {
             $query->where('product_id', $productId);
         }
@@ -557,182 +743,516 @@ class InventoryController extends Controller
             ]);
         }
         
-        return response()->json([
-            'exists' => false
-        ]);
+        return response()->json(['exists' => false]);
     }
+
     // ==================== STOCK MOVEMENTS ====================
+/**
+ * Store Receive Stock (IN)
+ */
+public function stockReceiveStore(Request $request)
+{
+    $request->validate([
+        'product_id' => 'required|exists:products,id',
+        'warehouse_id' => 'required|exists:warehouses,id',
+        'qty' => 'required|numeric|min:0.01',
+        'rack_id' => 'nullable|exists:racks,id',
+        'lot_id' => 'nullable|exists:lots,id',
+        'unit_id' => 'nullable|exists:units,id',
+        'purchase_price' => 'nullable|numeric|min:0',
+        'reason' => 'nullable|string|max:500',
+    ]);
+
+    DB::beginTransaction();
+    try {
+        $product = Product::findOrFail($request->product_id);
+        $unitId = $request->unit_id ?? $product->unit_id;
+        $baseQty = $request->qty;
+        
+        $refNo = 'RCV-' . date('Ymd') . '-' . str_pad(StockMovement::whereDate('created_at', today())->count() + 1, 4, '0', STR_PAD_LEFT);
+        
+        StockMovement::create([
+            'reference_no' => $refNo,
+            'product_id' => $request->product_id,
+            'warehouse_id' => $request->warehouse_id,
+            'rack_id' => $request->rack_id,
+            'lot_id' => $request->lot_id,
+            'unit_id' => $unitId,
+            'movement_type' => 'IN',
+            'qty' => $request->qty,
+            'base_qty' => $baseQty,
+            'purchase_price' => $request->purchase_price ?? $product->purchase_price,
+            'reason' => $request->reason ?? 'Stock received',
+            'created_by' => auth()->id(),
+        ]);
+        
+        $stockLevel = StockLevel::firstOrNew([
+            'product_id' => $request->product_id,
+            'warehouse_id' => $request->warehouse_id,
+            'rack_id' => $request->rack_id,
+        ]);
+        
+        $stockLevel->qty = ($stockLevel->qty ?? 0) + $request->qty;
+        $stockLevel->unit_id = $unitId;
+        $stockLevel->save();
+        
+        DB::commit();
+        
+        // Redirect to product show page
+        return redirect()->route('admin.inventory.products.show', $request->product_id)
+            ->with('success', "Stock received successfully! Reference: {$refNo}");
+            
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return back()->with('error', 'Failed to receive stock: ' . $e->getMessage())->withInput();
+    }
+}
+
+/**
+ * Store Deliver Stock (OUT)
+ */
+public function stockDeliverStore(Request $request)
+{
+    $request->validate([
+        'product_id' => 'required|exists:products,id',
+        'warehouse_id' => 'required|exists:warehouses,id',
+        'qty' => 'required|numeric|min:0.01',
+        'rack_id' => 'nullable|exists:racks,id',
+        'reason' => 'nullable|string|max:500',
+    ]);
+
+    DB::beginTransaction();
+    try {
+        $product = Product::findOrFail($request->product_id);
+        
+        $stockLevel = StockLevel::where('product_id', $request->product_id)
+            ->where('warehouse_id', $request->warehouse_id)
+            ->when($request->rack_id, fn($q) => $q->where('rack_id', $request->rack_id))
+            ->first();
+            
+        if (!$stockLevel || $stockLevel->qty < $request->qty) {
+            return back()->with('error', 'Insufficient stock available.')->withInput();
+        }
+        
+        $refNo = 'DLV-' . date('Ymd') . '-' . str_pad(StockMovement::whereDate('created_at', today())->count() + 1, 4, '0', STR_PAD_LEFT);
+        
+        StockMovement::create([
+            'reference_no' => $refNo,
+            'product_id' => $request->product_id,
+            'warehouse_id' => $request->warehouse_id,
+            'rack_id' => $request->rack_id ?? $stockLevel->rack_id,
+            'unit_id' => $product->unit_id,
+            'movement_type' => 'OUT',
+            'qty' => $request->qty,
+            'base_qty' => $request->qty,
+            'reason' => $request->reason ?? 'Stock delivered',
+            'created_by' => auth()->id(),
+        ]);
+        
+        $stockLevel->qty -= $request->qty;
+        $stockLevel->save();
+        
+        DB::commit();
+        
+        // Redirect to product show page
+        return redirect()->route('admin.inventory.products.show', $request->product_id)
+            ->with('success', "Stock delivered successfully! Reference: {$refNo}");
+            
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return back()->with('error', 'Failed to deliver stock: ' . $e->getMessage())->withInput();
+    }
+}
+
+/**
+ * Store Returns (IN)
+ */
+public function stockReturnsStore(Request $request)
+{
+    $request->validate([
+        'product_id' => 'required|exists:products,id',
+        'warehouse_id' => 'required|exists:warehouses,id',
+        'qty' => 'required|numeric|min:0.01',
+        'rack_id' => 'nullable|exists:racks,id',
+        'reason' => 'required|string|max:500',
+    ]);
+
+    DB::beginTransaction();
+    try {
+        $product = Product::findOrFail($request->product_id);
+        
+        $refNo = 'RTN-' . date('Ymd') . '-' . str_pad(StockMovement::whereDate('created_at', today())->count() + 1, 4, '0', STR_PAD_LEFT);
+        
+        StockMovement::create([
+            'reference_no' => $refNo,
+            'product_id' => $request->product_id,
+            'warehouse_id' => $request->warehouse_id,
+            'rack_id' => $request->rack_id,
+            'unit_id' => $product->unit_id,
+            'movement_type' => 'RETURN',
+            'qty' => $request->qty,
+            'base_qty' => $request->qty,
+            'reason' => $request->reason,
+            'created_by' => auth()->id(),
+        ]);
+        
+        $stockLevel = StockLevel::firstOrNew([
+            'product_id' => $request->product_id,
+            'warehouse_id' => $request->warehouse_id,
+            'rack_id' => $request->rack_id,
+        ]);
+        
+        $stockLevel->qty = ($stockLevel->qty ?? 0) + $request->qty;
+        $stockLevel->unit_id = $product->unit_id;
+        $stockLevel->save();
+        
+        DB::commit();
+        
+        // Redirect to product show page
+        return redirect()->route('admin.inventory.products.show', $request->product_id)
+            ->with('success', "Return processed successfully! Reference: {$refNo}");
+            
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return back()->with('error', 'Failed to process return: ' . $e->getMessage())->withInput();
+    }
+}
+
+/**
+ * Store Adjustments
+ */
+public function stockAdjustmentsStore(Request $request)
+{
+    $request->validate([
+        'product_id' => 'required|exists:products,id',
+        'warehouse_id' => 'required|exists:warehouses,id',
+        'adjustment_type' => 'required|in:add,subtract,set',
+        'qty' => 'required|numeric|min:0',
+        'rack_id' => 'nullable|exists:racks,id',
+        'reason' => 'required|string|max:500',
+    ]);
+
+    DB::beginTransaction();
+    try {
+        $product = Product::findOrFail($request->product_id);
+        
+        $stockLevel = StockLevel::firstOrNew([
+            'product_id' => $request->product_id,
+            'warehouse_id' => $request->warehouse_id,
+            'rack_id' => $request->rack_id,
+        ]);
+        
+        $currentQty = $stockLevel->qty ?? 0;
+        $newQty = $currentQty;
+        $movementQty = $request->qty;
+        
+        switch ($request->adjustment_type) {
+            case 'add':
+                $newQty = $currentQty + $request->qty;
+                break;
+            case 'subtract':
+                $newQty = max(0, $currentQty - $request->qty);
+                $movementQty = $currentQty - $newQty;
+                break;
+            case 'set':
+                $newQty = $request->qty;
+                $movementQty = abs($newQty - $currentQty);
+                break;
+        }
+        
+        $refNo = 'ADJ-' . date('Ymd') . '-' . str_pad(StockMovement::whereDate('created_at', today())->count() + 1, 4, '0', STR_PAD_LEFT);
+        
+        StockMovement::create([
+            'reference_no' => $refNo,
+            'product_id' => $request->product_id,
+            'warehouse_id' => $request->warehouse_id,
+            'rack_id' => $request->rack_id,
+            'unit_id' => $product->unit_id,
+            'movement_type' => 'ADJUSTMENT',
+            'qty' => $movementQty,
+            'base_qty' => $movementQty,
+            'reason' => "[{$request->adjustment_type}] " . $request->reason . " (Before: {$currentQty}, After: {$newQty})",
+            'created_by' => auth()->id(),
+        ]);
+        
+        $stockLevel->qty = $newQty;
+        $stockLevel->unit_id = $product->unit_id;
+        $stockLevel->save();
+        
+        DB::commit();
+        
+        // Redirect to product show page
+        return redirect()->route('admin.inventory.products.show', $request->product_id)
+            ->with('success', "Stock adjusted successfully! Reference: {$refNo} | {$currentQty} → {$newQty}");
+            
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return back()->with('error', 'Failed to adjust stock: ' . $e->getMessage())->withInput();
+    }
+}
+/**
+ * Store Transfer Stock
+ */
+public function stockTransferStore(Request $request)
+{
+    // Custom validation - either different warehouse OR different rack
+    $request->validate([
+        'product_id' => 'required|exists:products,id',
+        'from_warehouse_id' => 'required|exists:warehouses,id',
+        'to_warehouse_id' => 'required|exists:warehouses,id',
+        'qty' => 'required|numeric|min:0.01',
+        'from_rack_id' => 'nullable|exists:racks,id',
+        'to_rack_id' => 'nullable|exists:racks,id',
+        'reason' => 'nullable|string|max:500',
+    ]);
+    
+    // Custom validation: Must be different location (warehouse OR rack)
+    if ($request->from_warehouse_id == $request->to_warehouse_id && 
+        $request->from_rack_id == $request->to_rack_id) {
+        return back()->with('error', 'Source and destination must be different. Choose a different warehouse or rack.')->withInput();
+    }
+
+    DB::beginTransaction();
+    try {
+        $product = Product::findOrFail($request->product_id);
+        
+        // Check stock at source
+        $sourceStock = StockLevel::where('product_id', $request->product_id)
+            ->where('warehouse_id', $request->from_warehouse_id)
+            ->when($request->from_rack_id, fn($q) => $q->where('rack_id', $request->from_rack_id))
+            ->first();
+            
+        if (!$sourceStock || $sourceStock->qty < $request->qty) {
+            return back()->with('error', 'Insufficient stock at source location.')->withInput();
+        }
+        
+        $refNo = 'TRF-' . date('Ymd') . '-' . str_pad(StockMovement::whereDate('created_at', today())->count() + 1, 4, '0', STR_PAD_LEFT);
+        
+        // Get warehouse/rack names for reason
+        $fromWarehouse = Warehouse::find($request->from_warehouse_id);
+        $toWarehouse = Warehouse::find($request->to_warehouse_id);
+        $fromRack = $request->from_rack_id ? Rack::find($request->from_rack_id) : null;
+        $toRack = $request->to_rack_id ? Rack::find($request->to_rack_id) : null;
+        
+        $transferReason = $request->reason ?? 'Stock Transfer';
+        
+        // Create StockTransfer record
+        StockTransfer::create([
+            'transfer_no' => $refNo,
+            'product_id' => $request->product_id,
+            'lot_id' => $request->lot_id,
+            'unit_id' => $product->unit_id,
+            'from_warehouse_id' => $request->from_warehouse_id,
+            'to_warehouse_id' => $request->to_warehouse_id,
+            'from_rack_id' => $request->from_rack_id,
+            'to_rack_id' => $request->to_rack_id,
+            'qty' => $request->qty,
+            'base_qty' => $request->qty,
+            'status' => 'COMPLETED',
+            'reason' => $transferReason,
+            'created_by' => auth()->id(),
+        ]);
+        
+        // OUT from source
+        StockMovement::create([
+            'reference_no' => $refNo,
+            'product_id' => $request->product_id,
+            'warehouse_id' => $request->from_warehouse_id,
+            'rack_id' => $request->from_rack_id,
+            'lot_id' => $request->lot_id,
+            'unit_id' => $product->unit_id,
+            'movement_type' => 'TRANSFER',
+            'qty' => $request->qty,
+            'base_qty' => $request->qty,
+            'reason' => "Transfer OUT → " . ($toWarehouse->name ?? '') . ($toRack ? " ({$toRack->code})" : ''),
+            'created_by' => auth()->id(),
+        ]);
+        
+        $sourceStock->qty -= $request->qty;
+        $sourceStock->save();
+        
+        // IN to destination
+        StockMovement::create([
+            'reference_no' => $refNo . '-IN',
+            'product_id' => $request->product_id,
+            'warehouse_id' => $request->to_warehouse_id,
+            'rack_id' => $request->to_rack_id,
+            'lot_id' => $request->lot_id,
+            'unit_id' => $product->unit_id,
+            'movement_type' => 'TRANSFER',
+            'qty' => $request->qty,
+            'base_qty' => $request->qty,
+            'reason' => "Transfer IN ← " . ($fromWarehouse->name ?? '') . ($fromRack ? " ({$fromRack->code})" : ''),
+            'created_by' => auth()->id(),
+        ]);
+        
+        $destStock = StockLevel::firstOrNew([
+            'product_id' => $request->product_id,
+            'warehouse_id' => $request->to_warehouse_id,
+            'rack_id' => $request->to_rack_id,
+        ]);
+        
+        $destStock->qty = ($destStock->qty ?? 0) + $request->qty;
+        $destStock->unit_id = $product->unit_id;
+        $destStock->save();
+        
+        DB::commit();
+        
+        // Build success message
+        $fromLocation = $fromWarehouse->name . ($fromRack ? " → {$fromRack->code}" : '');
+        $toLocation = $toWarehouse->name . ($toRack ? " → {$toRack->code}" : '');
+        
+        return redirect()->route('admin.inventory.products.show', $request->product_id)
+            ->with('success', "Stock transferred successfully! {$request->qty} units from {$fromLocation} to {$toLocation}. Ref: {$refNo}");
+            
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return back()->with('error', 'Failed to transfer stock: ' . $e->getMessage())->withInput();
+    }
+}
     public function stockReceive()
     {
         $products = Product::where('is_active', true)->orderBy('name')->get();
         $warehouses = Warehouse::where('is_active', true)->orderBy('name')->get();
-        return view('admin.inventory.stock.receive', compact('products', 'warehouses'));
+        $units = Unit::where('is_active', true)->orderBy('name')->get();
+        return view('admin.inventory.stock.receive', compact('products', 'warehouses', 'units'));
     }
-
-    public function stockReceiveStore(Request $request)
+    
+    /**
+     * Stock Movements History
+     */
+    public function stockMovements(Request $request)
     {
-        $validated = $request->validate([
-            'product_id' => 'required|exists:products,id',
-            'warehouse_id' => 'required|exists:warehouses,id',
-            'lot_id' => 'nullable|exists:lots,id',
-            'qty' => 'required|numeric|min:0.001',
-            'reason' => 'nullable|string|max:255',
-            'notes' => 'nullable|string',
-        ]);
+        $query = StockMovement::with(['product.unit', 'warehouse', 'rack', 'unit', 'creator'])
+            ->orderBy('created_at', 'desc');
         
-        $product = Product::find($validated['product_id']);
+        // Filters
+        if ($request->filled('product_id')) {
+            $query->where('product_id', $request->product_id);
+        }
         
-        StockMovement::create([
-            'product_id' => $validated['product_id'],
-            'warehouse_id' => $validated['warehouse_id'],
-            'lot_id' => $validated['lot_id'] ?? null,
-            'qty' => $validated['qty'],
-            'uom' => $product->unit ?? 'PCS',
-            'movement_type' => 'IN',
-            'reason' => $validated['reason'] ?? 'Stock received',
-            'notes' => $validated['notes'] ?? null,
-            'created_by' => Auth::guard('admin')->id(),
-        ]);
+        if ($request->filled('warehouse_id')) {
+            $query->where('warehouse_id', $request->warehouse_id);
+        }
         
-        return redirect()->route('admin.inventory.stock.receive')
-            ->with('success', 'Stock received successfully!');
+        if ($request->filled('movement_type')) {
+            $query->where('movement_type', $request->movement_type);
+        }
+        
+        if ($request->filled('from_date')) {
+            $query->whereDate('created_at', '>=', $request->from_date);
+        }
+        
+        if ($request->filled('to_date')) {
+            $query->whereDate('created_at', '<=', $request->to_date);
+        }
+        
+        $movements = $query->paginate(20);
+        
+        // Load transfer details for TRANSFER movements
+        $transferRefNos = $movements->where('movement_type', 'TRANSFER')
+            ->pluck('reference_no')
+            ->map(fn($ref) => str_replace('-IN', '', $ref))
+            ->unique()
+            ->toArray();
+        
+        $transfers = collect();
+        if (!empty($transferRefNos)) {
+            $transfers = StockTransfer::with(['fromWarehouse', 'toWarehouse', 'fromRack', 'toRack'])
+                ->whereIn('transfer_no', $transferRefNos)
+                ->get()
+                ->keyBy('transfer_no');
+        }
+        
+        // For filter dropdowns
+        $products = Product::where('is_active', true)->orderBy('name')->get();
+        $warehouses = Warehouse::where('is_active', true)->orderBy('name')->get();
+        
+        return view('admin.inventory.stock.movements', compact('movements', 'products', 'warehouses', 'transfers'));
     }
-
+   
     public function stockDeliver()
     {
         $products = Product::where('is_active', true)->orderBy('name')->get();
         $warehouses = Warehouse::where('is_active', true)->orderBy('name')->get();
-        return view('admin.inventory.stock.deliver', compact('products', 'warehouses'));
+        $units = Unit::where('is_active', true)->orderBy('name')->get();
+        return view('admin.inventory.stock.deliver', compact('products', 'warehouses', 'units'));
     }
 
-    public function stockDeliverStore(Request $request)
-    {
-        $validated = $request->validate([
-            'product_id' => 'required|exists:products,id',
-            'warehouse_id' => 'required|exists:warehouses,id',
-            'lot_id' => 'nullable|exists:lots,id',
-            'qty' => 'required|numeric|min:0.001',
-            'reason' => 'nullable|string|max:255',
-            'notes' => 'nullable|string',
-        ]);
-        
-        $available = $this->getStock($validated['product_id'], $validated['warehouse_id'], $validated['lot_id'] ?? null);
-        
-        if ($validated['qty'] > $available) {
-            return back()->with('error', "Insufficient stock. Available: {$available}")->withInput();
-        }
-        
-        $product = Product::find($validated['product_id']);
-        
-        StockMovement::create([
-            'product_id' => $validated['product_id'],
-            'warehouse_id' => $validated['warehouse_id'],
-            'lot_id' => $validated['lot_id'] ?? null,
-            'qty' => $validated['qty'],
-            'uom' => $product->unit ?? 'PCS',
-            'movement_type' => 'OUT',
-            'reason' => $validated['reason'] ?? 'Stock delivered',
-            'notes' => $validated['notes'] ?? null,
-            'created_by' => Auth::guard('admin')->id(),
-        ]);
-        
-        return redirect()->route('admin.inventory.stock.deliver')
-            ->with('success', 'Stock delivered successfully!');
-    }
+  
 
     public function stockReturns()
     {
         $products = Product::where('is_active', true)->orderBy('name')->get();
         $warehouses = Warehouse::where('is_active', true)->orderBy('name')->get();
-        return view('admin.inventory.stock.returns', compact('products', 'warehouses'));
+        $units = Unit::where('is_active', true)->orderBy('name')->get();
+        return view('admin.inventory.stock.returns', compact('products', 'warehouses', 'units'));
     }
 
-    public function stockReturnsStore(Request $request)
-    {
-        $validated = $request->validate([
-            'product_id' => 'required|exists:products,id',
-            'warehouse_id' => 'required|exists:warehouses,id',
-            'lot_id' => 'nullable|exists:lots,id',
-            'qty' => 'required|numeric|min:0.001',
-            'reason' => 'required|string|max:255',
-            'notes' => 'nullable|string',
-        ]);
-        
-        $product = Product::find($validated['product_id']);
-        
-        StockMovement::create([
-            'product_id' => $validated['product_id'],
-            'warehouse_id' => $validated['warehouse_id'],
-            'lot_id' => $validated['lot_id'] ?? null,
-            'qty' => $validated['qty'],
-            'uom' => $product->unit ?? 'PCS',
-            'movement_type' => 'RETURN',
-            'reason' => $validated['reason'],
-            'notes' => $validated['notes'] ?? null,
-            'created_by' => Auth::guard('admin')->id(),
-        ]);
-        
-        return redirect()->route('admin.inventory.stock.returns')
-            ->with('success', 'Return recorded successfully!');
-    }
-
+  
     public function stockAdjustments()
     {
         $products = Product::where('is_active', true)->orderBy('name')->get();
         $warehouses = Warehouse::where('is_active', true)->orderBy('name')->get();
-        return view('admin.inventory.stock.adjustments', compact('products', 'warehouses'));
+        $units = Unit::where('is_active', true)->orderBy('name')->get();
+        return view('admin.inventory.stock.adjustments', compact('products', 'warehouses', 'units'));
     }
 
-    public function stockAdjustmentsStore(Request $request)
-    {
-        $validated = $request->validate([
-            'product_id' => 'required|exists:products,id',
-            'warehouse_id' => 'required|exists:warehouses,id',
-            'lot_id' => 'nullable|exists:lots,id',
-            'new_qty' => 'required|numeric|min:0',
-            'reason' => 'required|string|max:255',
-            'notes' => 'nullable|string',
-        ]);
-        
-        $currentStock = $this->getStock($validated['product_id'], $validated['warehouse_id'], $validated['lot_id'] ?? null);
-        $difference = $validated['new_qty'] - $currentStock;
-        
-        if ($difference == 0) {
-            return back()->with('error', 'New quantity is same as current stock')->withInput();
-        }
-        
-        $product = Product::find($validated['product_id']);
-        
-        StockMovement::create([
-            'product_id' => $validated['product_id'],
-            'warehouse_id' => $validated['warehouse_id'],
-            'lot_id' => $validated['lot_id'] ?? null,
-            'qty' => $difference,
-            'uom' => $product->unit ?? 'PCS',
-            'movement_type' => 'ADJUSTMENT',
-            'reason' => $validated['reason'],
-            'notes' => "Adjusted from {$currentStock} to {$validated['new_qty']}. " . ($validated['notes'] ?? ''),
-            'created_by' => Auth::guard('admin')->id(),
-        ]);
-        
-        return redirect()->route('admin.inventory.stock.adjustments')
-            ->with('success', 'Stock adjusted successfully!');
-    }
-
+    /**
+     * AJAX: Check stock for a product at warehouse/rack/lot
+     */
     public function stockCheck(Request $request)
     {
-        $stock = $this->getStock(
-            $request->product_id,
-            $request->warehouse_id,
-            $request->lot_id
-        );
+        $productId = $request->get('product_id');
+        $warehouseId = $request->get('warehouse_id');
+        $rackId = $request->get('rack_id');
+        $lotId = $request->get('lot_id');
+        
+        if (!$productId || !$warehouseId) {
+            return response()->json([
+                'quantity' => 0,
+                'unit' => 'PCS'
+            ]);
+        }
+        
+        // Get product for unit info
+        $product = Product::with('unit')->find($productId);
+        $unitName = $product?->unit?->short_name ?? 'PCS';
+        
+        // Query stock_levels table
+        $query = StockLevel::where('product_id', $productId)
+            ->where('warehouse_id', $warehouseId);
+        
+        if ($rackId) {
+            $query->where('rack_id', $rackId);
+        }
+        
+        if ($lotId) {
+            $query->where('lot_id', $lotId);
+        }
+        
+        $quantity = $query->sum('qty');
         
         return response()->json([
-            'quantity' => $stock,
-            'available' => $stock
+            'quantity' => round($quantity, 4),
+            'unit' => $unitName,
+            'product_id' => $productId,
+            'warehouse_id' => $warehouseId,
+            'rack_id' => $rackId,
+            'lot_id' => $lotId
         ]);
     }
+    // ==================== STOCK TRANSFER ====================
+    public function stockTransfer()
+    {
+        $products = Product::where('is_active', true)->orderBy('name')->get();
+        $warehouses = Warehouse::where('is_active', true)->orderBy('name')->get();
+        $units = Unit::where('is_active', true)->orderBy('name')->get();
+        
+        return view('admin.inventory.stock.transfer', compact('products', 'warehouses', 'units'));
+    }
 
+  
     // ==================== REPORTS ====================
     public function reportStockSummary(Request $request)
     {
@@ -740,38 +1260,37 @@ class InventoryController extends Controller
         $categories = ProductCategory::where('is_active', true)->orderBy('name')->get();
         $brands = Brand::where('is_active', true)->orderBy('name')->get();
         
-        $query = DB::table('stock_movements as sm')
-            ->join('products as p', 'sm.product_id', '=', 'p.id')
-            ->join('warehouses as w', 'sm.warehouse_id', '=', 'w.id')
-            ->leftJoin('product_categories as c', 'p.category_id', '=', 'c.id')
-            ->leftJoin('brands as b', 'p.brand_id', '=', 'b.id')
-            ->select(
-                'p.id as product_id', 'p.name as product_name', 'p.sku',
-                'p.unit as unit_name', 'p.purchase_price',
-                'c.name as category_name', 'b.name as brand_name',
-                'w.name as warehouse_name', 'sm.warehouse_id'
-            )
-            ->selectRaw("SUM(CASE 
-                WHEN sm.movement_type IN ('IN', 'RETURN') THEN sm.qty 
-                WHEN sm.movement_type = 'OUT' THEN -sm.qty 
-                WHEN sm.movement_type = 'ADJUSTMENT' THEN sm.qty 
-                ELSE 0 END) as total_stock")
-            ->groupBy('sm.product_id', 'sm.warehouse_id', 'p.id', 'p.name', 'p.sku', 'p.unit', 'p.purchase_price', 'c.name', 'b.name', 'w.name');
+        $query = StockLevel::with(['product.category', 'product.brand', 'warehouse', 'rack', 'unit'])
+            ->where('qty', '>', 0);
         
         if ($request->warehouse_id) {
-            $query->where('sm.warehouse_id', $request->warehouse_id);
+            $query->where('warehouse_id', $request->warehouse_id);
         }
         if ($request->category_id) {
-            $query->where('p.category_id', $request->category_id);
+            $query->whereHas('product', function ($q) use ($request) {
+                $q->where('category_id', $request->category_id);
+            });
         }
         if ($request->brand_id) {
-            $query->where('p.brand_id', $request->brand_id);
+            $query->whereHas('product', function ($q) use ($request) {
+                $q->where('brand_id', $request->brand_id);
+            });
         }
         
-        $stockReport = $query->having('total_stock', '>', 0)->get();
-        
-        $stockReport->each(function ($item) {
-            $item->stock_value = $item->total_stock * $item->purchase_price;
+        $stockReport = $query->get()->map(function ($item) {
+            return (object) [
+                'product_id' => $item->product_id,
+                'product_name' => $item->product?->name ?? '-',
+                'sku' => $item->product?->sku ?? '-',
+                'unit_name' => $item->unit?->short_name ?? 'PCS',
+                'purchase_price' => $item->product?->purchase_price ?? 0,
+                'category_name' => $item->product?->category?->name ?? '-',
+                'brand_name' => $item->product?->brand?->name ?? '-',
+                'warehouse_name' => $item->warehouse?->name ?? '-',
+                'rack_name' => $item->rack?->name ?? '-',
+                'total_stock' => $item->qty,
+                'stock_value' => $item->qty * ($item->product?->purchase_price ?? 0),
+            ];
         });
         
         $totalValue = $stockReport->sum('stock_value');
@@ -809,11 +1328,12 @@ class InventoryController extends Controller
 
     public function reportMovementHistoryData(Request $request)
     {
-        $query = StockMovement::with(['product', 'warehouse', 'lot', 'creator']);
+        $query = StockMovement::with(['product', 'warehouse', 'rack', 'lot', 'unit', 'creator']);
 
         if ($search = $request->get('search')) {
             $query->where(function ($q) use ($search) {
-                $q->where('reason', 'like', "%{$search}%")
+                $q->where('reference_no', 'like', "%{$search}%")
+                    ->orWhere('reason', 'like', "%{$search}%")
                     ->orWhereHas('product', function ($q2) use ($search) {
                         $q2->where('name', 'like', "%{$search}%");
                     });
@@ -846,15 +1366,19 @@ class InventoryController extends Controller
         $items = collect($data->items())->map(function ($item) {
             return [
                 'id' => $item->id,
-                'date' => $item->created_at->format('d M Y, H:i'),
+                'reference_no' => $item->reference_no ?? '-',
                 'product_name' => $item->product?->name ?? '-',
                 'warehouse_name' => $item->warehouse?->name ?? '-',
+                'rack_name' => $item->rack?->name ?? '-',
                 'lot_no' => $item->lot?->lot_no ?? '-',
-                'movement_type' => $item->movement_type,
                 'qty' => $item->qty,
-                'uom' => $item->uom ?? 'PCS',
+                'unit' => $item->unit?->short_name ?? 'PCS',
+                'movement_type' => $item->movement_type,
+                'stock_before' => $item->stock_before,
+                'stock_after' => $item->stock_after,
                 'reason' => $item->reason ?? '-',
                 'created_by' => $item->creator?->name ?? '-',
+                'created_at' => $item->created_at->format('Y-m-d H:i'),
             ];
         });
 
@@ -869,9 +1393,11 @@ class InventoryController extends Controller
     // ==================== SETTINGS ====================
     public function settingsIndex()
     {
-        $categories = ProductCategory::with('parent')->orderBy('sort_order')->get();
+        $categories = ProductCategory::with('children')->whereNull('parent_id')->orderBy('sort_order')->get();
         $brands = Brand::orderBy('name')->get();
-        return view('admin.inventory.settings.index', compact('categories', 'brands'));
+        $units = Unit::with('baseUnit')->orderBy('name')->get();
+        
+        return view('admin.inventory.settings.index', compact('categories', 'brands', 'units'));
     }
 
     public function categoriesData(Request $request)
@@ -897,11 +1423,11 @@ class InventoryController extends Controller
                 'id' => $item->id,
                 'code' => $item->code,
                 'name' => $item->name,
+                'parent_id' => $item->parent_id,
                 'parent_name' => $item->parent?->name ?? '-',
+                'description' => $item->description,
                 'sort_order' => $item->sort_order,
                 'is_active' => $item->is_active,
-                'status' => $item->is_active ? 'Active' : 'Inactive',
-                '_delete_url' => route('admin.inventory.settings.categories.destroy', $item->id),
             ];
         });
 
@@ -916,11 +1442,11 @@ class InventoryController extends Controller
     public function categoriesStore(Request $request)
     {
         $validated = $request->validate([
-            'code' => 'required|string|max:20|unique:product_categories,code',
+            'code' => 'required|string|max:50|unique:product_categories,code',
             'name' => 'required|string|max:100',
             'parent_id' => 'nullable|exists:product_categories,id',
             'description' => 'nullable|string',
-            'sort_order' => 'nullable|integer',
+            'sort_order' => 'nullable|integer|min:0',
         ]);
         
         $validated['is_active'] = true;
@@ -934,11 +1460,11 @@ class InventoryController extends Controller
         $category = ProductCategory::findOrFail($id);
         
         $validated = $request->validate([
-            'code' => 'required|string|max:20|unique:product_categories,code,' . $id,
+            'code' => 'required|string|max:50|unique:product_categories,code,' . $id,
             'name' => 'required|string|max:100',
             'parent_id' => 'nullable|exists:product_categories,id',
             'description' => 'nullable|string',
-            'sort_order' => 'nullable|integer',
+            'sort_order' => 'nullable|integer|min:0',
             'is_active' => 'boolean',
         ]);
         
@@ -1055,108 +1581,102 @@ class InventoryController extends Controller
         return response()->json(['success' => true, 'message' => 'Brand deleted successfully']);
     }
 
-    // ==================== HELPER METHODS ====================
-    private function getProductStock($productId, $warehouseId = null, $lotId = null)
+    // ==================== UNITS ====================
+    public function unitsData(Request $request)
     {
-        return $this->getStock($productId, $warehouseId, $lotId);
+        $query = Unit::with('baseUnit');
+
+        if ($search = $request->get('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('short_name', 'like', "%{$search}%");
+            });
+        }
+
+        $sortField = $request->get('sort', 'name');
+        $sortDir = $request->get('dir', 'asc');
+        $query->orderBy($sortField, $sortDir);
+
+        $perPage = $request->get('per_page', 25);
+        $data = $query->paginate($perPage);
+
+        $items = collect($data->items())->map(function ($item) {
+            return [
+                'id' => $item->id,
+                'name' => $item->name,
+                'short_name' => $item->short_name,
+                'base_unit_name' => $item->baseUnit?->short_name ?? '-',
+                'conversion_factor' => $item->conversion_factor,
+                'is_active' => $item->is_active,
+            ];
+        });
+
+        return response()->json([
+            'data' => $items,
+            'total' => $data->total(),
+            'current_page' => $data->currentPage(),
+            'last_page' => $data->lastPage(),
+        ]);
     }
 
-    private function getStock($productId, $warehouseId = null, $lotId = null)
+    public function unitsStore(Request $request)
     {
-        $query = StockMovement::where('product_id', $productId);
+        $validated = $request->validate([
+            'name' => 'required|string|max:50',
+            'short_name' => 'required|string|max:20|unique:units,short_name',
+            'base_unit_id' => 'nullable|exists:units,id',
+            'conversion_factor' => 'required|numeric|min:0.0001',
+        ]);
+        
+        $validated['is_active'] = true;
+        Unit::create($validated);
+        
+        return response()->json(['success' => true, 'message' => 'Unit created successfully']);
+    }
+
+    public function unitsUpdate(Request $request, $id)
+    {
+        $unit = Unit::findOrFail($id);
+        
+        $validated = $request->validate([
+            'name' => 'required|string|max:50',
+            'short_name' => 'required|string|max:20|unique:units,short_name,' . $id,
+            'base_unit_id' => 'nullable|exists:units,id',
+            'conversion_factor' => 'required|numeric|min:0.0001',
+            'is_active' => 'boolean',
+        ]);
+        
+        $unit->update($validated);
+        return response()->json(['success' => true, 'message' => 'Unit updated successfully']);
+    }
+
+    public function unitsDestroy($id)
+    {
+        $unit = Unit::findOrFail($id);
+        
+        if (Product::where('unit_id', $id)->exists()) {
+            return response()->json(['success' => false, 'message' => 'Cannot delete unit used by products'], 422);
+        }
+        
+        $unit->delete();
+        return response()->json(['success' => true, 'message' => 'Unit deleted successfully']);
+    }
+
+    // ==================== HELPER METHODS ====================
+    private function getProductStock($productId, $warehouseId = null, $rackId = null, $lotId = null)
+    {
+        $query = StockLevel::where('product_id', $productId);
         
         if ($warehouseId) {
             $query->where('warehouse_id', $warehouseId);
+        }
+        if ($rackId) {
+            $query->where('rack_id', $rackId);
         }
         if ($lotId) {
             $query->where('lot_id', $lotId);
         }
         
-        return $query->selectRaw("SUM(CASE 
-            WHEN movement_type IN ('IN', 'RETURN') THEN qty 
-            WHEN movement_type = 'OUT' THEN -qty 
-            WHEN movement_type = 'ADJUSTMENT' THEN qty 
-            ELSE 0 END) as total")
-            ->value('total') ?? 0;
+        return $query->sum('qty') ?? 0;
     }
-
-    /**
- * Stock Transfer - Show form
- */
-public function stockTransfer()
-{
-    $products = Product::where('is_active', true)->orderBy('name')->get();
-    $warehouses = Warehouse::where('is_active', true)->orderBy('name')->get();
-    
-    return view('admin.inventory.stock.transfer', compact('products', 'warehouses'));
-}
-
-/**
- * Stock Transfer - Process transfer
- */
-public function stockTransferStore(Request $request)
-{
-    $request->validate([
-        'product_id' => 'required|exists:products,id',
-        'from_warehouse_id' => 'required|exists:warehouses,id',
-        'to_warehouse_id' => 'required|exists:warehouses,id|different:from_warehouse_id',
-        'qty' => 'required|numeric|min:0.001',
-        'lot_id' => 'nullable|exists:lots,id',
-        'reason' => 'nullable|string|max:255',
-        'notes' => 'nullable|string',
-    ]);
-    
-    // Check available stock
-    $availableStock = $this->getStock(
-        $request->product_id, 
-        $request->from_warehouse_id, 
-        $request->lot_id
-    );
-    
-    if ($request->qty > $availableStock) {
-        return back()->with('error', 'Insufficient stock! Available: ' . $availableStock)->withInput();
-    }
-    
-    DB::beginTransaction();
-    
-    try {
-        $reason = $request->reason ?? 'Stock Transfer';
-        $transferRef = 'TRF-' . date('YmdHis');
-        
-        // Create OUT movement from source warehouse
-        StockMovement::create([
-            'product_id' => $request->product_id,
-            'warehouse_id' => $request->from_warehouse_id,
-            'lot_id' => $request->lot_id,
-            'movement_type' => 'OUT',
-            'qty' => $request->qty,
-            'reason' => $reason . ' to ' . Warehouse::find($request->to_warehouse_id)->name,
-            'reference' => $transferRef,
-            'notes' => $request->notes,
-            'created_by' => auth('admin')->id(),
-        ]);
-        
-        // Create IN movement to destination warehouse
-        StockMovement::create([
-            'product_id' => $request->product_id,
-            'warehouse_id' => $request->to_warehouse_id,
-            'lot_id' => $request->lot_id,
-            'movement_type' => 'IN',
-            'qty' => $request->qty,
-            'reason' => $reason . ' from ' . Warehouse::find($request->from_warehouse_id)->name,
-            'reference' => $transferRef,
-            'notes' => $request->notes,
-            'created_by' => auth('admin')->id(),
-        ]);
-        
-        DB::commit();
-        
-        return redirect()->route('admin.inventory.stock.transfer')
-            ->with('success', 'Stock transferred successfully! Reference: ' . $transferRef);
-            
-    } catch (\Exception $e) {
-        DB::rollBack();
-        return back()->with('error', 'Transfer failed: ' . $e->getMessage())->withInput();
-    }
-}
 }
