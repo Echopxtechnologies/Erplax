@@ -120,6 +120,7 @@ Route::prefix('inventory')->name('inventory.')->group(function () {
     Route::prefix('lots')->name('lots.')->group(function () {
         Route::get('/', [InventoryController::class, 'lotsIndex'])->name('index');
         Route::get('/data', [InventoryController::class, 'lotsData'])->name('data');
+        Route::get('/check', [InventoryController::class, 'lotsCheck'])->name('check');
         Route::get('/create', [InventoryController::class, 'lotsCreate'])->name('create');
         Route::post('/', [InventoryController::class, 'lotsStore'])->name('store');
         Route::get('/{id}/edit', [InventoryController::class, 'lotsEdit'])->name('edit');

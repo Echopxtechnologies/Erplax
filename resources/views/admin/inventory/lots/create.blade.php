@@ -136,6 +136,21 @@
         color: var(--text-muted);
     }
     
+    .form-control.is-invalid {
+        border-color: #ef4444;
+        background: #fef2f2;
+    }
+    
+    .form-control.is-valid {
+        border-color: #10b981;
+        background: #f0fdf4;
+    }
+    
+    .form-control.is-checking {
+        border-color: #f59e0b;
+        background: #fffbeb;
+    }
+    
     textarea.form-control {
         min-height: 80px;
         resize: vertical;
@@ -145,6 +160,54 @@
         font-size: 12px;
         color: var(--text-muted);
         margin-top: 6px;
+    }
+    
+    .form-error {
+        font-size: 12px;
+        color: #ef4444;
+        margin-top: 6px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    
+    .form-error svg {
+        width: 14px;
+        height: 14px;
+    }
+    
+    .form-success {
+        font-size: 12px;
+        color: #10b981;
+        margin-top: 6px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    
+    .form-success svg {
+        width: 14px;
+        height: 14px;
+    }
+    
+    .form-checking {
+        font-size: 12px;
+        color: #f59e0b;
+        margin-top: 6px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    
+    .form-checking svg {
+        width: 14px;
+        height: 14px;
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
     }
 
     .form-actions {
@@ -185,6 +248,13 @@
         box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
     }
     
+    .btn-primary:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+    }
+    
     .btn-secondary {
         background: var(--body-bg);
         color: var(--text-primary);
@@ -219,6 +289,60 @@
         font-size: 13px;
         color: #1e40af;
     }
+
+    .alert {
+        padding: 12px 16px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .alert svg {
+        width: 20px;
+        height: 20px;
+        flex-shrink: 0;
+    }
+    
+    .alert-error {
+        background: #fee2e2;
+        color: #991b1b;
+        border: 1px solid #fecaca;
+    }
+    
+    .alert-success {
+        background: #d1fae5;
+        color: #065f46;
+        border: 1px solid #a7f3d0;
+    }
+
+    .input-wrapper {
+        position: relative;
+    }
+    
+    .input-icon {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 20px;
+        height: 20px;
+    }
+    
+    .input-icon.checking {
+        color: #f59e0b;
+        animation: spin 1s linear infinite;
+    }
+    
+    .input-icon.valid {
+        color: #10b981;
+    }
+    
+    .input-icon.invalid {
+        color: #ef4444;
+    }
 </style>
 
 <div style="padding: 20px;">
@@ -231,6 +355,31 @@
         </a>
         <h1>Add New Lot / Batch</h1>
     </div>
+
+    @if(session('error'))
+        <div class="alert alert-error">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            {{ session('error') }}
+        </div>
+    @endif
+
+    @if($errors->any())
+        <div class="alert alert-error">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <div>
+                <strong>Please fix the following errors:</strong>
+                <ul style="margin: 5px 0 0 20px; padding: 0;">
+                    @foreach($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        </div>
+    @endif
 
     <!-- Form Card -->
     <div class="form-card">
@@ -245,7 +394,7 @@
                 <p>Lots are used to track batch numbers, expiry dates, and manage inventory at a granular level. Only products with "Batch Managed" enabled will appear here.</p>
             </div>
 
-            <form action="{{ route('admin.inventory.lots.store') }}" method="POST">
+            <form action="{{ route('admin.inventory.lots.store') }}" method="POST" id="lotForm">
                 @csrf
 
                 <!-- Basic Information -->
@@ -254,7 +403,7 @@
                     
                     <div class="form-group">
                         <label class="form-label">Product <span class="required">*</span></label>
-                        <select name="product_id" class="form-control" required>
+                        <select name="product_id" id="product_id" class="form-control" required>
                             <option value="">-- Select Product --</option>
                             @foreach($products as $product)
                                 <option value="{{ $product->id }}" {{ old('product_id') == $product->id ? 'selected' : '' }}>
@@ -262,19 +411,37 @@
                                 </option>
                             @endforeach
                         </select>
-                        @error('product_id')<div class="form-help" style="color: #ef4444;">{{ $message }}</div>@enderror
+                        @error('product_id')<div class="form-error">{{ $message }}</div>@enderror
                     </div>
 
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label">Lot Number <span class="required">*</span></label>
-                            <input type="text" name="lot_no" class="form-control" placeholder="e.g., LOT-2024-001" value="{{ old('lot_no') }}" required>
-                            @error('lot_no')<div class="form-help" style="color: #ef4444;">{{ $message }}</div>@enderror
+                            <div class="input-wrapper">
+                                <input type="text" 
+                                       name="lot_no" 
+                                       id="lot_no" 
+                                       class="form-control @error('lot_no') is-invalid @enderror" 
+                                       placeholder="e.g., LOT-2024-001" 
+                                       value="{{ old('lot_no') }}" 
+                                       required
+                                       autocomplete="off">
+                                <svg id="lotNoIcon" class="input-icon" style="display: none;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                                </svg>
+                            </div>
+                            <div id="lotNoFeedback"></div>
+                            @error('lot_no')<div class="form-error">
+                                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                {{ $message }}
+                            </div>@enderror
                         </div>
                         <div class="form-group">
                             <label class="form-label">Initial Quantity <span class="required">*</span></label>
-                            <input type="number" name="initial_qty" class="form-control" step="0.01" min="0" placeholder="0" value="{{ old('initial_qty') }}" required>
-                            @error('initial_qty')<div class="form-help" style="color: #ef4444;">{{ $message }}</div>@enderror
+                            <input type="number" name="initial_qty" class="form-control" step="any" min="0" placeholder="0" value="{{ old('initial_qty') }}" required>
+                            @error('initial_qty')<div class="form-error">{{ $message }}</div>@enderror
                         </div>
                     </div>
 
@@ -336,7 +503,7 @@
 
                 <!-- Actions -->
                 <div class="form-actions">
-                    <button type="submit" class="btn btn-primary">
+                    <button type="submit" class="btn btn-primary" id="submitBtn">
                         <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
                         </svg>
@@ -348,4 +515,120 @@
         </div>
     </div>
 </div>
+
+<script>
+let checkTimeout = null;
+let isLotValid = true;
+
+const lotNoInput = document.getElementById('lot_no');
+const productSelect = document.getElementById('product_id');
+const lotNoIcon = document.getElementById('lotNoIcon');
+const lotNoFeedback = document.getElementById('lotNoFeedback');
+const submitBtn = document.getElementById('submitBtn');
+
+// Check lot number on input
+lotNoInput.addEventListener('input', function() {
+    clearTimeout(checkTimeout);
+    
+    const lotNo = this.value.trim();
+    const productId = productSelect.value;
+    
+    // Reset state
+    lotNoInput.classList.remove('is-valid', 'is-invalid', 'is-checking');
+    lotNoFeedback.innerHTML = '';
+    lotNoIcon.style.display = 'none';
+    
+    if (lotNo.length < 2) {
+        isLotValid = true;
+        updateSubmitButton();
+        return;
+    }
+    
+    // Show checking state
+    lotNoInput.classList.add('is-checking');
+    lotNoIcon.style.display = 'block';
+    lotNoIcon.classList.remove('valid', 'invalid');
+    lotNoIcon.classList.add('checking');
+    lotNoIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>';
+    lotNoFeedback.innerHTML = '<div class="form-checking"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Checking availability...</div>';
+    
+    // Debounce the check
+    checkTimeout = setTimeout(() => {
+        checkLotNumber(lotNo, productId);
+    }, 500);
+});
+
+// Also check when product changes
+productSelect.addEventListener('change', function() {
+    const lotNo = lotNoInput.value.trim();
+    if (lotNo.length >= 2) {
+        checkLotNumber(lotNo, this.value);
+    }
+});
+
+function checkLotNumber(lotNo, productId) {
+    let url = '{{ route("admin.inventory.lots.check") }}?lot_no=' + encodeURIComponent(lotNo);
+    if (productId) {
+        url += '&product_id=' + productId;
+    }
+    
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            lotNoInput.classList.remove('is-checking');
+            lotNoIcon.classList.remove('checking');
+            
+            if (data.exists) {
+                // Lot exists - show error
+                isLotValid = false;
+                lotNoInput.classList.add('is-invalid');
+                lotNoIcon.classList.add('invalid');
+                lotNoIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>';
+                
+                let message = 'This lot number already exists';
+                if (data.product_name) {
+                    message += ' for product: ' + data.product_name;
+                }
+                
+                lotNoFeedback.innerHTML = '<div class="form-error"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> ' + message + '</div>';
+            } else {
+                // Lot is available
+                isLotValid = true;
+                lotNoInput.classList.add('is-valid');
+                lotNoIcon.classList.add('valid');
+                lotNoIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>';
+                
+                lotNoFeedback.innerHTML = '<div class="form-success"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg> Lot number is available</div>';
+            }
+            
+            updateSubmitButton();
+        })
+        .catch(error => {
+            console.error('Error checking lot:', error);
+            lotNoInput.classList.remove('is-checking');
+            lotNoIcon.style.display = 'none';
+            lotNoFeedback.innerHTML = '';
+            isLotValid = true;
+            updateSubmitButton();
+        });
+}
+
+function updateSubmitButton() {
+    if (!isLotValid) {
+        submitBtn.disabled = true;
+    } else {
+        submitBtn.disabled = false;
+    }
+}
+
+// Form submission validation
+document.getElementById('lotForm').addEventListener('submit', function(e) {
+    if (!isLotValid) {
+        e.preventDefault();
+        alert('Please use a unique lot number. The current lot number already exists.');
+        lotNoInput.focus();
+        return false;
+    }
+});
+</script>
 </x-layouts.app>

@@ -456,7 +456,7 @@ class InventoryController extends Controller
     {
         $validated = $request->validate([
             'product_id' => 'required|exists:products,id',
-            'lot_no' => 'required|string|max:50',
+            'lot_no' => 'required|string|max:100|unique:lots,lot_no,NULL,id,product_id,' . $request->product_id,
             'initial_qty' => 'required|numeric|min:0',
             'purchase_price' => 'nullable|numeric|min:0',
             'sale_price' => 'nullable|numeric|min:0',
@@ -464,7 +464,11 @@ class InventoryController extends Controller
             'expiry_date' => 'nullable|date|after_or_equal:manufacturing_date',
             'status' => 'required|in:AVAILABLE,RESERVED,EXPIRED,CONSUMED',
             'remarks' => 'nullable|string',
-        ]);
+        ],[
+        'lot_no.unique' => 'This lot number already exists for the selected product.',
+        'expiry_date.after_or_equal' => 'Expiry date must be after manufacturing date.',
+    ]
+    );
         
         Lot::create($validated);
         
@@ -527,6 +531,36 @@ class InventoryController extends Controller
         return response()->json($lots);
     }
 
+    /**
+     * Check if lot number exists (AJAX)
+     */
+    public function lotsCheck(Request $request)
+    {
+        $lotNo = $request->get('lot_no');
+        $productId = $request->get('product_id');
+        
+        $query = Lot::where('lot_no', $lotNo);
+        
+        // If product_id provided, check within that product only
+        if ($productId) {
+            $query->where('product_id', $productId);
+        }
+        
+        $existingLot = $query->first();
+        
+        if ($existingLot) {
+            return response()->json([
+                'exists' => true,
+                'lot_no' => $existingLot->lot_no,
+                'product_name' => $existingLot->product->name ?? null,
+                'product_id' => $existingLot->product_id,
+            ]);
+        }
+        
+        return response()->json([
+            'exists' => false
+        ]);
+    }
     // ==================== STOCK MOVEMENTS ====================
     public function stockReceive()
     {
