@@ -3,9 +3,9 @@
 namespace App\Traits;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Facades\DB;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -14,12 +14,12 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
 trait DataTable
 {
     /**
-     * Single endpoint handles everything:
+     * Main DataTable handler
      * 
-     * GET  ?export=csv     → Export CSV
-     * GET  ?template=1     → Download import template
-     * POST with file       → Import data
-     * GET  (normal)        → List data
+     * GET  /data              → List data (JSON)
+     * GET  /data?export=csv   → Export CSV
+     * GET  /data?template=1   → Download import template
+     * POST /data (with file)  → Import data
      */
     public function dataTable(Request $request)
     {
@@ -37,22 +37,28 @@ trait DataTable
             return $this->downloadTemplate();
         }
 
+        // Build query
         $query = $this->model::query();
 
+        // Eager load relationships
         if (property_exists($this, 'with') && !empty($this->with)) {
             $query->with($this->with);
         }
 
-        // Export selected IDs
+        // =====================
+        // EXPORT SELECTED IDs
+        // =====================
         if ($request->has('ids') && $request->has('export')) {
             $ids = array_filter(explode(',', $request->input('ids')));
             if (!empty($ids)) {
                 $query->whereIn('id', $ids);
             }
-            return $this->dtExport($query);
+            return $this->dtExport($query, $request->input('export'));
         }
 
-        // Search
+        // =====================
+        // SEARCH
+        // =====================
         if ($search = $request->input('search')) {
             $query->where(function ($q) use ($search) {
                 foreach ($this->searchable ?? [] as $col) {
@@ -61,34 +67,56 @@ trait DataTable
             });
         }
 
-        // Filters
-        $filterable = property_exists($this, 'filterable') ? $this->filterable : [];
-        foreach ($filterable as $col) {
-            if ($request->filled($col)) {
-                if (str_ends_with($col, '_from')) {
-                    $query->whereDate(str_replace('_from', '', $col), '>=', $request->input($col));
-                } elseif (str_ends_with($col, '_to')) {
-                    $query->whereDate(str_replace('_to', '', $col), '<=', $request->input($col));
-                } else {
-                    $query->where($col, $request->input($col));
+        // =====================
+        // FILTERS (direct params - same as search)
+        // =====================
+        if (property_exists($this, 'filterable')) {
+            foreach ($this->filterable as $column) {
+                if ($request->filled($column)) {
+                    $query->where($column, $request->input($column));
                 }
             }
         }
 
-        // Sort
-        $query->orderBy($request->input('sort', 'id'), $request->input('dir', 'desc'));
+        // Also check common filter patterns
+        foreach ($request->all() as $key => $value) {
+            if ($value !== '' && $value !== null && !in_array($key, ['page', 'per_page', 'search', 'sort', 'dir', 'export', 'template', 'ids'])) {
+                // Check if column exists (basic check)
+                if (str_ends_with($key, '_id') || in_array($key, ['status', 'type', 'is_active'])) {
+                    $query->where($key, $value);
+                }
+            }
+        }
+
+        // =====================
+        // DATE RANGE FILTERS
+        // =====================
+        if ($request->filled('from_date')) {
+            $query->whereDate('created_at', '>=', $request->from_date);
+        }
+        if ($request->filled('to_date')) {
+            $query->whereDate('created_at', '<=', $request->to_date);
+        }
+
+        // =====================
+        // SORTING
+        // =====================
+        $sortCol = $request->input('sort', 'id');
+        $sortDir = $request->input('dir', 'desc');
+        $query->orderBy($sortCol, $sortDir);
 
         // =====================
         // EXPORT ALL
         // =====================
         if ($request->has('export')) {
-            return $this->dtExport($query);
+            return $this->dtExport($query, $request->input('export'));
         }
 
         // =====================
         // PAGINATE & RETURN
         // =====================
-        $data = $query->paginate($request->input('per_page', 10));
+        $perPage = $request->input('per_page', 10);
+        $data = $query->paginate($perPage);
 
         $items = collect($data->items())->map(function ($item) {
             $prefix = $this->routePrefix ?? 'admin';
@@ -111,26 +139,38 @@ trait DataTable
     }
 
     /**
-     * Bulk delete
+     * Bulk Delete
      */
     public function bulkDelete(Request $request)
     {
         $ids = $request->input('ids', []);
+        
         if (empty($ids)) {
             return response()->json(['success' => false, 'message' => 'No items selected'], 400);
         }
-        $deleted = $this->model::whereIn('id', $ids)->delete();
-        return response()->json(['success' => true, 'message' => $deleted . ' items deleted']);
+
+        try {
+            $this->model::whereIn('id', $ids)->delete();
+            return response()->json(['success' => true, 'message' => count($ids) . ' items deleted']);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Delete failed: ' . $e->getMessage()], 500);
+        }
     }
 
     /**
      * Export to CSV
      */
-    protected function dtExport($query)
+    protected function dtExport($query, $type)
     {
         $columns = $this->exportable ?? ['*'];
         $data = $query->get($columns);
-        $filename = strtolower(class_basename($this->model)) . '_' . date('Y-m-d') . '.csv';
+        $modelName = strtolower(class_basename($this->model));
+        $filename = $modelName . '_' . date('Y-m-d');
+
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => "attachment; filename={$filename}.csv",
+        ];
 
         $callback = function () use ($data) {
             $file = fopen('php://output', 'w');
@@ -143,36 +183,28 @@ trait DataTable
             fclose($file);
         };
 
-        return Response::stream($callback, 200, [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => "attachment; filename={$filename}",
-        ]);
+        return Response::stream($callback, 200, $headers);
     }
 
-    // =====================================================
-    // IMPORT - No extra routes needed!
-    // Just define $importable in controller
-    // =====================================================
-
     /**
-     * Download Excel Template
-     * GET /data?template=1
+     * Download Import Template (Excel with hints)
      */
     protected function downloadTemplate()
     {
         $columns = $this->importable ?? [];
         
         if (empty($columns)) {
-            return response()->json(['error' => 'Import not configured'], 404);
+            return response()->json(['error' => 'Import not configured'], 400);
         }
 
-        $filename = strtolower(class_basename($this->model)) . '_template.xlsx';
+        $modelName = strtolower(class_basename($this->model));
+        $filename = $modelName . '_import_template.xlsx';
 
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
-        $sheet->setTitle('Data');
+        $sheet->setTitle('Import Data');
 
-        // Header row
+        // Header row - Blue background, white bold text
         $col = 1;
         foreach (array_keys($columns) as $header) {
             $cell = $sheet->getCellByColumnAndRow($col, 1);
@@ -184,7 +216,7 @@ trait DataTable
             $col++;
         }
 
-        // Hints row
+        // Hints row - Gray italic text
         $col = 1;
         foreach ($columns as $colName => $rules) {
             $hint = $this->buildHint($rules);
@@ -229,8 +261,7 @@ trait DataTable
     }
 
     /**
-     * Handle Import
-     * POST /data with file
+     * Handle Import from Excel/CSV
      */
     protected function handleImport(Request $request)
     {
@@ -239,6 +270,7 @@ trait DataTable
         ]);
 
         $columns = $this->importable ?? [];
+        
         if (empty($columns)) {
             return response()->json(['success' => false, 'message' => 'Import not configured'], 400);
         }
@@ -249,7 +281,7 @@ trait DataTable
             $rows = $this->parseFile($file);
             
             if (empty($rows)) {
-                return response()->json(['success' => false, 'message' => 'No data found'], 400);
+                return response()->json(['success' => false, 'message' => 'No data found in file'], 400);
             }
 
             $results = ['total' => 0, 'success' => 0, 'failed' => 0, 'errors' => []];
@@ -257,13 +289,17 @@ trait DataTable
             DB::beginTransaction();
 
             foreach ($rows as $index => $row) {
-                $rowNum = $index + 3;
+                $rowNum = $index + 3; // +3 because row 1=header, row 2=hints
                 
+                // Skip empty rows
                 if ($this->isRowEmpty($row)) continue;
+                
+                // Skip hint row (first data row might be hints)
                 if ($index === 0 && $this->isHintRow($row)) continue;
 
                 $results['total']++;
 
+                // Validate
                 $validator = Validator::make($row, $columns);
                 
                 if ($validator->fails()) {
@@ -273,8 +309,10 @@ trait DataTable
                 }
 
                 try {
+                    // Filter out empty values and create
                     $data = array_filter($row, fn($v) => $v !== '' && $v !== null);
                     
+                    // Call custom import method if exists
                     if (method_exists($this, 'importRow')) {
                         $this->importRow($data, $row);
                     } else {
@@ -288,11 +326,12 @@ trait DataTable
                 }
             }
 
+            // Rollback if all failed
             if ($results['success'] === 0 && $results['failed'] > 0) {
                 DB::rollBack();
                 return response()->json([
                     'success' => false,
-                    'message' => 'Import failed',
+                    'message' => 'Import failed - no records imported',
                     'results' => $results
                 ], 422);
             }
@@ -301,22 +340,33 @@ trait DataTable
 
             return response()->json([
                 'success' => true,
-                'message' => "{$results['success']} of {$results['total']} imported",
+                'message' => "{$results['success']} of {$results['total']} records imported successfully",
                 'results' => $results
             ]);
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+            return response()->json(['success' => false, 'message' => 'Import error: ' . $e->getMessage()], 500);
         }
     }
 
+    /**
+     * Parse Excel or CSV file
+     */
     protected function parseFile($file)
     {
         $ext = strtolower($file->getClientOriginalExtension());
-        return $ext === 'csv' ? $this->parseCsv($file) : $this->parseExcel($file);
+        
+        if ($ext === 'csv') {
+            return $this->parseCsv($file);
+        }
+        
+        return $this->parseExcel($file);
     }
 
+    /**
+     * Parse CSV file
+     */
     protected function parseCsv($file)
     {
         $rows = [];
@@ -342,6 +392,9 @@ trait DataTable
         return $rows;
     }
 
+    /**
+     * Parse Excel file
+     */
     protected function parseExcel($file)
     {
         $spreadsheet = IOFactory::load($file->getPathname());
@@ -375,6 +428,9 @@ trait DataTable
         return $rows;
     }
 
+    /**
+     * Check if row is empty
+     */
     protected function isRowEmpty($row)
     {
         foreach ($row as $v) {
@@ -383,12 +439,18 @@ trait DataTable
         return true;
     }
 
+    /**
+     * Check if row is hint row
+     */
     protected function isHintRow($row)
     {
         $first = reset($row);
-        return str_contains($first, 'Required') || str_contains($first, 'Optional');
+        return str_contains(strtolower($first), 'required') || str_contains(strtolower($first), 'optional');
     }
 
+    /**
+     * Build hint text from validation rules
+     */
     protected function buildHint($rules)
     {
         $req = str_contains($rules, 'required') ? 'Required' : 'Optional';
@@ -397,8 +459,9 @@ trait DataTable
         if (str_contains($rules, 'integer')) return "{$req}, Integer";
         if (str_contains($rules, 'numeric')) return "{$req}, Number";
         if (str_contains($rules, 'date')) return "{$req}, Date (YYYY-MM-DD)";
+        if (str_contains($rules, 'boolean')) return "{$req}, 1 or 0";
         if (preg_match('/in:([^|]+)/', $rules, $m)) return "{$req}, Options: {$m[1]}";
-        if (preg_match('/exists:([^,]+),(\w+)/', $rules, $m)) return "{$req}, {$m[2]} from {$m[1]}";
+        if (preg_match('/exists:([^,]+),(\w+)/', $rules, $m)) return "{$req}, ID from {$m[1]}";
         
         return "{$req}, Text";
     }

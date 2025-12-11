@@ -151,7 +151,7 @@ Route::prefix('inventory')->name('inventory.')->group(function () {
     // ==================== PRODUCTS ====================
     Route::prefix('products')->name('products.')->group(function () {
         Route::get('/', [InventoryController::class, 'productsIndex'])->name('index');
-        Route::get('/data', [InventoryController::class, 'productsData'])->name('data');
+        Route::match(['get', 'post'], '/data', [InventoryController::class, 'productsData'])->name('data');  // <-- Changed
         Route::get('/create', [InventoryController::class, 'productsCreate'])->name('create');
         Route::post('/', [InventoryController::class, 'productsStore'])->name('store');
         Route::get('/{id}', [InventoryController::class, 'productsShow'])->name('show');

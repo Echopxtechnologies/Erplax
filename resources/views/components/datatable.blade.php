@@ -1,78 +1,514 @@
 <style>
-.dt-container{background:var(--card-bg);border:1px solid var(--card-border);border-radius:var(--radius-lg);overflow:hidden;margin:15px 0;width:100%}
-.dt-container .dt-table-wrapper{overflow-x:auto;width:100%}
-.dt-container .dt-toolbar{display:flex;justify-content:space-between;align-items:center;padding:12px 15px;background:var(--card-bg);border-bottom:1px solid var(--card-border);flex-wrap:wrap;gap:10px}
-.dt-container .dt-toolbar-left,.dt-container .dt-toolbar-right{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-.dt-container .dt-search-input{padding:7px 12px;border:1px solid var(--input-border);border-radius:var(--radius-md);font-size:var(--font-sm);background:var(--input-bg);color:var(--input-text);min-width:200px}
-.dt-container .dt-search-input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-light)}
-.dt-container .dt-perpage-select{padding:7px 10px;border:1px solid var(--input-border);border-radius:var(--radius-md);font-size:var(--font-sm);background:var(--input-bg);color:var(--input-text);cursor:pointer}
-.dt-container .dt-export-btn,.dt-container .dt-import-btn{padding:7px 14px;border:none;border-radius:var(--radius-md);font-size:var(--font-sm);font-weight:500;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:6px}
-.dt-container .dt-export-btn{background:var(--success);color:#fff}
-.dt-container .dt-import-btn{background:var(--primary);color:#fff}
-.dt-container .dt-export-btn:hover,.dt-container .dt-import-btn:hover{opacity:.9}
-.dt-container .dt-bulk-delete-btn{padding:7px 14px;border:none;border-radius:var(--radius-md);font-size:var(--font-sm);font-weight:500;background:var(--danger);color:#fff;cursor:pointer;display:none}
-.dt-container .dt-bulk-delete-btn.show{display:inline-flex}
-.dt-container .dt-selected-count{font-size:var(--font-sm);display:none;padding:7px 12px;background:var(--primary-light);color:var(--primary);border-radius:var(--radius-md);font-weight:500}
-.dt-container .dt-selected-count.show{display:inline-block}
-.dt-container .dt-table{width:100%;min-width:100%;border-collapse:collapse;table-layout:fixed}
-.dt-container .dt-table th,.dt-container .dt-table td{padding:11px 14px;text-align:left;border-bottom:1px solid var(--card-border);color:var(--text-primary);font-size:var(--font-sm);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:0}
-.dt-container .dt-table th{background:var(--body-bg);font-weight:600}
-.dt-container .dt-table tbody tr:hover{background:var(--body-bg)}
-.dt-container .dt-table tbody tr.selected{background:var(--primary-light)}
-.dt-container .dt-table th.dt-checkbox-col,.dt-container .dt-table td.dt-checkbox-col{width:45px;min-width:45px;max-width:45px;text-align:center;padding:11px 10px}
-.dt-container .dt-checkbox{width:16px;height:16px;cursor:pointer;accent-color:var(--primary)}
-.dt-container .dt-table th.dt-actions-col,.dt-container .dt-table td.dt-actions-col{width:150px;min-width:150px;max-width:150px}
-.dt-container .dt-table th.dt-sort{cursor:pointer;user-select:none;position:relative;padding-right:22px}
-.dt-container .dt-table th.dt-sort:hover{background:var(--card-border)}
-.dt-container .dt-table th.dt-sort::after{content:'↕';position:absolute;right:8px;opacity:.3;font-size:11px}
-.dt-container .dt-table th.dt-sort.asc::after{content:'↑';opacity:1;color:var(--primary)}
-.dt-container .dt-table th.dt-sort.desc::after{content:'↓';opacity:1;color:var(--primary)}
-.dt-container .dt-pagination{display:flex;justify-content:space-between;align-items:center;padding:12px 15px;background:var(--card-bg);border-top:1px solid var(--card-border);flex-wrap:wrap;gap:10px}
-.dt-container .dt-info{color:var(--text-muted);font-size:var(--font-sm)}
-.dt-container .dt-pages{display:flex;gap:4px}
-.dt-container .dt-pages button{padding:5px 10px;border:1px solid var(--input-border);background:var(--input-bg);color:var(--text-primary);border-radius:var(--radius-sm);cursor:pointer;font-size:var(--font-xs)}
-.dt-container .dt-pages button:hover:not(:disabled){background:var(--body-bg);border-color:var(--primary)}
-.dt-container .dt-pages button:disabled{opacity:.4;cursor:not-allowed}
-.dt-container .dt-pages button.active{background:var(--primary);border-color:var(--primary);color:#fff}
-.dt-container .dt-badge{padding:3px 10px;border-radius:20px;font-size:var(--font-xs);font-weight:600;display:inline-block}
-.dt-container .dt-badge-active,.dt-container .dt-badge-success{background:var(--success-light);color:var(--success)}
-.dt-container .dt-badge-inactive,.dt-container .dt-badge-secondary{background:var(--body-bg);color:var(--text-muted)}
-.dt-container .dt-badge-pending,.dt-container .dt-badge-warning{background:var(--warning-light);color:var(--warning)}
-.dt-container .dt-badge-danger,.dt-container .dt-badge-failed{background:var(--danger-light);color:var(--danger)}
-.dt-container .dt-actions{display:flex;gap:4px}
-.dt-container .dt-btn{padding:4px 8px;border:none;border-radius:var(--radius-sm);cursor:pointer;font-size:var(--font-xs);text-decoration:none;font-weight:500}
-.dt-container .dt-btn-view{background:var(--primary);color:#fff}
-.dt-container .dt-btn-edit{background:var(--warning);color:#fff}
-.dt-container .dt-btn-delete{background:var(--danger);color:#fff}
-.dt-container .dt-btn:hover{opacity:.85}
-.dt-container .dt-loading{text-align:center;padding:40px;color:var(--text-muted)}
-.dt-modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:9999}
-.dt-modal-overlay.show{display:flex}
-.dt-modal{background:var(--card-bg);border-radius:var(--radius-lg);width:90%;max-width:500px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
-.dt-modal-header{padding:16px 20px;border-bottom:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center}
-.dt-modal-title{font-size:16px;font-weight:600;color:var(--text-primary)}
-.dt-modal-close{background:none;border:none;font-size:24px;cursor:pointer;color:var(--text-muted);line-height:1}
-.dt-modal-body{padding:20px}
-.dt-modal-footer{padding:16px 20px;border-top:1px solid var(--card-border);display:flex;justify-content:flex-end;gap:10px}
-.dt-file-drop{border:2px dashed var(--card-border);border-radius:var(--radius-md);padding:40px 20px;text-align:center;cursor:pointer;transition:all .2s}
-.dt-file-drop:hover,.dt-file-drop.dragover{border-color:var(--primary);background:var(--primary-light)}
-.dt-file-drop-icon{font-size:40px;margin-bottom:10px}
-.dt-file-drop-text{color:var(--text-muted);font-size:var(--font-sm)}
-.dt-file-drop-text strong{color:var(--primary)}
-.dt-file-input{display:none}
-.dt-file-name{margin-top:10px;padding:10px;background:var(--body-bg);border-radius:var(--radius-sm);font-size:var(--font-sm);display:none}
-.dt-file-name.show{display:block}
-.dt-template-link{display:inline-flex;align-items:center;gap:6px;color:var(--primary);font-size:var(--font-sm);text-decoration:none;margin-top:15px}
-.dt-template-link:hover{text-decoration:underline}
-.dt-import-results{margin-top:15px;padding:12px;border-radius:var(--radius-sm);font-size:var(--font-sm);display:none}
-.dt-import-results.show{display:block}
-.dt-import-results.success{background:var(--success-light);color:var(--success)}
-.dt-import-results.error{background:var(--danger-light);color:var(--danger)}
-.dt-import-errors{margin-top:10px;max-height:150px;overflow-y:auto;font-size:12px}
-.dt-import-errors div{padding:4px 0;border-bottom:1px solid rgba(0,0,0,.1)}
-.dt-btn-cancel{padding:8px 16px;border:1px solid var(--card-border);background:var(--card-bg);color:var(--text-primary);border-radius:var(--radius-md);cursor:pointer;font-size:var(--font-sm)}
-.dt-btn-submit{padding:8px 16px;border:none;background:var(--primary);color:#fff;border-radius:var(--radius-md);cursor:pointer;font-size:var(--font-sm);font-weight:500}
-.dt-btn-submit:disabled{opacity:.5;cursor:not-allowed}
+/* Container */
+.dt-container {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    margin: 15px 0;
+    width: 100%;
+}
+
+.dt-container .dt-table-wrapper {
+    overflow-x: auto;
+    width: 100%;
+}
+
+/* Toolbar */
+.dt-container .dt-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 15px;
+    background: var(--card-bg);
+    border-bottom: 1px solid var(--card-border);
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.dt-container .dt-toolbar-left,
+.dt-container .dt-toolbar-right {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.dt-container .dt-search-input {
+    padding: 7px 12px;
+    border: 1px solid var(--input-border);
+    border-radius: var(--radius-md);
+    font-size: var(--font-sm);
+    background: var(--input-bg);
+    color: var(--input-text);
+    min-width: 200px;
+}
+
+.dt-container .dt-search-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-light);
+}
+
+.dt-container .dt-perpage-select {
+    padding: 7px 10px;
+    border: 1px solid var(--input-border);
+    border-radius: var(--radius-md);
+    font-size: var(--font-sm);
+    background: var(--input-bg);
+    color: var(--input-text);
+    cursor: pointer;
+}
+
+.dt-container .dt-export-btn,
+.dt-container .dt-import-btn {
+    padding: 7px 14px;
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: var(--font-sm);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.dt-container .dt-export-btn {
+    background: var(--success);
+    color: #fff;
+}
+
+.dt-container .dt-import-btn {
+    background: var(--primary);
+    color: #fff;
+}
+
+.dt-container .dt-export-btn:hover,
+.dt-container .dt-import-btn:hover {
+    opacity: 0.9;
+}
+
+.dt-container .dt-bulk-delete-btn {
+    padding: 7px 14px;
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: var(--font-sm);
+    font-weight: 500;
+    background: var(--danger);
+    color: #fff;
+    cursor: pointer;
+    display: none;
+}
+
+.dt-container .dt-bulk-delete-btn.show {
+    display: inline-flex;
+}
+
+.dt-container .dt-selected-count {
+    font-size: var(--font-sm);
+    display: none;
+    padding: 7px 12px;
+    background: var(--primary-light);
+    color: var(--primary);
+    border-radius: var(--radius-md);
+    font-weight: 500;
+}
+
+.dt-container .dt-selected-count.show {
+    display: inline-block;
+}
+
+/* Table */
+.dt-container .dt-table {
+    width: 100%;
+    min-width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+.dt-container .dt-table th,
+.dt-container .dt-table td {
+    padding: 11px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--card-border);
+    color: var(--text-primary);
+    font-size: var(--font-sm);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 0;
+}
+
+.dt-container .dt-table th {
+    background: var(--body-bg);
+    font-weight: 600;
+}
+
+.dt-container .dt-table tbody tr:hover {
+    background: var(--body-bg);
+}
+
+.dt-container .dt-table tbody tr.selected {
+    background: var(--primary-light);
+}
+
+.dt-container .dt-table th.dt-checkbox-col,
+.dt-container .dt-table td.dt-checkbox-col {
+    width: 45px;
+    min-width: 45px;
+    max-width: 45px;
+    text-align: center;
+    padding: 11px 10px;
+}
+
+.dt-container .dt-checkbox {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: var(--primary);
+}
+
+.dt-container .dt-table th.dt-actions-col,
+.dt-container .dt-table td.dt-actions-col {
+    width: 150px;
+    min-width: 150px;
+    max-width: 150px;
+}
+
+.dt-container .dt-table th.dt-sort {
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+    padding-right: 22px;
+}
+
+.dt-container .dt-table th.dt-sort:hover {
+    background: var(--card-border);
+}
+
+.dt-container .dt-table th.dt-sort::after {
+    content: '↕';
+    position: absolute;
+    right: 8px;
+    opacity: 0.3;
+    font-size: 11px;
+}
+
+.dt-container .dt-table th.dt-sort.asc::after {
+    content: '↑';
+    opacity: 1;
+    color: var(--primary);
+}
+
+.dt-container .dt-table th.dt-sort.desc::after {
+    content: '↓';
+    opacity: 1;
+    color: var(--primary);
+}
+
+/* Pagination */
+.dt-container .dt-pagination {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 15px;
+    background: var(--card-bg);
+    border-top: 1px solid var(--card-border);
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.dt-container .dt-info {
+    color: var(--text-muted);
+    font-size: var(--font-sm);
+}
+
+.dt-container .dt-pages {
+    display: flex;
+    gap: 4px;
+}
+
+.dt-container .dt-pages button {
+    padding: 5px 10px;
+    border: 1px solid var(--input-border);
+    background: var(--input-bg);
+    color: var(--text-primary);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: var(--font-xs);
+}
+
+.dt-container .dt-pages button:hover:not(:disabled) {
+    background: var(--body-bg);
+    border-color: var(--primary);
+}
+
+.dt-container .dt-pages button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.dt-container .dt-pages button.active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+}
+
+/* Badges */
+.dt-container .dt-badge {
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: var(--font-xs);
+    font-weight: 600;
+    display: inline-block;
+}
+
+.dt-container .dt-badge-active,
+.dt-container .dt-badge-success {
+    background: var(--success-light);
+    color: var(--success);
+}
+
+.dt-container .dt-badge-inactive,
+.dt-container .dt-badge-secondary {
+    background: var(--body-bg);
+    color: var(--text-muted);
+}
+
+.dt-container .dt-badge-pending,
+.dt-container .dt-badge-warning {
+    background: var(--warning-light);
+    color: var(--warning);
+}
+
+.dt-container .dt-badge-danger,
+.dt-container .dt-badge-failed {
+    background: var(--danger-light);
+    color: var(--danger);
+}
+
+/* Actions */
+.dt-container .dt-actions {
+    display: flex;
+    gap: 4px;
+}
+
+.dt-container .dt-btn {
+    padding: 4px 8px;
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: var(--font-xs);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.dt-container .dt-btn-view {
+    background: var(--primary);
+    color: #fff;
+}
+
+.dt-container .dt-btn-edit {
+    background: var(--warning);
+    color: #fff;
+}
+
+.dt-container .dt-btn-delete {
+    background: var(--danger);
+    color: #fff;
+}
+
+.dt-container .dt-btn:hover {
+    opacity: 0.85;
+}
+
+.dt-container .dt-loading {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-muted);
+}
+
+/* Import Modal */
+.dt-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,.5);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+.dt-modal-overlay.show {
+    display: flex;
+}
+
+.dt-modal {
+    background: var(--card-bg);
+    border-radius: var(--radius-lg);
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.3);
+}
+
+.dt-modal-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--card-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.dt-modal-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.dt-modal-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: var(--text-muted);
+    line-height: 1;
+}
+
+.dt-modal-body {
+    padding: 20px;
+}
+
+.dt-modal-footer {
+    padding: 16px 20px;
+    border-top: 1px solid var(--card-border);
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.dt-file-drop {
+    border: 2px dashed var(--card-border);
+    border-radius: var(--radius-md);
+    padding: 40px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all .2s;
+}
+
+.dt-file-drop:hover,
+.dt-file-drop.dragover {
+    border-color: var(--primary);
+    background: var(--primary-light);
+}
+
+.dt-file-drop-icon {
+    font-size: 40px;
+    margin-bottom: 10px;
+}
+
+.dt-file-drop-text {
+    color: var(--text-muted);
+    font-size: var(--font-sm);
+}
+
+.dt-file-drop-text strong {
+    color: var(--primary);
+}
+
+.dt-file-input {
+    display: none;
+}
+
+.dt-file-name {
+    margin-top: 10px;
+    padding: 10px;
+    background: var(--body-bg);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-sm);
+    display: none;
+}
+
+.dt-file-name.show {
+    display: block;
+}
+
+.dt-template-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--primary);
+    font-size: var(--font-sm);
+    text-decoration: none;
+    margin-top: 15px;
+}
+
+.dt-template-link:hover {
+    text-decoration: underline;
+}
+
+.dt-import-results {
+    margin-top: 15px;
+    padding: 12px;
+    border-radius: var(--radius-sm);
+    font-size: var(--font-sm);
+    display: none;
+}
+
+.dt-import-results.show {
+    display: block;
+}
+
+.dt-import-results.success {
+    background: var(--success-light);
+    color: var(--success);
+}
+
+.dt-import-results.error {
+    background: var(--danger-light);
+    color: var(--danger);
+}
+
+.dt-import-errors {
+    margin-top: 10px;
+    max-height: 150px;
+    overflow-y: auto;
+    font-size: 12px;
+}
+
+.dt-import-errors div {
+    padding: 4px 0;
+    border-bottom: 1px solid rgba(0,0,0,.1);
+}
+
+.dt-btn-cancel {
+    padding: 8px 16px;
+    border: 1px solid var(--card-border);
+    background: var(--card-bg);
+    color: var(--text-primary);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    font-size: var(--font-sm);
+}
+
+.dt-btn-submit {
+    padding: 8px 16px;
+    border: none;
+    background: var(--primary);
+    color: #fff;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    font-size: var(--font-sm);
+    font-weight: 500;
+}
+
+.dt-btn-submit:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+}
 </style>
 
 <script>
@@ -88,7 +524,7 @@
         var tableId = table.id || 'dt-' + Math.random().toString(36).substr(2,9);
         table.id = tableId;
 
-        var state = {page:1,perPage:10,search:'',sort:'id',dir:'desc',selected:[],filters:{}};
+        var state = {page:1, perPage:10, search:'', sort:'id', dir:'desc', selected:[], filters:{}};
 
         var hasCheckbox = table.classList.contains('dt-checkbox');
         var hasSearch = table.classList.contains('dt-search');
@@ -236,12 +672,12 @@
 
         var cols = [];
         table.querySelectorAll('thead th:not(.dt-checkbox-col)').forEach(function(th){
-            cols.push({col:th.dataset.col||null,render:th.dataset.render||null});
+            cols.push({col:th.dataset.col||null, render:th.dataset.render||null});
             if(th.classList.contains('dt-sort') && th.dataset.col){
                 th.onclick = function(){
                     var c = this.dataset.col;
                     if(state.sort===c) state.dir = state.dir==='asc'?'desc':'asc';
-                    else {state.sort=c;state.dir='asc';}
+                    else {state.sort=c; state.dir='asc';}
                     table.querySelectorAll('th.dt-sort').forEach(function(h){h.classList.remove('asc','desc');});
                     this.classList.add(state.dir);
                     load();
@@ -249,7 +685,7 @@
             }
         });
 
-        // External filters
+        // External filters - data-dt-filter
         document.querySelectorAll('[data-dt-filter]').forEach(function(el){
             var targetTable = el.dataset.dtTable;
             if(!targetTable || targetTable===tableId){
@@ -296,6 +732,8 @@
             tbody.innerHTML = '<tr><td colspan="'+colCount+'" class="dt-loading">Loading...</td></tr>';
             
             var url = route + '?page=' + state.page + '&per_page=' + state.perPage + '&search=' + encodeURIComponent(state.search) + '&sort=' + state.sort + '&dir=' + state.dir;
+            
+            // Add filters as direct params
             for(var key in state.filters){
                 if(state.filters[key]!=='' && state.filters[key]!==null){
                     url += '&' + key + '=' + encodeURIComponent(state.filters[key]);
@@ -350,7 +788,11 @@
 
         function cell(row,c){
             var v = c.col ? row[c.col] : null;
-            if(c.render && window.dtRenders && window.dtRenders[c.render]) return window.dtRenders[c.render](v,row);
+            
+            // Check for custom renderer
+            if(c.render && window.dtRenders && window.dtRenders[c.render]){
+                return window.dtRenders[c.render](v, row);
+            }
             
             switch(c.render){
                 case 'date': return v ? new Date(v).toLocaleDateString() : '';
@@ -408,9 +850,7 @@
         }
 
         // ==========================================
-        // IMPORT MODAL - Uses same route!
-        // Template: GET route?template=1
-        // Import: POST route with file
+        // IMPORT MODAL
         // ==========================================
         var importModal = null;
         var selectedFile = null;
@@ -494,7 +934,6 @@
 
                     var csrf = document.querySelector('meta[name="csrf-token"]');
                     
-                    // POST to same route!
                     fetch(route, {
                         method:'POST',
                         headers:{'X-CSRF-TOKEN':csrf?csrf.content:''},
@@ -554,6 +993,12 @@
 
         load();
         
+        // Expose methods
+        window.dtInstance = window.dtInstance || {};
+        window.dtInstance[tableId] = {
+            reload: load,
+            setFilter: function(col,val){state.filters[col]=val;state.page=1;load();}
+        };
         table.dtReload = load;
         table.dtSetFilter = function(col,val){state.filters[col]=val;state.page=1;load();};
     }

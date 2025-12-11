@@ -250,7 +250,6 @@
                 Product List
             </div>
             <div class="table-filters">
-                <!-- FIXED: Using data-dt-filter instead of onchange -->
                 <select data-dt-filter="category_id">
                     <option value="">All Categories</option>
                     @foreach($categories as $cat)
@@ -266,7 +265,6 @@
             </div>
         </div>
         <div class="table-card-body">
-            <!-- ADDED: dt-import class for import functionality -->
             <table class="dt-table dt-search dt-export dt-import dt-perpage" 
                    id="productsTable"
                    data-route="{{ route('admin.inventory.products.data') }}">
@@ -291,7 +289,6 @@
 </div>
 
 <script>
-// Custom renderers for DataTable
 window.dtRenders = window.dtRenders || {};
 
 window.dtRenders.status = function(data, row) {
@@ -306,6 +303,5 @@ window.dtRenders.stock = function(data, row) {
     return `<span class="${stockClass}">${row.current_stock} ${row.unit}</span>`;
 };
 </script>
-
-@include('core::datatable')
+@include('components.datatable')
 </x-layouts.app>
