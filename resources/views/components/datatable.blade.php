@@ -9,9 +9,30 @@
     width: 100%;
 }
 
+/* Table Wrapper - HORIZONTAL SCROLL LIKE PERFEX */
 .dt-container .dt-table-wrapper {
     overflow-x: auto;
+    overflow-y: visible;
     width: 100%;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Custom Scrollbar */
+.dt-container .dt-table-wrapper::-webkit-scrollbar {
+    height: 8px;
+}
+
+.dt-container .dt-table-wrapper::-webkit-scrollbar-track {
+    background: var(--body-bg);
+}
+
+.dt-container .dt-table-wrapper::-webkit-scrollbar-thumb {
+    background: var(--card-border);
+    border-radius: 4px;
+}
+
+.dt-container .dt-table-wrapper::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
 }
 
 /* Toolbar */
@@ -119,12 +140,11 @@
     display: inline-block;
 }
 
-/* Table */
+/* Table - AUTO WIDTH, NO TRUNCATION */
 .dt-container .dt-table {
     width: 100%;
-    min-width: 100%;
+    min-width: max-content;
     border-collapse: collapse;
-    table-layout: fixed;
 }
 
 .dt-container .dt-table th,
@@ -134,15 +154,15 @@
     border-bottom: 1px solid var(--card-border);
     color: var(--text-primary);
     font-size: var(--font-sm);
-    overflow: hidden;
-    text-overflow: ellipsis;
     white-space: nowrap;
-    max-width: 0;
 }
 
 .dt-container .dt-table th {
     background: var(--body-bg);
     font-weight: 600;
+    position: sticky;
+    top: 0;
+    z-index: 1;
 }
 
 .dt-container .dt-table tbody tr:hover {
@@ -157,7 +177,6 @@
 .dt-container .dt-table td.dt-checkbox-col {
     width: 45px;
     min-width: 45px;
-    max-width: 45px;
     text-align: center;
     padding: 11px 10px;
 }
@@ -171,9 +190,7 @@
 
 .dt-container .dt-table th.dt-actions-col,
 .dt-container .dt-table td.dt-actions-col {
-    width: 150px;
-    min-width: 150px;
-    max-width: 150px;
+    text-align: center;
 }
 
 .dt-container .dt-table th.dt-sort {
@@ -257,11 +274,12 @@
 
 /* Badges */
 .dt-container .dt-badge {
-    padding: 3px 10px;
+    padding: 4px 12px;
     border-radius: 20px;
     font-size: var(--font-xs);
     font-weight: 600;
     display: inline-block;
+    white-space: nowrap;
 }
 
 .dt-container .dt-badge-active,
@@ -291,17 +309,20 @@
 /* Actions */
 .dt-container .dt-actions {
     display: flex;
-    gap: 4px;
+    gap: 6px;
+    justify-content: center;
+    align-items: center;
 }
 
 .dt-container .dt-btn {
-    padding: 4px 8px;
+    padding: 5px 10px;
     border: none;
     border-radius: var(--radius-sm);
     cursor: pointer;
     font-size: var(--font-xs);
     text-decoration: none;
     font-weight: 500;
+    white-space: nowrap;
 }
 
 .dt-container .dt-btn-view {
@@ -733,7 +754,6 @@
             
             var url = route + '?page=' + state.page + '&per_page=' + state.perPage + '&search=' + encodeURIComponent(state.search) + '&sort=' + state.sort + '&dir=' + state.dir;
             
-            // Add filters as direct params
             for(var key in state.filters){
                 if(state.filters[key]!=='' && state.filters[key]!==null){
                     url += '&' + key + '=' + encodeURIComponent(state.filters[key]);
@@ -780,7 +800,7 @@
             });
 
             tbody.querySelectorAll('.dt-btn-delete').forEach(function(b){
-                b.onclick = function(e){e.preventDefault();del(this.dataset.id);};
+                b.onclick = function(e){e.preventDefault();del(this.dataset.url, this.dataset.id);};
             });
 
             updateBulkUI();
@@ -789,24 +809,24 @@
         function cell(row,c){
             var v = c.col ? row[c.col] : null;
             
-            // Check for custom renderer
             if(c.render && window.dtRenders && window.dtRenders[c.render]){
                 return window.dtRenders[c.render](v, row);
             }
             
             switch(c.render){
-                case 'date': return v ? new Date(v).toLocaleDateString() : '';
-                case 'datetime': return v ? new Date(v).toLocaleString() : '';
+                case 'date': return v ? new Date(v).toLocaleDateString() : '-';
+                case 'datetime': return v ? new Date(v).toLocaleString() : '-';
                 case 'badge':
                     var cls = {active:'active',inactive:'inactive',pending:'pending',success:'success',failed:'danger'}[v] || 'secondary';
-                    return '<span class="dt-badge dt-badge-'+cls+'">'+(v||'')+'</span>';
+                    return '<span class="dt-badge dt-badge-'+cls+'">'+(v||'-')+'</span>';
                 case 'actions':
                     var h = '<div class="dt-actions">';
-                    if(row._show_url && row._show_url!=='#') h += '<a href="'+row._show_url+'" class="dt-btn dt-btn-view">View</a>';
-                    if(row._edit_url && row._edit_url!=='#') h += '<a href="'+row._edit_url+'" class="dt-btn dt-btn-edit">Edit</a>';
-                    h += '<button class="dt-btn dt-btn-delete" data-id="'+row.id+'">Delete</button></div>';
+                    if(row._show_url) h += '<a href="'+row._show_url+'" class="dt-btn dt-btn-view">View</a>';
+                    if(row._edit_url) h += '<a href="'+row._edit_url+'" class="dt-btn dt-btn-edit">Edit</a>';
+                    if(row._delete_url) h += '<button class="dt-btn dt-btn-delete" data-url="'+row._delete_url+'" data-id="'+row.id+'">Delete</button>';
+                    h += '</div>';
                     return h;
-                default: return v!==null && v!==undefined ? v : '';
+                default: return v!==null && v!==undefined ? v : '-';
             }
         }
 
@@ -830,13 +850,23 @@
             });
         }
 
-        function del(id){
+        function del(url, id){
             if(!confirm('Delete this item?')) return;
             var csrf = document.querySelector('meta[name="csrf-token"]');
-            fetch(route.replace('/data','') + '/' + id, {
+            fetch(url, {
                 method:'DELETE',
                 headers:{'X-CSRF-TOKEN':csrf?csrf.content:'','Accept':'application/json'}
-            }).then(function(){state.selected=state.selected.filter(function(x){return x!==parseInt(id);});load();});
+            })
+            .then(function(r){return r.json();})
+            .then(function(json){
+                if(json.success){
+                    state.selected=state.selected.filter(function(x){return x!==parseInt(id);});
+                    load();
+                } else {
+                    alert(json.message || 'Delete failed');
+                }
+            })
+            .catch(function(){alert('Delete failed');});
         }
 
         function bulkDelete(){
@@ -849,9 +879,6 @@
             }).then(function(){state.selected=[];load();});
         }
 
-        // ==========================================
-        // IMPORT MODAL
-        // ==========================================
         var importModal = null;
         var selectedFile = null;
 
@@ -993,7 +1020,6 @@
 
         load();
         
-        // Expose methods
         window.dtInstance = window.dtInstance || {};
         window.dtInstance[tableId] = {
             reload: load,

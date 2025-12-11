@@ -150,28 +150,8 @@
         padding: 0;
     }
 
-    .badge {
-        padding: 4px 10px;
-        border-radius: 20px;
-        font-size: 11px;
-        font-weight: 600;
-    }
-    
-    .badge-success { background: #d1fae5; color: #065f46; }
-    .badge-danger { background: #fee2e2; color: #991b1b; }
-    .badge-warning { background: #fef3c7; color: #92400e; }
-    .badge-info { background: #dbeafe; color: #1e40af; }
-    .badge-purple { background: #ede9fe; color: #6d28d9; }
-    
-    .expiry-soon {
-        color: #ea580c;
-        font-weight: 600;
-    }
-    
-    .expiry-expired {
-        color: #dc2626;
-        font-weight: 600;
-    }
+    .expiry-soon { color: #ea580c; font-weight: 600; }
+    .expiry-expired { color: #dc2626; font-weight: 600; }
 </style>
 
 <div style="padding: 20px;">
@@ -238,13 +218,13 @@
                 Lot List
             </div>
             <div class="table-filters">
-                <select id="filterProduct" onchange="applyFilters()">
+                <select data-dt-filter="product_id">
                     <option value="">All Products</option>
                     @foreach($products as $product)
                         <option value="{{ $product->id }}">{{ $product->name }}</option>
                     @endforeach
                 </select>
-                <select id="filterStatus" onchange="applyFilters()">
+                <select data-dt-filter="status">
                     <option value="">All Status</option>
                     <option value="AVAILABLE">Available</option>
                     <option value="RESERVED">Reserved</option>
@@ -280,19 +260,17 @@
 window.dtRenders = window.dtRenders || {};
 
 window.dtRenders.status = function(data, row) {
-    let statusClass = {
-        'AVAILABLE': 'badge-success',
-        'RESERVED': 'badge-info',
-        'EXPIRED': 'badge-danger',
-        'CONSUMED': 'badge-warning'
+    const statusMap = {
+        'AVAILABLE': 'success',
+        'RESERVED': 'info',
+        'EXPIRED': 'danger',
+        'CONSUMED': 'warning'
     };
-    return '<span class="badge ' + (statusClass[row.status] || 'badge-info') + '">' + row.status + '</span>';
+    return '<span class="dt-badge dt-badge-' + (statusMap[row.status] || 'info') + '">' + row.status + '</span>';
 };
 
 window.dtRenders.expiry = function(data, row) {
-    if (!row.expiry_date || row.expiry_date === '-') {
-        return '-';
-    }
+    if (!row.expiry_date || row.expiry_date === '-') return '-';
     
     let expiryDate = new Date(row.expiry_date);
     let today = new Date();
@@ -306,18 +284,13 @@ window.dtRenders.expiry = function(data, row) {
     return row.expiry_date;
 };
 
-function applyFilters() {
-    let product = document.getElementById('filterProduct').value;
-    let status = document.getElementById('filterStatus').value;
-    
-    if (window.dtInstance && window.dtInstance['lotsTable']) {
-        window.dtInstance['lotsTable'].reload({
-            product_id: product,
-            status: status
-        });
-    }
-}
+window.dtRenders.actions = function(data, row) {
+    return '<div class="dt-actions">' +
+        '<a href="' + row._edit_url + '" class="dt-btn dt-btn-edit" title="Edit">Edit</a>' +
+        '<button type="button" class="dt-btn dt-btn-delete" onclick="dtDelete(\'' + row._delete_url + '\', \'lotsTable\')" title="Delete">Delete</button>' +
+    '</div>';
+};
 </script>
 
-@include('core::datatable')
+@include('components.datatable')
 </x-layouts.app>

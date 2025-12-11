@@ -21,12 +21,29 @@ use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use Illuminate\Support\Facades\Validator;
 
 
 class InventoryController extends Controller
 {
     use DataTable;
+
+    // ==================== IMPORT VALIDATION RULES ====================
+    protected $productImportable = [
+        'name'           => 'required|string|max:191',
+        'sku'            => 'required|string|max:50',
+        'barcode'        => 'nullable|string|max:50',
+        'category_id'    => 'nullable|exists:product_categories,id',
+        'brand_id'       => 'nullable|exists:brands,id',
+        'unit_id'        => 'nullable|exists:units,id',
+        'purchase_price' => 'required|numeric|min:0',
+        'sale_price'     => 'required|numeric|min:0',
+        'hsn_code'       => 'nullable|string|max:20',
+        'min_stock_level'=> 'nullable|numeric|min:0',
+        'max_stock_level'=> 'nullable|numeric|min:0',
+    ];
+
     // ==================== DASHBOARD ====================
     public function dashboard()
     {
@@ -56,20 +73,6 @@ class InventoryController extends Controller
     }
 
     // ==================== PRODUCTS ====================
-    protected $productImportable = [
-        'name'           => 'required|string|max:191',
-        'sku'            => 'required|string|max:50',
-        'barcode'        => 'nullable|string|max:50',
-        'category_id'    => 'nullable|exists:product_categories,id',
-        'brand_id'       => 'nullable|exists:brands,id',
-        'unit_id'        => 'nullable|exists:units,id',
-        'purchase_price' => 'required|numeric|min:0',
-        'sale_price'     => 'required|numeric|min:0',
-        'hsn_code'       => 'nullable|string|max:20',
-        'min_stock_level'=> 'nullable|numeric|min:0',
-        'max_stock_level'=> 'nullable|numeric|min:0',
-    ];
-
     public function productsIndex()
     {
         $stats = [
@@ -84,393 +87,411 @@ class InventoryController extends Controller
         return view('admin.inventory.products.index', compact('stats', 'categories', 'brands'));
     }
 
-  public function productsData(Request $request)
-{
-    // =====================
-    // IMPORT (POST with file)
-    // =====================
-    if ($request->isMethod('post') && $request->hasFile('file')) {
-        return $this->handleProductImport($request);
-    }
+    public function productsData(Request $request)
+    {
+        // =====================
+        // IMPORT (POST with file)
+        // =====================
+        if ($request->isMethod('post') && $request->hasFile('file')) {
+            return $this->handleProductImport($request);
+        }
 
-    // =====================
-    // TEMPLATE DOWNLOAD
-    // =====================
-    if ($request->has('template')) {
-        return $this->downloadProductTemplate();
-    }
+        // =====================
+        // TEMPLATE DOWNLOAD
+        // =====================
+        if ($request->has('template')) {
+            return $this->downloadProductTemplate();
+        }
 
-    // =====================
-    // BUILD QUERY
-    // =====================
-    $query = Product::with(['category', 'brand', 'unit'])->select('products.*');
+        // =====================
+        // EXPORT
+        // =====================
+        if ($request->has('export')) {
+            return $this->exportProducts($request);
+        }
 
-    // Search
-    if ($search = $request->get('search')) {
-        $query->where(function ($q) use ($search) {
-            $q->where('name', 'like', "%{$search}%")
-                ->orWhere('sku', 'like', "%{$search}%")
-                ->orWhere('barcode', 'like', "%{$search}%");
+        // =====================
+        // BUILD QUERY
+        // =====================
+        $query = Product::with(['category', 'brand', 'unit'])->select('products.*');
+
+        // Search
+        if ($search = $request->get('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('sku', 'like', "%{$search}%")
+                    ->orWhere('barcode', 'like', "%{$search}%");
+            });
+        }
+
+        // Filters
+        if ($request->filled('category_id')) {
+            $query->where('category_id', $request->category_id);
+        }
+        if ($request->filled('brand_id')) {
+            $query->where('brand_id', $request->brand_id);
+        }
+        if ($request->filled('is_active')) {
+            $query->where('is_active', $request->is_active);
+        }
+
+        // Sorting
+        $sortField = $request->get('sort', 'id');
+        $sortDir = $request->get('dir', 'desc');
+        $query->orderBy($sortField, $sortDir);
+
+        // =====================
+        // PAGINATE & RETURN
+        // =====================
+        $perPage = $request->get('per_page', 25);
+        $data = $query->paginate($perPage);
+
+        $items = collect($data->items())->map(function ($item) {
+            $currentStock = $this->getProductStock($item->id);
+            return [
+                'id' => $item->id,
+                'sku' => $item->sku,
+                'name' => $item->name,
+                'category_name' => $item->category?->name ?? '-',
+                'brand_name' => $item->brand?->name ?? '-',
+                'unit' => $item->unit?->short_name ?? 'PCS',
+                'purchase_price' => number_format($item->purchase_price, 2),
+                'sale_price' => number_format($item->sale_price, 2),
+                'current_stock' => $currentStock,
+                'min_stock_level' => $item->min_stock_level,
+                'is_low_stock' => $item->min_stock_level > 0 && $currentStock < $item->min_stock_level,
+                'is_active' => $item->is_active,
+                'status' => $item->is_active ? 'Active' : 'Inactive',
+                '_edit_url' => route('admin.inventory.products.edit', $item->id),
+                '_show_url' => route('admin.inventory.products.show', $item->id),
+                '_delete_url' => route('admin.inventory.products.destroy', $item->id),
+            ];
         });
-    }
-
-    // Filters (direct params)
-    if ($request->filled('category_id')) {
-        $query->where('category_id', $request->category_id);
-    }
-    if ($request->filled('brand_id')) {
-        $query->where('brand_id', $request->brand_id);
-    }
-
-    // Sorting
-    $sortField = $request->get('sort', 'id');
-    $sortDir = $request->get('dir', 'desc');
-    $query->orderBy($sortField, $sortDir);
-
-    // =====================
-    // EXPORT
-    // =====================
-    if ($request->has('export')) {
-        return $this->exportProducts($query);
-    }
-
-    // =====================
-    // PAGINATE & RETURN
-    // =====================
-    $perPage = $request->get('per_page', 25);
-    $data = $query->paginate($perPage);
-
-    $items = collect($data->items())->map(function ($item) {
-        $currentStock = $this->getProductStock($item->id);
-        return [
-            'id' => $item->id,
-            'sku' => $item->sku,
-            'name' => $item->name,
-            'category_name' => $item->category?->name ?? '-',
-            'brand_name' => $item->brand?->name ?? '-',
-            'unit' => $item->unit?->short_name ?? 'PCS',
-            'purchase_price' => number_format($item->purchase_price, 2),
-            'sale_price' => number_format($item->sale_price, 2),
-            'current_stock' => $currentStock,
-            'min_stock_level' => $item->min_stock_level,
-            'is_low_stock' => $item->min_stock_level > 0 && $currentStock < $item->min_stock_level,
-            'is_active' => $item->is_active,
-            'status' => $item->is_active ? 'Active' : 'Inactive',
-            '_edit_url' => route('admin.inventory.products.edit', $item->id),
-            '_show_url' => route('admin.inventory.products.show', $item->id),
-            '_delete_url' => route('admin.inventory.products.destroy', $item->id),
-        ];
-    });
-
-    return response()->json([
-        'data' => $items,
-        'total' => $data->total(),
-        'current_page' => $data->currentPage(),
-        'last_page' => $data->lastPage(),
-    ]);
-}
-
-/**
- * STEP 4: Add these 3 helper methods to InventoryController
- */
-
-/**
- * Export Products to CSV
- */
-protected function exportProducts($query)
-{
-    $data = $query->get();
-    $filename = 'products_' . date('Y-m-d') . '.csv';
-
-    $callback = function () use ($data) {
-        $file = fopen('php://output', 'w');
-        fputcsv($file, ['ID', 'SKU', 'Name', 'Category', 'Brand', 'Unit', 'Purchase Price', 'Sale Price', 'HSN Code', 'Min Stock', 'Max Stock', 'Status']);
-        
-        foreach ($data as $row) {
-            fputcsv($file, [
-                $row->id,
-                $row->sku,
-                $row->name,
-                $row->category?->name ?? '',
-                $row->brand?->name ?? '',
-                $row->unit?->short_name ?? 'PCS',
-                $row->purchase_price,
-                $row->sale_price,
-                $row->hsn_code ?? '',
-                $row->min_stock_level ?? 0,
-                $row->max_stock_level ?? 0,
-                $row->is_active ? 'Active' : 'Inactive',
-            ]);
-        }
-        fclose($file);
-    };
-
-    return response()->stream($callback, 200, [
-        'Content-Type' => 'text/csv',
-        'Content-Disposition' => "attachment; filename={$filename}",
-    ]);
-}
-/**
- * Download Product Import Template
- */
-protected function downloadProductTemplate()
-{
-    $spreadsheet = new Spreadsheet();
-    $sheet = $spreadsheet->getActiveSheet();
-    $sheet->setTitle('Products');
-
-    $columns = $this->productImportable;
-    $headers = array_keys($columns);
-
-    // Header row - use cell coordinates like A1, B1, etc.
-    foreach ($headers as $index => $header) {
-        $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($index + 1);
-        $cell = $sheet->getCell($colLetter . '1');
-        $cell->setValue($header);
-        $cell->getStyle()->getFont()->setBold(true)->getColor()->setRGB('FFFFFF');
-        $cell->getStyle()->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('4F46E5');
-        $sheet->getColumnDimension($colLetter)->setAutoSize(true);
-    }
-
-    // Hints row
-    $colIndex = 0;
-    foreach ($columns as $colName => $rules) {
-        $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colIndex + 1);
-        $hint = $this->buildImportHint($rules);
-        $cell = $sheet->getCell($colLetter . '2');
-        $cell->setValue($hint);
-        $cell->getStyle()->getFont()->setItalic(true)->getColor()->setRGB('9CA3AF');
-        $colIndex++;
-    }
-
-    // Instructions sheet with reference data
-    $infoSheet = $spreadsheet->createSheet();
-    $infoSheet->setTitle('Reference Data');
-    $infoSheet->setCellValue('A1', 'REFERENCE DATA FOR IMPORT');
-    $infoSheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
-    
-    $row = 3;
-    
-    // Categories
-    $infoSheet->setCellValue('A' . $row, 'CATEGORIES (use ID):');
-    $infoSheet->getStyle('A' . $row)->getFont()->setBold(true);
-    $row++;
-    foreach (ProductCategory::where('is_active', true)->get() as $cat) {
-        $infoSheet->setCellValue('A' . $row, $cat->id);
-        $infoSheet->setCellValue('B' . $row, $cat->name);
-        $row++;
-    }
-    
-    $row++;
-    // Brands
-    $infoSheet->setCellValue('A' . $row, 'BRANDS (use ID):');
-    $infoSheet->getStyle('A' . $row)->getFont()->setBold(true);
-    $row++;
-    foreach (Brand::where('is_active', true)->get() as $brand) {
-        $infoSheet->setCellValue('A' . $row, $brand->id);
-        $infoSheet->setCellValue('B' . $row, $brand->name);
-        $row++;
-    }
-    
-    $row++;
-    // Units
-    $infoSheet->setCellValue('A' . $row, 'UNITS (use ID):');
-    $infoSheet->getStyle('A' . $row)->getFont()->setBold(true);
-    $row++;
-    foreach (Unit::where('is_active', true)->get() as $unit) {
-        $infoSheet->setCellValue('A' . $row, $unit->id);
-        $infoSheet->setCellValue('B' . $row, $unit->name . ' (' . $unit->short_name . ')');
-        $row++;
-    }
-
-    $infoSheet->getColumnDimension('A')->setAutoSize(true);
-    $infoSheet->getColumnDimension('B')->setAutoSize(true);
-    $spreadsheet->setActiveSheetIndex(0);
-
-    $writer = new Xlsx($spreadsheet);
-    
-    return response()->streamDownload(function () use ($writer) {
-        $writer->save('php://output');
-    }, 'products_import_template.xlsx', [
-        'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    ]);
-}
-
-/**
- * Handle Product Import
- */
-protected function handleProductImport(Request $request)
-{
-    $request->validate([
-        'file' => 'required|file|mimes:xlsx,xls,csv|max:10240',
-    ]);
-
-    $file = $request->file('file');
-    $ext = strtolower($file->getClientOriginalExtension());
-    
-    try {
-        // Parse file
-        if ($ext === 'csv') {
-            $rows = $this->parseCsv($file);
-        } else {
-            $spreadsheet = IOFactory::load($file->getPathname());
-            $sheet = $spreadsheet->getActiveSheet();
-            $rows = [];
-            $headers = [];
-            
-            foreach ($sheet->getRowIterator() as $rowIndex => $row) {
-                $cellIterator = $row->getCellIterator();
-                $cellIterator->setIterateOnlyExistingCells(false);
-                
-                $rowData = [];
-                foreach ($cellIterator as $cell) {
-                    $rowData[] = trim($cell->getValue() ?? '');
-                }
-                
-                if ($rowIndex === 1) {
-                    $headers = $rowData;
-                    continue;
-                }
-                
-                $rowAssoc = [];
-                foreach ($headers as $i => $h) {
-                    if (!empty($h)) {
-                        $rowAssoc[$h] = $rowData[$i] ?? '';
-                    }
-                }
-                $rows[] = $rowAssoc;
-            }
-        }
-
-        if (empty($rows)) {
-            return response()->json(['success' => false, 'message' => 'No data found'], 400);
-        }
-
-        $results = ['total' => 0, 'success' => 0, 'failed' => 0, 'errors' => []];
-
-        DB::beginTransaction();
-
-        foreach ($rows as $index => $row) {
-            $rowNum = $index + 3;
-            
-            // Skip empty rows
-            $isEmpty = true;
-            foreach ($row as $v) {
-                if (!empty(trim($v))) { $isEmpty = false; break; }
-            }
-            if ($isEmpty) continue;
-            
-            // Skip hint row
-            $first = reset($row);
-            if (str_contains(strtolower($first), 'required') || str_contains(strtolower($first), 'optional')) continue;
-
-            $results['total']++;
-
-            // Check if SKU exists (for update)
-            $rules = $this->productImportable;
-            $existingProduct = Product::where('sku', $row['sku'] ?? '')->first();
-            if ($existingProduct) {
-                $rules['sku'] = 'required|string|max:50|unique:products,sku,' . $existingProduct->id;
-            }
-
-            $validator = Validator::make($row, $rules);
-            
-            if ($validator->fails()) {
-                $results['failed']++;
-                $results['errors'][] = "Row {$rowNum}: " . $validator->errors()->first();
-                continue;
-            }
-
-            try {
-                $data = array_filter($row, fn($v) => $v !== '' && $v !== null);
-                $data['is_active'] = true;
-                
-                // Default unit
-                if (empty($data['unit_id'])) {
-                    $defaultUnit = Unit::where('short_name', 'PCS')->first();
-                    $data['unit_id'] = $defaultUnit?->id;
-                }
-                
-                if ($existingProduct) {
-                    $existingProduct->update($data);
-                } else {
-                    Product::create($data);
-                }
-                
-                $results['success']++;
-            } catch (\Exception $e) {
-                $results['failed']++;
-                $results['errors'][] = "Row {$rowNum}: " . $e->getMessage();
-            }
-        }
-
-        if ($results['success'] === 0 && $results['failed'] > 0) {
-            DB::rollBack();
-            return response()->json([
-                'success' => false,
-                'message' => 'Import failed',
-                'results' => $results
-            ], 422);
-        }
-
-        DB::commit();
 
         return response()->json([
-            'success' => true,
-            'message' => "{$results['success']} of {$results['total']} products imported",
-            'results' => $results
+            'data' => $items,
+            'total' => $data->total(),
+            'current_page' => $data->currentPage(),
+            'last_page' => $data->lastPage(),
+        ]);
+    }
+
+    /**
+     * Export Products to CSV
+     */
+    protected function exportProducts($request)
+    {
+        $query = Product::with(['category', 'brand', 'unit'])->select('products.*');
+
+        // Apply same filters as list
+        if ($search = $request->get('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('sku', 'like', "%{$search}%")
+                    ->orWhere('barcode', 'like', "%{$search}%");
+            });
+        }
+        if ($request->filled('category_id')) {
+            $query->where('category_id', $request->category_id);
+        }
+        if ($request->filled('brand_id')) {
+            $query->where('brand_id', $request->brand_id);
+        }
+
+        $data = $query->get();
+        $filename = 'products_' . date('Y-m-d') . '.csv';
+
+        $callback = function () use ($data) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, ['ID', 'SKU', 'Name', 'Category', 'Brand', 'Unit', 'Purchase Price', 'Sale Price', 'HSN Code', 'Min Stock', 'Max Stock', 'Status']);
+            
+            foreach ($data as $row) {
+                fputcsv($file, [
+                    $row->id,
+                    $row->sku,
+                    $row->name,
+                    $row->category?->name ?? '',
+                    $row->brand?->name ?? '',
+                    $row->unit?->short_name ?? 'PCS',
+                    $row->purchase_price,
+                    $row->sale_price,
+                    $row->hsn_code ?? '',
+                    $row->min_stock_level ?? 0,
+                    $row->max_stock_level ?? 0,
+                    $row->is_active ? 'Active' : 'Inactive',
+                ]);
+            }
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => "attachment; filename={$filename}",
+        ]);
+    }
+
+    /**
+     * Download Product Import Template
+     */
+    protected function downloadProductTemplate()
+    {
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Products');
+
+        $columns = $this->productImportable;
+        $headers = array_keys($columns);
+
+        // Header row
+        foreach ($headers as $index => $header) {
+            $colLetter = Coordinate::stringFromColumnIndex($index + 1);
+            $cell = $sheet->getCell($colLetter . '1');
+            $cell->setValue($header);
+            $cell->getStyle()->getFont()->setBold(true)->getColor()->setRGB('FFFFFF');
+            $cell->getStyle()->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('4F46E5');
+            $sheet->getColumnDimension($colLetter)->setAutoSize(true);
+        }
+
+        // Hints row
+        $colIndex = 0;
+        foreach ($columns as $colName => $rules) {
+            $colLetter = Coordinate::stringFromColumnIndex($colIndex + 1);
+            $hint = $this->buildImportHint($rules);
+            $cell = $sheet->getCell($colLetter . '2');
+            $cell->setValue($hint);
+            $cell->getStyle()->getFont()->setItalic(true)->getColor()->setRGB('9CA3AF');
+            $colIndex++;
+        }
+
+        // Instructions sheet with reference data
+        $infoSheet = $spreadsheet->createSheet();
+        $infoSheet->setTitle('Reference Data');
+        $infoSheet->setCellValue('A1', 'REFERENCE DATA FOR IMPORT');
+        $infoSheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+        
+        $row = 3;
+        
+        // Categories
+        $infoSheet->setCellValue('A' . $row, 'CATEGORIES (use ID):');
+        $infoSheet->getStyle('A' . $row)->getFont()->setBold(true);
+        $row++;
+        foreach (ProductCategory::where('is_active', true)->get() as $cat) {
+            $infoSheet->setCellValue('A' . $row, $cat->id);
+            $infoSheet->setCellValue('B' . $row, $cat->name);
+            $row++;
+        }
+        
+        $row++;
+        // Brands
+        $infoSheet->setCellValue('A' . $row, 'BRANDS (use ID):');
+        $infoSheet->getStyle('A' . $row)->getFont()->setBold(true);
+        $row++;
+        foreach (Brand::where('is_active', true)->get() as $brand) {
+            $infoSheet->setCellValue('A' . $row, $brand->id);
+            $infoSheet->setCellValue('B' . $row, $brand->name);
+            $row++;
+        }
+        
+        $row++;
+        // Units
+        $infoSheet->setCellValue('A' . $row, 'UNITS (use ID):');
+        $infoSheet->getStyle('A' . $row)->getFont()->setBold(true);
+        $row++;
+        foreach (Unit::where('is_active', true)->get() as $unit) {
+            $infoSheet->setCellValue('A' . $row, $unit->id);
+            $infoSheet->setCellValue('B' . $row, $unit->name . ' (' . $unit->short_name . ')');
+            $row++;
+        }
+
+        $infoSheet->getColumnDimension('A')->setAutoSize(true);
+        $infoSheet->getColumnDimension('B')->setAutoSize(true);
+        $spreadsheet->setActiveSheetIndex(0);
+
+        $writer = new Xlsx($spreadsheet);
+        
+        return response()->streamDownload(function () use ($writer) {
+            $writer->save('php://output');
+        }, 'products_import_template.xlsx', [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
+    }
+
+    /**
+     * Handle Product Import
+     */
+    protected function handleProductImport(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|file|mimes:xlsx,xls,csv|max:10240',
         ]);
 
-    } catch (\Exception $e) {
-        DB::rollBack();
-        return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
-    }
-}
+        $file = $request->file('file');
+        $ext = strtolower($file->getClientOriginalExtension());
+        
+        try {
+            // Parse file
+            if ($ext === 'csv') {
+                $rows = $this->parseCsv($file);
+            } else {
+                $spreadsheet = IOFactory::load($file->getPathname());
+                $sheet = $spreadsheet->getActiveSheet();
+                $rows = [];
+                $headers = [];
+                
+                foreach ($sheet->getRowIterator() as $rowIndex => $row) {
+                    $cellIterator = $row->getCellIterator();
+                    $cellIterator->setIterateOnlyExistingCells(false);
+                    
+                    $rowData = [];
+                    foreach ($cellIterator as $cell) {
+                        $rowData[] = trim($cell->getValue() ?? '');
+                    }
+                    
+                    if ($rowIndex === 1) {
+                        $headers = $rowData;
+                        continue;
+                    }
+                    
+                    $rowAssoc = [];
+                    foreach ($headers as $i => $h) {
+                        if (!empty($h)) {
+                            $rowAssoc[$h] = $rowData[$i] ?? '';
+                        }
+                    }
+                    $rows[] = $rowAssoc;
+                }
+            }
 
-/**
- * Parse CSV file
- */
-protected function parseCsv($file)
-{
-    $rows = [];
-    $headers = [];
-    
-    if (($handle = fopen($file->getPathname(), 'r')) !== false) {
-        $line = 0;
-        while (($data = fgetcsv($handle)) !== false) {
-            $line++;
-            if ($line === 1) {
-                $headers = array_map('trim', $data);
-                continue;
+            if (empty($rows)) {
+                return response()->json(['success' => false, 'message' => 'No data found'], 400);
             }
-            $row = [];
-            foreach ($headers as $i => $h) {
-                $row[$h] = trim($data[$i] ?? '');
+
+            $results = ['total' => 0, 'success' => 0, 'failed' => 0, 'errors' => []];
+
+            DB::beginTransaction();
+
+            foreach ($rows as $index => $row) {
+                $rowNum = $index + 3;
+                
+                // Skip empty rows
+                $isEmpty = true;
+                foreach ($row as $v) {
+                    if (!empty(trim($v))) { $isEmpty = false; break; }
+                }
+                if ($isEmpty) continue;
+                
+                // Skip hint row
+                $first = reset($row);
+                if (str_contains(strtolower($first), 'required') || str_contains(strtolower($first), 'optional')) continue;
+
+                $results['total']++;
+
+                // Check if SKU exists (for update)
+                $rules = $this->productImportable;
+                $existingProduct = Product::where('sku', $row['sku'] ?? '')->first();
+                if ($existingProduct) {
+                    $rules['sku'] = 'required|string|max:50|unique:products,sku,' . $existingProduct->id;
+                }
+
+                $validator = Validator::make($row, $rules);
+                
+                if ($validator->fails()) {
+                    $results['failed']++;
+                    $results['errors'][] = "Row {$rowNum}: " . $validator->errors()->first();
+                    continue;
+                }
+
+                try {
+                    $data = array_filter($row, fn($v) => $v !== '' && $v !== null);
+                    $data['is_active'] = true;
+                    
+                    // Default unit
+                    if (empty($data['unit_id'])) {
+                        $defaultUnit = Unit::where('short_name', 'PCS')->first();
+                        $data['unit_id'] = $defaultUnit?->id;
+                    }
+                    
+                    if ($existingProduct) {
+                        $existingProduct->update($data);
+                    } else {
+                        Product::create($data);
+                    }
+                    
+                    $results['success']++;
+                } catch (\Exception $e) {
+                    $results['failed']++;
+                    $results['errors'][] = "Row {$rowNum}: " . $e->getMessage();
+                }
             }
-            $rows[] = $row;
+
+            if ($results['success'] === 0 && $results['failed'] > 0) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Import failed',
+                    'results' => $results
+                ], 422);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => "{$results['success']} of {$results['total']} products imported",
+                'results' => $results
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
-        fclose($handle);
     }
-    
-    return $rows;
-}
 
-/**
- * Build hint from validation rules
- */
-protected function buildImportHint($rules)
-{
-    $req = str_contains($rules, 'required') ? 'Required' : 'Optional';
-    
-    if (str_contains($rules, 'email')) return "{$req}, Email";
-    if (str_contains($rules, 'integer')) return "{$req}, Integer";
-    if (str_contains($rules, 'numeric')) return "{$req}, Number";
-    if (str_contains($rules, 'date')) return "{$req}, Date (YYYY-MM-DD)";
-    if (preg_match('/in:([^|]+)/', $rules, $m)) return "{$req}, Options: {$m[1]}";
-    if (preg_match('/exists:([^,]+),(\w+)/', $rules, $m)) return "{$req}, ID from {$m[1]}";
-    
-    return "{$req}, Text";
-}
+    /**
+     * Parse CSV file
+     */
+    protected function parseCsv($file)
+    {
+        $rows = [];
+        $headers = [];
+        
+        if (($handle = fopen($file->getPathname(), 'r')) !== false) {
+            $line = 0;
+            while (($data = fgetcsv($handle)) !== false) {
+                $line++;
+                if ($line === 1) {
+                    $headers = array_map('trim', $data);
+                    continue;
+                }
+                $row = [];
+                foreach ($headers as $i => $h) {
+                    $row[$h] = trim($data[$i] ?? '');
+                }
+                $rows[] = $row;
+            }
+            fclose($handle);
+        }
+        
+        return $rows;
+    }
+
+    /**
+     * Build hint from validation rules
+     */
+    protected function buildImportHint($rules)
+    {
+        $req = str_contains($rules, 'required') ? 'Required' : 'Optional';
+        
+        if (str_contains($rules, 'email')) return "{$req}, Email";
+        if (str_contains($rules, 'integer')) return "{$req}, Integer";
+        if (str_contains($rules, 'numeric')) return "{$req}, Number";
+        if (str_contains($rules, 'date')) return "{$req}, Date (YYYY-MM-DD)";
+        if (preg_match('/in:([^|]+)/', $rules, $m)) return "{$req}, Options: {$m[1]}";
+        if (preg_match('/exists:([^,]+),(\w+)/', $rules, $m)) return "{$req}, ID from {$m[1]}";
+        
+        return "{$req}, Text";
+    }
+
     public function productsCreate()
     {
         $categories = ProductCategory::where('is_active', true)->orderBy('name')->get();
@@ -511,9 +532,6 @@ protected function buildImportHint($rules)
             ->with('success', 'Product created successfully!');
     }
 
-    /**
-     * Show product details
-     */
     public function productsShow($id)
     {
         $product = Product::with(['category', 'brand', 'unit'])->findOrFail($id);
@@ -1099,369 +1117,6 @@ protected function buildImportHint($rules)
     }
 
     // ==================== STOCK MOVEMENTS ====================
-/**
- * Store Receive Stock (IN)
- */
-public function stockReceiveStore(Request $request)
-{
-    $request->validate([
-        'product_id' => 'required|exists:products,id',
-        'warehouse_id' => 'required|exists:warehouses,id',
-        'qty' => 'required|numeric|min:0.01',
-        'rack_id' => 'nullable|exists:racks,id',
-        'lot_id' => 'nullable|exists:lots,id',
-        'unit_id' => 'nullable|exists:units,id',
-        'purchase_price' => 'nullable|numeric|min:0',
-        'reason' => 'nullable|string|max:500',
-    ]);
-
-    DB::beginTransaction();
-    try {
-        $product = Product::findOrFail($request->product_id);
-        $unitId = $request->unit_id ?? $product->unit_id;
-        $baseQty = $request->qty;
-        
-        $refNo = 'RCV-' . date('Ymd') . '-' . str_pad(StockMovement::whereDate('created_at', today())->count() + 1, 4, '0', STR_PAD_LEFT);
-        
-        StockMovement::create([
-            'reference_no' => $refNo,
-            'product_id' => $request->product_id,
-            'warehouse_id' => $request->warehouse_id,
-            'rack_id' => $request->rack_id,
-            'lot_id' => $request->lot_id,
-            'unit_id' => $unitId,
-            'movement_type' => 'IN',
-            'qty' => $request->qty,
-            'base_qty' => $baseQty,
-            'purchase_price' => $request->purchase_price ?? $product->purchase_price,
-            'reason' => $request->reason ?? 'Stock received',
-            'created_by' => auth()->id(),
-        ]);
-        
-        $stockLevel = StockLevel::firstOrNew([
-            'product_id' => $request->product_id,
-            'warehouse_id' => $request->warehouse_id,
-            'rack_id' => $request->rack_id,
-        ]);
-        
-        $stockLevel->qty = ($stockLevel->qty ?? 0) + $request->qty;
-        $stockLevel->unit_id = $unitId;
-        $stockLevel->save();
-        
-        DB::commit();
-        
-        // Redirect to product show page
-        return redirect()->route('admin.inventory.products.show', $request->product_id)
-            ->with('success', "Stock received successfully! Reference: {$refNo}");
-            
-    } catch (\Exception $e) {
-        DB::rollBack();
-        return back()->with('error', 'Failed to receive stock: ' . $e->getMessage())->withInput();
-    }
-}
-
-/**
- * Store Deliver Stock (OUT)
- */
-public function stockDeliverStore(Request $request)
-{
-    $request->validate([
-        'product_id' => 'required|exists:products,id',
-        'warehouse_id' => 'required|exists:warehouses,id',
-        'qty' => 'required|numeric|min:0.01',
-        'rack_id' => 'nullable|exists:racks,id',
-        'reason' => 'nullable|string|max:500',
-    ]);
-
-    DB::beginTransaction();
-    try {
-        $product = Product::findOrFail($request->product_id);
-        
-        $stockLevel = StockLevel::where('product_id', $request->product_id)
-            ->where('warehouse_id', $request->warehouse_id)
-            ->when($request->rack_id, fn($q) => $q->where('rack_id', $request->rack_id))
-            ->first();
-            
-        if (!$stockLevel || $stockLevel->qty < $request->qty) {
-            return back()->with('error', 'Insufficient stock available.')->withInput();
-        }
-        
-        $refNo = 'DLV-' . date('Ymd') . '-' . str_pad(StockMovement::whereDate('created_at', today())->count() + 1, 4, '0', STR_PAD_LEFT);
-        
-        StockMovement::create([
-            'reference_no' => $refNo,
-            'product_id' => $request->product_id,
-            'warehouse_id' => $request->warehouse_id,
-            'rack_id' => $request->rack_id ?? $stockLevel->rack_id,
-            'unit_id' => $product->unit_id,
-            'movement_type' => 'OUT',
-            'qty' => $request->qty,
-            'base_qty' => $request->qty,
-            'reason' => $request->reason ?? 'Stock delivered',
-            'created_by' => auth()->id(),
-        ]);
-        
-        $stockLevel->qty -= $request->qty;
-        $stockLevel->save();
-        
-        DB::commit();
-        
-        // Redirect to product show page
-        return redirect()->route('admin.inventory.products.show', $request->product_id)
-            ->with('success', "Stock delivered successfully! Reference: {$refNo}");
-            
-    } catch (\Exception $e) {
-        DB::rollBack();
-        return back()->with('error', 'Failed to deliver stock: ' . $e->getMessage())->withInput();
-    }
-}
-
-/**
- * Store Returns (IN)
- */
-public function stockReturnsStore(Request $request)
-{
-    $request->validate([
-        'product_id' => 'required|exists:products,id',
-        'warehouse_id' => 'required|exists:warehouses,id',
-        'qty' => 'required|numeric|min:0.01',
-        'rack_id' => 'nullable|exists:racks,id',
-        'reason' => 'required|string|max:500',
-    ]);
-
-    DB::beginTransaction();
-    try {
-        $product = Product::findOrFail($request->product_id);
-        
-        $refNo = 'RTN-' . date('Ymd') . '-' . str_pad(StockMovement::whereDate('created_at', today())->count() + 1, 4, '0', STR_PAD_LEFT);
-        
-        StockMovement::create([
-            'reference_no' => $refNo,
-            'product_id' => $request->product_id,
-            'warehouse_id' => $request->warehouse_id,
-            'rack_id' => $request->rack_id,
-            'unit_id' => $product->unit_id,
-            'movement_type' => 'RETURN',
-            'qty' => $request->qty,
-            'base_qty' => $request->qty,
-            'reason' => $request->reason,
-            'created_by' => auth()->id(),
-        ]);
-        
-        $stockLevel = StockLevel::firstOrNew([
-            'product_id' => $request->product_id,
-            'warehouse_id' => $request->warehouse_id,
-            'rack_id' => $request->rack_id,
-        ]);
-        
-        $stockLevel->qty = ($stockLevel->qty ?? 0) + $request->qty;
-        $stockLevel->unit_id = $product->unit_id;
-        $stockLevel->save();
-        
-        DB::commit();
-        
-        // Redirect to product show page
-        return redirect()->route('admin.inventory.products.show', $request->product_id)
-            ->with('success', "Return processed successfully! Reference: {$refNo}");
-            
-    } catch (\Exception $e) {
-        DB::rollBack();
-        return back()->with('error', 'Failed to process return: ' . $e->getMessage())->withInput();
-    }
-}
-
-/**
- * Store Adjustments
- */
-public function stockAdjustmentsStore(Request $request)
-{
-    $request->validate([
-        'product_id' => 'required|exists:products,id',
-        'warehouse_id' => 'required|exists:warehouses,id',
-        'adjustment_type' => 'required|in:add,subtract,set',
-        'qty' => 'required|numeric|min:0',
-        'rack_id' => 'nullable|exists:racks,id',
-        'reason' => 'required|string|max:500',
-    ]);
-
-    DB::beginTransaction();
-    try {
-        $product = Product::findOrFail($request->product_id);
-        
-        $stockLevel = StockLevel::firstOrNew([
-            'product_id' => $request->product_id,
-            'warehouse_id' => $request->warehouse_id,
-            'rack_id' => $request->rack_id,
-        ]);
-        
-        $currentQty = $stockLevel->qty ?? 0;
-        $newQty = $currentQty;
-        $movementQty = $request->qty;
-        
-        switch ($request->adjustment_type) {
-            case 'add':
-                $newQty = $currentQty + $request->qty;
-                break;
-            case 'subtract':
-                $newQty = max(0, $currentQty - $request->qty);
-                $movementQty = $currentQty - $newQty;
-                break;
-            case 'set':
-                $newQty = $request->qty;
-                $movementQty = abs($newQty - $currentQty);
-                break;
-        }
-        
-        $refNo = 'ADJ-' . date('Ymd') . '-' . str_pad(StockMovement::whereDate('created_at', today())->count() + 1, 4, '0', STR_PAD_LEFT);
-        
-        StockMovement::create([
-            'reference_no' => $refNo,
-            'product_id' => $request->product_id,
-            'warehouse_id' => $request->warehouse_id,
-            'rack_id' => $request->rack_id,
-            'unit_id' => $product->unit_id,
-            'movement_type' => 'ADJUSTMENT',
-            'qty' => $movementQty,
-            'base_qty' => $movementQty,
-            'reason' => "[{$request->adjustment_type}] " . $request->reason . " (Before: {$currentQty}, After: {$newQty})",
-            'created_by' => auth()->id(),
-        ]);
-        
-        $stockLevel->qty = $newQty;
-        $stockLevel->unit_id = $product->unit_id;
-        $stockLevel->save();
-        
-        DB::commit();
-        
-        // Redirect to product show page
-        return redirect()->route('admin.inventory.products.show', $request->product_id)
-            ->with('success', "Stock adjusted successfully! Reference: {$refNo} | {$currentQty} → {$newQty}");
-            
-    } catch (\Exception $e) {
-        DB::rollBack();
-        return back()->with('error', 'Failed to adjust stock: ' . $e->getMessage())->withInput();
-    }
-}
-/**
- * Store Transfer Stock
- */
-public function stockTransferStore(Request $request)
-{
-    // Custom validation - either different warehouse OR different rack
-    $request->validate([
-        'product_id' => 'required|exists:products,id',
-        'from_warehouse_id' => 'required|exists:warehouses,id',
-        'to_warehouse_id' => 'required|exists:warehouses,id',
-        'qty' => 'required|numeric|min:0.01',
-        'from_rack_id' => 'nullable|exists:racks,id',
-        'to_rack_id' => 'nullable|exists:racks,id',
-        'reason' => 'nullable|string|max:500',
-    ]);
-    
-    // Custom validation: Must be different location (warehouse OR rack)
-    if ($request->from_warehouse_id == $request->to_warehouse_id && 
-        $request->from_rack_id == $request->to_rack_id) {
-        return back()->with('error', 'Source and destination must be different. Choose a different warehouse or rack.')->withInput();
-    }
-
-    DB::beginTransaction();
-    try {
-        $product = Product::findOrFail($request->product_id);
-        
-        // Check stock at source
-        $sourceStock = StockLevel::where('product_id', $request->product_id)
-            ->where('warehouse_id', $request->from_warehouse_id)
-            ->when($request->from_rack_id, fn($q) => $q->where('rack_id', $request->from_rack_id))
-            ->first();
-            
-        if (!$sourceStock || $sourceStock->qty < $request->qty) {
-            return back()->with('error', 'Insufficient stock at source location.')->withInput();
-        }
-        
-        $refNo = 'TRF-' . date('Ymd') . '-' . str_pad(StockMovement::whereDate('created_at', today())->count() + 1, 4, '0', STR_PAD_LEFT);
-        
-        // Get warehouse/rack names for reason
-        $fromWarehouse = Warehouse::find($request->from_warehouse_id);
-        $toWarehouse = Warehouse::find($request->to_warehouse_id);
-        $fromRack = $request->from_rack_id ? Rack::find($request->from_rack_id) : null;
-        $toRack = $request->to_rack_id ? Rack::find($request->to_rack_id) : null;
-        
-        $transferReason = $request->reason ?? 'Stock Transfer';
-        
-        // Create StockTransfer record
-        StockTransfer::create([
-            'transfer_no' => $refNo,
-            'product_id' => $request->product_id,
-            'lot_id' => $request->lot_id,
-            'unit_id' => $product->unit_id,
-            'from_warehouse_id' => $request->from_warehouse_id,
-            'to_warehouse_id' => $request->to_warehouse_id,
-            'from_rack_id' => $request->from_rack_id,
-            'to_rack_id' => $request->to_rack_id,
-            'qty' => $request->qty,
-            'base_qty' => $request->qty,
-            'status' => 'COMPLETED',
-            'reason' => $transferReason,
-            'created_by' => auth()->id(),
-        ]);
-        
-        // OUT from source
-        StockMovement::create([
-            'reference_no' => $refNo,
-            'product_id' => $request->product_id,
-            'warehouse_id' => $request->from_warehouse_id,
-            'rack_id' => $request->from_rack_id,
-            'lot_id' => $request->lot_id,
-            'unit_id' => $product->unit_id,
-            'movement_type' => 'TRANSFER',
-            'qty' => $request->qty,
-            'base_qty' => $request->qty,
-            'reason' => "Transfer OUT → " . ($toWarehouse->name ?? '') . ($toRack ? " ({$toRack->code})" : ''),
-            'created_by' => auth()->id(),
-        ]);
-        
-        $sourceStock->qty -= $request->qty;
-        $sourceStock->save();
-        
-        // IN to destination
-        StockMovement::create([
-            'reference_no' => $refNo . '-IN',
-            'product_id' => $request->product_id,
-            'warehouse_id' => $request->to_warehouse_id,
-            'rack_id' => $request->to_rack_id,
-            'lot_id' => $request->lot_id,
-            'unit_id' => $product->unit_id,
-            'movement_type' => 'TRANSFER',
-            'qty' => $request->qty,
-            'base_qty' => $request->qty,
-            'reason' => "Transfer IN ← " . ($fromWarehouse->name ?? '') . ($fromRack ? " ({$fromRack->code})" : ''),
-            'created_by' => auth()->id(),
-        ]);
-        
-        $destStock = StockLevel::firstOrNew([
-            'product_id' => $request->product_id,
-            'warehouse_id' => $request->to_warehouse_id,
-            'rack_id' => $request->to_rack_id,
-        ]);
-        
-        $destStock->qty = ($destStock->qty ?? 0) + $request->qty;
-        $destStock->unit_id = $product->unit_id;
-        $destStock->save();
-        
-        DB::commit();
-        
-        // Build success message
-        $fromLocation = $fromWarehouse->name . ($fromRack ? " → {$fromRack->code}" : '');
-        $toLocation = $toWarehouse->name . ($toRack ? " → {$toRack->code}" : '');
-        
-        return redirect()->route('admin.inventory.products.show', $request->product_id)
-            ->with('success', "Stock transferred successfully! {$request->qty} units from {$fromLocation} to {$toLocation}. Ref: {$refNo}");
-            
-    } catch (\Exception $e) {
-        DB::rollBack();
-        return back()->with('error', 'Failed to transfer stock: ' . $e->getMessage())->withInput();
-    }
-}
     public function stockReceive()
     {
         $products = Product::where('is_active', true)->orderBy('name')->get();
@@ -1469,10 +1124,385 @@ public function stockTransferStore(Request $request)
         $units = Unit::where('is_active', true)->orderBy('name')->get();
         return view('admin.inventory.stock.receive', compact('products', 'warehouses', 'units'));
     }
-    
-    /**
-     * Stock Movements History
-     */
+
+    public function stockReceiveStore(Request $request)
+    {
+        $request->validate([
+            'product_id' => 'required|exists:products,id',
+            'warehouse_id' => 'required|exists:warehouses,id',
+            'qty' => 'required|numeric|min:0.01',
+            'rack_id' => 'nullable|exists:racks,id',
+            'lot_id' => 'nullable|exists:lots,id',
+            'unit_id' => 'nullable|exists:units,id',
+            'purchase_price' => 'nullable|numeric|min:0',
+            'reason' => 'nullable|string|max:500',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $product = Product::findOrFail($request->product_id);
+            $unitId = $request->unit_id ?? $product->unit_id;
+            $baseQty = $request->qty;
+            
+            $refNo = 'RCV-' . date('Ymd') . '-' . str_pad(StockMovement::whereDate('created_at', today())->count() + 1, 4, '0', STR_PAD_LEFT);
+            
+            StockMovement::create([
+                'reference_no' => $refNo,
+                'product_id' => $request->product_id,
+                'warehouse_id' => $request->warehouse_id,
+                'rack_id' => $request->rack_id,
+                'lot_id' => $request->lot_id,
+                'unit_id' => $unitId,
+                'movement_type' => 'IN',
+                'qty' => $request->qty,
+                'base_qty' => $baseQty,
+                'purchase_price' => $request->purchase_price ?? $product->purchase_price,
+                'reason' => $request->reason ?? 'Stock received',
+                'created_by' => auth()->id(),
+            ]);
+            
+            $stockLevel = StockLevel::firstOrNew([
+                'product_id' => $request->product_id,
+                'warehouse_id' => $request->warehouse_id,
+                'rack_id' => $request->rack_id,
+            ]);
+            
+            $stockLevel->qty = ($stockLevel->qty ?? 0) + $request->qty;
+            $stockLevel->unit_id = $unitId;
+            $stockLevel->save();
+            
+            DB::commit();
+            
+            return redirect()->route('admin.inventory.products.show', $request->product_id)
+                ->with('success', "Stock received successfully! Reference: {$refNo}");
+                
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Failed to receive stock: ' . $e->getMessage())->withInput();
+        }
+    }
+
+    public function stockDeliver()
+    {
+        $products = Product::where('is_active', true)->orderBy('name')->get();
+        $warehouses = Warehouse::where('is_active', true)->orderBy('name')->get();
+        $units = Unit::where('is_active', true)->orderBy('name')->get();
+        return view('admin.inventory.stock.deliver', compact('products', 'warehouses', 'units'));
+    }
+
+    public function stockDeliverStore(Request $request)
+    {
+        $request->validate([
+            'product_id' => 'required|exists:products,id',
+            'warehouse_id' => 'required|exists:warehouses,id',
+            'qty' => 'required|numeric|min:0.01',
+            'rack_id' => 'nullable|exists:racks,id',
+            'reason' => 'nullable|string|max:500',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $product = Product::findOrFail($request->product_id);
+            
+            $stockLevel = StockLevel::where('product_id', $request->product_id)
+                ->where('warehouse_id', $request->warehouse_id)
+                ->when($request->rack_id, fn($q) => $q->where('rack_id', $request->rack_id))
+                ->first();
+                
+            if (!$stockLevel || $stockLevel->qty < $request->qty) {
+                return back()->with('error', 'Insufficient stock available.')->withInput();
+            }
+            
+            $refNo = 'DLV-' . date('Ymd') . '-' . str_pad(StockMovement::whereDate('created_at', today())->count() + 1, 4, '0', STR_PAD_LEFT);
+            
+            StockMovement::create([
+                'reference_no' => $refNo,
+                'product_id' => $request->product_id,
+                'warehouse_id' => $request->warehouse_id,
+                'rack_id' => $request->rack_id ?? $stockLevel->rack_id,
+                'unit_id' => $product->unit_id,
+                'movement_type' => 'OUT',
+                'qty' => $request->qty,
+                'base_qty' => $request->qty,
+                'reason' => $request->reason ?? 'Stock delivered',
+                'created_by' => auth()->id(),
+            ]);
+            
+            $stockLevel->qty -= $request->qty;
+            $stockLevel->save();
+            
+            DB::commit();
+            
+            return redirect()->route('admin.inventory.products.show', $request->product_id)
+                ->with('success', "Stock delivered successfully! Reference: {$refNo}");
+                
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Failed to deliver stock: ' . $e->getMessage())->withInput();
+        }
+    }
+
+    public function stockReturns()
+    {
+        $products = Product::where('is_active', true)->orderBy('name')->get();
+        $warehouses = Warehouse::where('is_active', true)->orderBy('name')->get();
+        $units = Unit::where('is_active', true)->orderBy('name')->get();
+        return view('admin.inventory.stock.returns', compact('products', 'warehouses', 'units'));
+    }
+
+    public function stockReturnsStore(Request $request)
+    {
+        $request->validate([
+            'product_id' => 'required|exists:products,id',
+            'warehouse_id' => 'required|exists:warehouses,id',
+            'qty' => 'required|numeric|min:0.01',
+            'rack_id' => 'nullable|exists:racks,id',
+            'reason' => 'required|string|max:500',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $product = Product::findOrFail($request->product_id);
+            
+            $refNo = 'RTN-' . date('Ymd') . '-' . str_pad(StockMovement::whereDate('created_at', today())->count() + 1, 4, '0', STR_PAD_LEFT);
+            
+            StockMovement::create([
+                'reference_no' => $refNo,
+                'product_id' => $request->product_id,
+                'warehouse_id' => $request->warehouse_id,
+                'rack_id' => $request->rack_id,
+                'unit_id' => $product->unit_id,
+                'movement_type' => 'RETURN',
+                'qty' => $request->qty,
+                'base_qty' => $request->qty,
+                'reason' => $request->reason,
+                'created_by' => auth()->id(),
+            ]);
+            
+            $stockLevel = StockLevel::firstOrNew([
+                'product_id' => $request->product_id,
+                'warehouse_id' => $request->warehouse_id,
+                'rack_id' => $request->rack_id,
+            ]);
+            
+            $stockLevel->qty = ($stockLevel->qty ?? 0) + $request->qty;
+            $stockLevel->unit_id = $product->unit_id;
+            $stockLevel->save();
+            
+            DB::commit();
+            
+            return redirect()->route('admin.inventory.products.show', $request->product_id)
+                ->with('success', "Return processed successfully! Reference: {$refNo}");
+                
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Failed to process return: ' . $e->getMessage())->withInput();
+        }
+    }
+
+    public function stockAdjustments()
+    {
+        $products = Product::where('is_active', true)->orderBy('name')->get();
+        $warehouses = Warehouse::where('is_active', true)->orderBy('name')->get();
+        $units = Unit::where('is_active', true)->orderBy('name')->get();
+        return view('admin.inventory.stock.adjustments', compact('products', 'warehouses', 'units'));
+    }
+
+    public function stockAdjustmentsStore(Request $request)
+    {
+        $request->validate([
+            'product_id' => 'required|exists:products,id',
+            'warehouse_id' => 'required|exists:warehouses,id',
+            'adjustment_type' => 'required|in:add,subtract,set',
+            'qty' => 'required|numeric|min:0',
+            'rack_id' => 'nullable|exists:racks,id',
+            'reason' => 'required|string|max:500',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $product = Product::findOrFail($request->product_id);
+            
+            $stockLevel = StockLevel::firstOrNew([
+                'product_id' => $request->product_id,
+                'warehouse_id' => $request->warehouse_id,
+                'rack_id' => $request->rack_id,
+            ]);
+            
+            $currentQty = $stockLevel->qty ?? 0;
+            $newQty = $currentQty;
+            $movementQty = $request->qty;
+            
+            switch ($request->adjustment_type) {
+                case 'add':
+                    $newQty = $currentQty + $request->qty;
+                    break;
+                case 'subtract':
+                    $newQty = max(0, $currentQty - $request->qty);
+                    $movementQty = $currentQty - $newQty;
+                    break;
+                case 'set':
+                    $newQty = $request->qty;
+                    $movementQty = abs($newQty - $currentQty);
+                    break;
+            }
+            
+            $refNo = 'ADJ-' . date('Ymd') . '-' . str_pad(StockMovement::whereDate('created_at', today())->count() + 1, 4, '0', STR_PAD_LEFT);
+            
+            StockMovement::create([
+                'reference_no' => $refNo,
+                'product_id' => $request->product_id,
+                'warehouse_id' => $request->warehouse_id,
+                'rack_id' => $request->rack_id,
+                'unit_id' => $product->unit_id,
+                'movement_type' => 'ADJUSTMENT',
+                'qty' => $movementQty,
+                'base_qty' => $movementQty,
+                'reason' => "[{$request->adjustment_type}] " . $request->reason . " (Before: {$currentQty}, After: {$newQty})",
+                'created_by' => auth()->id(),
+            ]);
+            
+            $stockLevel->qty = $newQty;
+            $stockLevel->unit_id = $product->unit_id;
+            $stockLevel->save();
+            
+            DB::commit();
+            
+            return redirect()->route('admin.inventory.products.show', $request->product_id)
+                ->with('success', "Stock adjusted successfully! Reference: {$refNo} | {$currentQty} → {$newQty}");
+                
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Failed to adjust stock: ' . $e->getMessage())->withInput();
+        }
+    }
+
+    public function stockTransfer()
+    {
+        $products = Product::where('is_active', true)->orderBy('name')->get();
+        $warehouses = Warehouse::where('is_active', true)->orderBy('name')->get();
+        $units = Unit::where('is_active', true)->orderBy('name')->get();
+        
+        return view('admin.inventory.stock.transfer', compact('products', 'warehouses', 'units'));
+    }
+
+    public function stockTransferStore(Request $request)
+    {
+        $request->validate([
+            'product_id' => 'required|exists:products,id',
+            'from_warehouse_id' => 'required|exists:warehouses,id',
+            'to_warehouse_id' => 'required|exists:warehouses,id',
+            'qty' => 'required|numeric|min:0.01',
+            'from_rack_id' => 'nullable|exists:racks,id',
+            'to_rack_id' => 'nullable|exists:racks,id',
+            'reason' => 'nullable|string|max:500',
+        ]);
+        
+        // Must be different location (warehouse OR rack)
+        if ($request->from_warehouse_id == $request->to_warehouse_id && 
+            $request->from_rack_id == $request->to_rack_id) {
+            return back()->with('error', 'Source and destination must be different. Choose a different warehouse or rack.')->withInput();
+        }
+
+        DB::beginTransaction();
+        try {
+            $product = Product::findOrFail($request->product_id);
+            
+            // Check stock at source
+            $sourceStock = StockLevel::where('product_id', $request->product_id)
+                ->where('warehouse_id', $request->from_warehouse_id)
+                ->when($request->from_rack_id, fn($q) => $q->where('rack_id', $request->from_rack_id))
+                ->first();
+                
+            if (!$sourceStock || $sourceStock->qty < $request->qty) {
+                return back()->with('error', 'Insufficient stock at source location.')->withInput();
+            }
+            
+            $refNo = 'TRF-' . date('Ymd') . '-' . str_pad(StockMovement::whereDate('created_at', today())->count() + 1, 4, '0', STR_PAD_LEFT);
+            
+            // Get warehouse/rack names for reason
+            $fromWarehouse = Warehouse::find($request->from_warehouse_id);
+            $toWarehouse = Warehouse::find($request->to_warehouse_id);
+            $fromRack = $request->from_rack_id ? Rack::find($request->from_rack_id) : null;
+            $toRack = $request->to_rack_id ? Rack::find($request->to_rack_id) : null;
+            
+            $transferReason = $request->reason ?? 'Stock Transfer';
+            
+            // Create StockTransfer record
+            StockTransfer::create([
+                'transfer_no' => $refNo,
+                'product_id' => $request->product_id,
+                'lot_id' => $request->lot_id ?? null,
+                'unit_id' => $product->unit_id,
+                'from_warehouse_id' => $request->from_warehouse_id,
+                'to_warehouse_id' => $request->to_warehouse_id,
+                'from_rack_id' => $request->from_rack_id,
+                'to_rack_id' => $request->to_rack_id,
+                'qty' => $request->qty,
+                'base_qty' => $request->qty,
+                'status' => 'COMPLETED',
+                'reason' => $transferReason,
+                'created_by' => auth()->id(),
+            ]);
+            
+            // OUT from source
+            StockMovement::create([
+                'reference_no' => $refNo,
+                'product_id' => $request->product_id,
+                'warehouse_id' => $request->from_warehouse_id,
+                'rack_id' => $request->from_rack_id,
+                'lot_id' => $request->lot_id ?? null,
+                'unit_id' => $product->unit_id,
+                'movement_type' => 'TRANSFER',
+                'qty' => $request->qty,
+                'base_qty' => $request->qty,
+                'reason' => "Transfer OUT → " . ($toWarehouse->name ?? '') . ($toRack ? " ({$toRack->code})" : ''),
+                'created_by' => auth()->id(),
+            ]);
+            
+            $sourceStock->qty -= $request->qty;
+            $sourceStock->save();
+            
+            // IN to destination
+            StockMovement::create([
+                'reference_no' => $refNo . '-IN',
+                'product_id' => $request->product_id,
+                'warehouse_id' => $request->to_warehouse_id,
+                'rack_id' => $request->to_rack_id,
+                'lot_id' => $request->lot_id ?? null,
+                'unit_id' => $product->unit_id,
+                'movement_type' => 'TRANSFER',
+                'qty' => $request->qty,
+                'base_qty' => $request->qty,
+                'reason' => "Transfer IN ← " . ($fromWarehouse->name ?? '') . ($fromRack ? " ({$fromRack->code})" : ''),
+                'created_by' => auth()->id(),
+            ]);
+            
+            $destStock = StockLevel::firstOrNew([
+                'product_id' => $request->product_id,
+                'warehouse_id' => $request->to_warehouse_id,
+                'rack_id' => $request->to_rack_id,
+            ]);
+            
+            $destStock->qty = ($destStock->qty ?? 0) + $request->qty;
+            $destStock->unit_id = $product->unit_id;
+            $destStock->save();
+            
+            DB::commit();
+            
+            // Build success message
+            $fromLocation = $fromWarehouse->name . ($fromRack ? " → {$fromRack->code}" : '');
+            $toLocation = $toWarehouse->name . ($toRack ? " → {$toRack->code}" : '');
+            
+            return redirect()->route('admin.inventory.products.show', $request->product_id)
+                ->with('success', "Stock transferred successfully! {$request->qty} units from {$fromLocation} to {$toLocation}. Ref: {$refNo}");
+                
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Failed to transfer stock: ' . $e->getMessage())->withInput();
+        }
+    }
+
     public function stockMovements(Request $request)
     {
         $query = StockMovement::with(['product.unit', 'warehouse', 'rack', 'unit', 'creator'])
@@ -1522,183 +1552,151 @@ public function stockTransferStore(Request $request)
         
         return view('admin.inventory.stock.movements', compact('movements', 'products', 'warehouses', 'transfers'));
     }
- /**
- * Stock Movements Data for DataTable
- * Filters work EXACTLY like search - as direct query params
- */
-public function stockMovementsData(Request $request)
-{
-    $query = StockMovement::with(['product.unit', 'warehouse', 'rack', 'unit', 'creator']);
 
-    // Search - direct param
-    if ($search = $request->get('search')) {
-        $query->where(function ($q) use ($search) {
-            $q->where('reference_no', 'like', "%{$search}%")
-                ->orWhere('reason', 'like', "%{$search}%")
-                ->orWhereHas('product', function ($q2) use ($search) {
-                    $q2->where('name', 'like', "%{$search}%")
-                        ->orWhere('sku', 'like', "%{$search}%");
-                });
-        });
-    }
+    public function stockMovementsData(Request $request)
+    {
+        $query = StockMovement::with(['product.unit', 'warehouse', 'rack', 'unit', 'creator']);
 
-    // Filters - direct params (SAME AS SEARCH!)
-    if ($request->filled('product_id')) {
-        $query->where('product_id', $request->product_id);
-    }
-    
-    if ($request->filled('warehouse_id')) {
-        $query->where('warehouse_id', $request->warehouse_id);
-    }
-    
-    if ($request->filled('movement_type')) {
-        $query->where('movement_type', $request->movement_type);
-    }
-    
-    if ($request->filled('from_date')) {
-        $query->whereDate('created_at', '>=', $request->from_date);
-    }
-    
-    if ($request->filled('to_date')) {
-        $query->whereDate('created_at', '<=', $request->to_date);
-    }
+        // Search
+        if ($search = $request->get('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('reference_no', 'like', "%{$search}%")
+                    ->orWhere('reason', 'like', "%{$search}%")
+                    ->orWhereHas('product', function ($q2) use ($search) {
+                        $q2->where('name', 'like', "%{$search}%")
+                            ->orWhere('sku', 'like', "%{$search}%");
+                    });
+            });
+        }
 
-    // Sorting
-    $sortField = $request->get('sort', 'created_at');
-    $sortDir = $request->get('dir', 'desc');
-    $query->orderBy($sortField, $sortDir);
-
-    $perPage = $request->get('per_page', 25);
-    $data = $query->paginate($perPage);
-
-    // Get transfer details
-    $transferRefNos = collect($data->items())
-        ->where('movement_type', 'TRANSFER')
-        ->pluck('reference_no')
-        ->map(fn($ref) => str_replace('-IN', '', $ref))
-        ->unique()
-        ->toArray();
-
-    $transfers = [];
-    if (!empty($transferRefNos)) {
-        $transfers = StockTransfer::with(['fromWarehouse', 'toWarehouse', 'fromRack', 'toRack'])
-            ->whereIn('transfer_no', $transferRefNos)
-            ->get()
-            ->keyBy('transfer_no')
-            ->toArray();
-    }
-
-    $items = collect($data->items())->map(function ($item) use ($transfers) {
-        $unitName = $item->unit->short_name ?? $item->product->unit->short_name ?? 'PCS';
-        $isPositive = in_array($item->movement_type, ['IN', 'RETURN']);
-        
-        $isTransferOut = $item->movement_type == 'TRANSFER' && !str_contains($item->reference_no, '-IN');
-        $isTransferIn = $item->movement_type == 'TRANSFER' && str_contains($item->reference_no, '-IN');
-        
-        $transferNo = str_replace('-IN', '', $item->reference_no);
-        $transfer = $transfers[$transferNo] ?? null;
-        
-        $warehouseName = $item->warehouse->name ?? '-';
-        $rackCode = $item->rack->code ?? '';
-        $locationDisplay = $warehouseName . ($rackCode ? " ({$rackCode})" : '');
-        
-        $fromWarehouse = '-';
-        $fromWarehouseCode = '';
-        $fromRackCode = '';
-        $fromRackName = '';
-        $toWarehouse = '-';
-        $toWarehouseCode = '';
-        $toRackCode = '';
-        $toRackName = '';
-        $isSameWarehouse = false;
-        
-        if ($transfer) {
-            $fromWarehouse = $transfer['from_warehouse']['name'] ?? '-';
-            $fromWarehouseCode = $transfer['from_warehouse']['code'] ?? '';
-            $fromRackCode = $transfer['from_rack']['code'] ?? '';
-            $fromRackName = $transfer['from_rack']['name'] ?? '';
-            $toWarehouse = $transfer['to_warehouse']['name'] ?? '-';
-            $toWarehouseCode = $transfer['to_warehouse']['code'] ?? '';
-            $toRackCode = $transfer['to_rack']['code'] ?? '';
-            $toRackName = $transfer['to_rack']['name'] ?? '';
-            $isSameWarehouse = ($transfer['from_warehouse_id'] ?? 0) == ($transfer['to_warehouse_id'] ?? 1);
-            
-            $locationDisplay = "From: {$fromWarehouse}" . ($fromRackCode ? " ({$fromRackCode})" : '') . 
-                               " → To: {$toWarehouse}" . ($toRackCode ? " ({$toRackCode})" : '');
+        // Filters
+        if ($request->filled('product_id')) {
+            $query->where('product_id', $request->product_id);
         }
         
-        return [
-            'id' => $item->id,
-            'reference_no' => $item->reference_no ?? '-',
-            'created_at' => $item->created_at->format('d M Y'),
-            'created_time' => $item->created_at->format('h:i A'),
-            'movement_type' => $item->movement_type,
-            'product_name' => $item->product->name ?? '-',
-            'product_sku' => $item->product->sku ?? '-',
-            'product_initials' => strtoupper(substr($item->product->name ?? 'P', 0, 2)),
-            'qty' => number_format($item->qty, 2),
-            'qty_display' => ($isPositive ? '+' : '-') . number_format($item->qty, 2),
-            'unit' => $unitName,
-            'is_positive' => $isPositive,
-            'reason' => $item->reason ?? '-',
-            'created_by' => $item->creator->name ?? 'System',
-            'created_by_initial' => strtoupper(substr($item->creator->name ?? 'S', 0, 1)),
-            'location_display' => $locationDisplay,
-            'warehouse_name' => $warehouseName,
-            'rack_code' => $rackCode,
-            'rack_name' => $item->rack->name ?? '',
-            'is_transfer' => $item->movement_type == 'TRANSFER',
-            'is_transfer_out' => $isTransferOut,
-            'is_transfer_in' => $isTransferIn,
-            'from_warehouse' => $fromWarehouse,
-            'from_warehouse_code' => $fromWarehouseCode,
-            'from_rack_code' => $fromRackCode,
-            'from_rack_name' => $fromRackName,
-            'to_warehouse' => $toWarehouse,
-            'to_warehouse_code' => $toWarehouseCode,
-            'to_rack_code' => $toRackCode,
-            'to_rack_name' => $toRackName,
-            'is_same_warehouse' => $isSameWarehouse,
-        ];
-    });
+        if ($request->filled('warehouse_id')) {
+            $query->where('warehouse_id', $request->warehouse_id);
+        }
+        
+        if ($request->filled('movement_type')) {
+            $query->where('movement_type', $request->movement_type);
+        }
+        
+        if ($request->filled('from_date')) {
+            $query->whereDate('created_at', '>=', $request->from_date);
+        }
+        
+        if ($request->filled('to_date')) {
+            $query->whereDate('created_at', '<=', $request->to_date);
+        }
 
-    return response()->json([
-        'data' => $items,
-        'total' => $data->total(),
-        'current_page' => $data->currentPage(),
-        'last_page' => $data->lastPage(),
-    ]);
-}
-    public function stockDeliver()
-    {
-        $products = Product::where('is_active', true)->orderBy('name')->get();
-        $warehouses = Warehouse::where('is_active', true)->orderBy('name')->get();
-        $units = Unit::where('is_active', true)->orderBy('name')->get();
-        return view('admin.inventory.stock.deliver', compact('products', 'warehouses', 'units'));
+        // Sorting
+        $sortField = $request->get('sort', 'created_at');
+        $sortDir = $request->get('dir', 'desc');
+        $query->orderBy($sortField, $sortDir);
+
+        $perPage = $request->get('per_page', 25);
+        $data = $query->paginate($perPage);
+
+        // Get transfer details
+        $transferRefNos = collect($data->items())
+            ->where('movement_type', 'TRANSFER')
+            ->pluck('reference_no')
+            ->map(fn($ref) => str_replace('-IN', '', $ref))
+            ->unique()
+            ->toArray();
+
+        $transfers = [];
+        if (!empty($transferRefNos)) {
+            $transfers = StockTransfer::with(['fromWarehouse', 'toWarehouse', 'fromRack', 'toRack'])
+                ->whereIn('transfer_no', $transferRefNos)
+                ->get()
+                ->keyBy('transfer_no')
+                ->toArray();
+        }
+
+        $items = collect($data->items())->map(function ($item) use ($transfers) {
+            $unitName = $item->unit->short_name ?? $item->product->unit->short_name ?? 'PCS';
+            $isPositive = in_array($item->movement_type, ['IN', 'RETURN']);
+            
+            $isTransferOut = $item->movement_type == 'TRANSFER' && !str_contains($item->reference_no, '-IN');
+            $isTransferIn = $item->movement_type == 'TRANSFER' && str_contains($item->reference_no, '-IN');
+            
+            $transferNo = str_replace('-IN', '', $item->reference_no);
+            $transfer = $transfers[$transferNo] ?? null;
+            
+            $warehouseName = $item->warehouse->name ?? '-';
+            $rackCode = $item->rack->code ?? '';
+            $locationDisplay = $warehouseName . ($rackCode ? " ({$rackCode})" : '');
+            
+            $fromWarehouse = '-';
+            $fromWarehouseCode = '';
+            $fromRackCode = '';
+            $fromRackName = '';
+            $toWarehouse = '-';
+            $toWarehouseCode = '';
+            $toRackCode = '';
+            $toRackName = '';
+            $isSameWarehouse = false;
+            
+            if ($transfer) {
+                $fromWarehouse = $transfer['from_warehouse']['name'] ?? '-';
+                $fromWarehouseCode = $transfer['from_warehouse']['code'] ?? '';
+                $fromRackCode = $transfer['from_rack']['code'] ?? '';
+                $fromRackName = $transfer['from_rack']['name'] ?? '';
+                $toWarehouse = $transfer['to_warehouse']['name'] ?? '-';
+                $toWarehouseCode = $transfer['to_warehouse']['code'] ?? '';
+                $toRackCode = $transfer['to_rack']['code'] ?? '';
+                $toRackName = $transfer['to_rack']['name'] ?? '';
+                $isSameWarehouse = ($transfer['from_warehouse_id'] ?? 0) == ($transfer['to_warehouse_id'] ?? 1);
+                
+                $locationDisplay = "From: {$fromWarehouse}" . ($fromRackCode ? " ({$fromRackCode})" : '') . 
+                                   " → To: {$toWarehouse}" . ($toRackCode ? " ({$toRackCode})" : '');
+            }
+            
+            return [
+                'id' => $item->id,
+                'reference_no' => $item->reference_no ?? '-',
+                'created_at' => $item->created_at->format('d M Y'),
+                'created_time' => $item->created_at->format('h:i A'),
+                'movement_type' => $item->movement_type,
+                'product_name' => $item->product->name ?? '-',
+                'product_sku' => $item->product->sku ?? '-',
+                'product_initials' => strtoupper(substr($item->product->name ?? 'P', 0, 2)),
+                'qty' => number_format($item->qty, 2),
+                'qty_display' => ($isPositive ? '+' : '-') . number_format($item->qty, 2),
+                'unit' => $unitName,
+                'is_positive' => $isPositive,
+                'reason' => $item->reason ?? '-',
+                'created_by' => $item->creator->name ?? 'System',
+                'created_by_initial' => strtoupper(substr($item->creator->name ?? 'S', 0, 1)),
+                'location_display' => $locationDisplay,
+                'warehouse_name' => $warehouseName,
+                'rack_code' => $rackCode,
+                'rack_name' => $item->rack->name ?? '',
+                'is_transfer' => $item->movement_type == 'TRANSFER',
+                'is_transfer_out' => $isTransferOut,
+                'is_transfer_in' => $isTransferIn,
+                'from_warehouse' => $fromWarehouse,
+                'from_warehouse_code' => $fromWarehouseCode,
+                'from_rack_code' => $fromRackCode,
+                'from_rack_name' => $fromRackName,
+                'to_warehouse' => $toWarehouse,
+                'to_warehouse_code' => $toWarehouseCode,
+                'to_rack_code' => $toRackCode,
+                'to_rack_name' => $toRackName,
+                'is_same_warehouse' => $isSameWarehouse,
+            ];
+        });
+
+        return response()->json([
+            'data' => $items,
+            'total' => $data->total(),
+            'current_page' => $data->currentPage(),
+            'last_page' => $data->lastPage(),
+        ]);
     }
 
-  
-
-    public function stockReturns()
-    {
-        $products = Product::where('is_active', true)->orderBy('name')->get();
-        $warehouses = Warehouse::where('is_active', true)->orderBy('name')->get();
-        $units = Unit::where('is_active', true)->orderBy('name')->get();
-        return view('admin.inventory.stock.returns', compact('products', 'warehouses', 'units'));
-    }
-
-  
-    public function stockAdjustments()
-    {
-        $products = Product::where('is_active', true)->orderBy('name')->get();
-        $warehouses = Warehouse::where('is_active', true)->orderBy('name')->get();
-        $units = Unit::where('is_active', true)->orderBy('name')->get();
-        return view('admin.inventory.stock.adjustments', compact('products', 'warehouses', 'units'));
-    }
-
-    /**
-     * AJAX: Check stock for a product at warehouse/rack/lot
-     */
     public function stockCheck(Request $request)
     {
         $productId = $request->get('product_id');
@@ -1740,17 +1738,7 @@ public function stockMovementsData(Request $request)
             'lot_id' => $lotId
         ]);
     }
-    // ==================== STOCK TRANSFER ====================
-    public function stockTransfer()
-    {
-        $products = Product::where('is_active', true)->orderBy('name')->get();
-        $warehouses = Warehouse::where('is_active', true)->orderBy('name')->get();
-        $units = Unit::where('is_active', true)->orderBy('name')->get();
-        
-        return view('admin.inventory.stock.transfer', compact('products', 'warehouses', 'units'));
-    }
 
-  
     // ==================== REPORTS ====================
     public function reportStockSummary(Request $request)
     {

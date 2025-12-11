@@ -6,128 +6,134 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Schema;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 
+/**
+ * DataTable Trait - Handles everything automatically
+ * 
+ * USAGE IN CONTROLLER:
+ * ====================
+ * 
+ * class ProductController extends Controller
+ * {
+ *     use DataTable;
+ * 
+ *     protected $model = Product::class;
+ *     protected $with = ['category', 'brand'];  // eager load
+ *     protected $searchable = ['name', 'sku', 'barcode'];
+ *     protected $sortable = ['id', 'name', 'price', 'created_at'];
+ *     protected $filterable = ['category_id', 'brand_id', 'status'];
+ * 
+ *     // For Import - just define validation rules!
+ *     protected $importable = [
+ *         'name'        => 'required|string|max:191',
+ *         'sku'         => 'required|string|max:50|unique:products,sku',
+ *         'category_id' => 'nullable|exists:product_categories,id',
+ *         'brand_id'    => 'nullable|exists:brands,id',
+ *         'price'       => 'required|numeric|min:0',
+ *     ];
+ * 
+ *     // Optional: customize what's exported
+ *     protected $exportable = ['id', 'sku', 'name', 'price'];
+ * 
+ *     // Optional: customize row mapping for JSON response
+ *     protected function mapRow($item) {
+ *         return [
+ *             'id' => $item->id,
+ *             'name' => $item->name,
+ *             'category_name' => $item->category?->name ?? '-',
+ *             '_edit_url' => route('admin.products.edit', $item->id),
+ *         ];
+ *     }
+ * }
+ * 
+ * ROUTE:
+ * ======
+ * Route::match(['get', 'post'], '/data', [ProductController::class, 'handleData'])->name('data');
+ */
 trait DataTable
 {
     /**
-     * Main DataTable handler
-     * 
-     * GET  /data              → List data (JSON)
-     * GET  /data?export=csv   → Export CSV
-     * GET  /data?template=1   → Download import template
-     * POST /data (with file)  → Import data
+     * Main handler - call this from your route
+     * Handles: List, Search, Filter, Sort, Export, Import, Template Download
      */
-    public function dataTable(Request $request)
+    public function handleData(Request $request)
     {
-        // =====================
-        // IMPORT (POST with file)
-        // =====================
+        // Import
         if ($request->isMethod('post') && $request->hasFile('file')) {
-            return $this->handleImport($request);
+            return $this->dtImport($request);
         }
 
-        // =====================
-        // TEMPLATE DOWNLOAD
-        // =====================
+        // Template Download
         if ($request->has('template')) {
-            return $this->downloadTemplate();
+            return $this->dtTemplate();
         }
 
-        // Build query
+        // Export
+        if ($request->has('export')) {
+            return $this->dtExport($request);
+        }
+
+        // List with search, filter, sort, pagination
+        return $this->dtList($request);
+    }
+
+    /**
+     * List data with search, filters, sorting, pagination
+     */
+    protected function dtList(Request $request)
+    {
         $query = $this->model::query();
 
-        // Eager load relationships
+        // Eager load
         if (property_exists($this, 'with') && !empty($this->with)) {
             $query->with($this->with);
         }
 
-        // =====================
-        // EXPORT SELECTED IDs
-        // =====================
-        if ($request->has('ids') && $request->has('export')) {
-            $ids = array_filter(explode(',', $request->input('ids')));
-            if (!empty($ids)) {
-                $query->whereIn('id', $ids);
-            }
-            return $this->dtExport($query, $request->input('export'));
-        }
-
-        // =====================
-        // SEARCH
-        // =====================
-        if ($search = $request->input('search')) {
-            $query->where(function ($q) use ($search) {
-                foreach ($this->searchable ?? [] as $col) {
-                    $q->orWhere($col, 'LIKE', "%{$search}%");
+        // Search
+        if ($search = $request->get('search')) {
+            $searchable = $this->searchable ?? ['name'];
+            $query->where(function ($q) use ($search, $searchable) {
+                foreach ($searchable as $col) {
+                    if (str_contains($col, '.')) {
+                        // Relation search: 'category.name'
+                        [$relation, $field] = explode('.', $col);
+                        $q->orWhereHas($relation, fn($q2) => $q2->where($field, 'LIKE', "%{$search}%"));
+                    } else {
+                        $q->orWhere($col, 'LIKE', "%{$search}%");
+                    }
                 }
             });
         }
 
-        // =====================
-        // FILTERS (direct params - same as search)
-        // =====================
-        if (property_exists($this, 'filterable')) {
-            foreach ($this->filterable as $column) {
-                if ($request->filled($column)) {
-                    $query->where($column, $request->input($column));
-                }
-            }
+        // Filters (auto-detect from request)
+        $this->applyFilters($query, $request);
+
+        // Sorting
+        $sortCol = $request->get('sort', 'id');
+        $sortDir = $request->get('dir', 'desc');
+        $sortable = $this->sortable ?? ['id', 'created_at'];
+        if (in_array($sortCol, $sortable)) {
+            $query->orderBy($sortCol, $sortDir);
+        } else {
+            $query->orderBy('id', 'desc');
         }
 
-        // Also check common filter patterns
-        foreach ($request->all() as $key => $value) {
-            if ($value !== '' && $value !== null && !in_array($key, ['page', 'per_page', 'search', 'sort', 'dir', 'export', 'template', 'ids'])) {
-                // Check if column exists (basic check)
-                if (str_ends_with($key, '_id') || in_array($key, ['status', 'type', 'is_active'])) {
-                    $query->where($key, $value);
-                }
-            }
-        }
-
-        // =====================
-        // DATE RANGE FILTERS
-        // =====================
-        if ($request->filled('from_date')) {
-            $query->whereDate('created_at', '>=', $request->from_date);
-        }
-        if ($request->filled('to_date')) {
-            $query->whereDate('created_at', '<=', $request->to_date);
-        }
-
-        // =====================
-        // SORTING
-        // =====================
-        $sortCol = $request->input('sort', 'id');
-        $sortDir = $request->input('dir', 'desc');
-        $query->orderBy($sortCol, $sortDir);
-
-        // =====================
-        // EXPORT ALL
-        // =====================
-        if ($request->has('export')) {
-            return $this->dtExport($query, $request->input('export'));
-        }
-
-        // =====================
-        // PAGINATE & RETURN
-        // =====================
-        $perPage = $request->input('per_page', 10);
+        // Paginate
+        $perPage = $request->get('per_page', 25);
         $data = $query->paginate($perPage);
 
+        // Map rows
         $items = collect($data->items())->map(function ($item) {
-            $prefix = $this->routePrefix ?? 'admin';
-            try {
-                $item->_edit_url = route("{$prefix}.edit", $item->id);
-                $item->_show_url = route("{$prefix}.show", $item->id);
-            } catch (\Exception $e) {
-                $item->_edit_url = '#';
-                $item->_show_url = '#';
+            if (method_exists($this, 'mapRow')) {
+                return $this->mapRow($item);
             }
-            return $item;
+            return $this->defaultMapRow($item);
         });
 
         return response()->json([
@@ -139,120 +145,160 @@ trait DataTable
     }
 
     /**
-     * Bulk Delete
+     * Default row mapping
      */
-    public function bulkDelete(Request $request)
+    protected function defaultMapRow($item)
     {
-        $ids = $request->input('ids', []);
+        $row = $item->toArray();
         
-        if (empty($ids)) {
-            return response()->json(['success' => false, 'message' => 'No items selected'], 400);
+        // Add action URLs
+        $prefix = $this->routePrefix ?? null;
+        if ($prefix) {
+            try {
+                $row['_edit_url'] = route("{$prefix}.edit", $item->id);
+                $row['_show_url'] = route("{$prefix}.show", $item->id);
+                $row['_delete_url'] = route("{$prefix}.destroy", $item->id);
+            } catch (\Exception $e) {}
         }
+        
+        return $row;
+    }
 
-        try {
-            $this->model::whereIn('id', $ids)->delete();
-            return response()->json(['success' => true, 'message' => count($ids) . ' items deleted']);
-        } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => 'Delete failed: ' . $e->getMessage()], 500);
+    /**
+     * Apply filters from request
+     */
+    protected function applyFilters($query, Request $request)
+    {
+        $skip = ['page', 'per_page', 'search', 'sort', 'dir', 'export', 'template', 'ids', '_'];
+        $filterable = $this->filterable ?? [];
+
+        foreach ($request->all() as $key => $value) {
+            if (in_array($key, $skip) || $value === '' || $value === null) continue;
+
+            // Check if in filterable list or is a common pattern
+            if (in_array($key, $filterable) || str_ends_with($key, '_id') || in_array($key, ['status', 'type', 'is_active'])) {
+                $query->where($key, $value);
+            }
+
+            // Date range
+            if ($key === 'from_date') {
+                $query->whereDate('created_at', '>=', $value);
+            }
+            if ($key === 'to_date') {
+                $query->whereDate('created_at', '<=', $value);
+            }
         }
     }
 
     /**
      * Export to CSV
      */
-    protected function dtExport($query, $type)
+    protected function dtExport(Request $request)
     {
-        $columns = $this->exportable ?? ['*'];
-        $data = $query->get($columns);
+        $query = $this->model::query();
+
+        if (property_exists($this, 'with') && !empty($this->with)) {
+            $query->with($this->with);
+        }
+
+        // Apply same filters as list
+        $this->applyFilters($query, $request);
+
+        // Selected IDs only
+        if ($request->filled('ids')) {
+            $ids = array_filter(explode(',', $request->ids));
+            if (!empty($ids)) {
+                $query->whereIn('id', $ids);
+            }
+        }
+
+        $data = $query->get();
         $modelName = strtolower(class_basename($this->model));
-        $filename = $modelName . '_' . date('Y-m-d');
+        $filename = "{$modelName}_" . date('Y-m-d') . '.csv';
 
-        $headers = [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => "attachment; filename={$filename}.csv",
-        ];
+        // Get export columns
+        $exportable = $this->exportable ?? null;
 
-        $callback = function () use ($data) {
+        $callback = function () use ($data, $exportable) {
             $file = fopen('php://output', 'w');
+            
             if ($data->count()) {
-                fputcsv($file, array_keys($data->first()->toArray()));
+                $first = $data->first();
+                
+                if ($exportable) {
+                    // Custom columns
+                    fputcsv($file, $exportable);
+                    foreach ($data as $row) {
+                        $csvRow = [];
+                        foreach ($exportable as $col) {
+                            $csvRow[] = data_get($row, $col) ?? '';
+                        }
+                        fputcsv($file, $csvRow);
+                    }
+                } else {
+                    // All columns
+                    fputcsv($file, array_keys($first->toArray()));
+                    foreach ($data as $row) {
+                        fputcsv($file, $row->toArray());
+                    }
+                }
             }
-            foreach ($data as $row) {
-                fputcsv($file, $row->toArray());
-            }
+            
             fclose($file);
         };
 
-        return Response::stream($callback, 200, $headers);
+        return Response::stream($callback, 200, [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => "attachment; filename={$filename}",
+        ]);
     }
 
     /**
-     * Download Import Template (Excel with hints)
+     * Download Import Template - Auto-generates from $importable
      */
-    protected function downloadTemplate()
+    protected function dtTemplate()
     {
         $columns = $this->importable ?? [];
         
         if (empty($columns)) {
-            return response()->json(['error' => 'Import not configured'], 400);
+            return response()->json(['error' => 'Import not configured. Add $importable property.'], 400);
         }
 
         $modelName = strtolower(class_basename($this->model));
-        $filename = $modelName . '_import_template.xlsx';
+        $filename = "{$modelName}_import_template.xlsx";
 
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Import Data');
 
-        // Header row - Blue background, white bold text
-        $col = 1;
-        foreach (array_keys($columns) as $header) {
-            $cell = $sheet->getCellByColumnAndRow($col, 1);
+        $headers = array_keys($columns);
+
+        // Header row
+        foreach ($headers as $index => $header) {
+            $colLetter = Coordinate::stringFromColumnIndex($index + 1);
+            $cell = $sheet->getCell("{$colLetter}1");
             $cell->setValue($header);
-            $style = $cell->getStyle();
-            $style->getFont()->setBold(true)->getColor()->setRGB('FFFFFF');
-            $style->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('4F46E5');
-            $sheet->getColumnDimensionByColumn($col)->setAutoSize(true);
-            $col++;
+            $cell->getStyle()->getFont()->setBold(true)->getColor()->setRGB('FFFFFF');
+            $cell->getStyle()->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('4F46E5');
+            $sheet->getColumnDimension($colLetter)->setAutoSize(true);
         }
 
-        // Hints row - Gray italic text
-        $col = 1;
+        // Hints row
+        $colIndex = 0;
         foreach ($columns as $colName => $rules) {
-            $hint = $this->buildHint($rules);
-            $cell = $sheet->getCellByColumnAndRow($col, 2);
-            $cell->setValue($hint);
+            $colLetter = Coordinate::stringFromColumnIndex($colIndex + 1);
+            $cell = $sheet->getCell("{$colLetter}2");
+            $cell->setValue($this->buildHint($rules));
             $cell->getStyle()->getFont()->setItalic(true)->getColor()->setRGB('9CA3AF');
-            $col++;
+            $colIndex++;
         }
 
-        // Instructions sheet
-        $infoSheet = $spreadsheet->createSheet();
-        $infoSheet->setTitle('Instructions');
-        $infoSheet->setCellValue('A1', 'IMPORT INSTRUCTIONS');
-        $infoSheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
-        
-        $infoSheet->setCellValue('A3', 'Column');
-        $infoSheet->setCellValue('B3', 'Required');
-        $infoSheet->setCellValue('C3', 'Format');
-        $infoSheet->getStyle('A3:C3')->getFont()->setBold(true);
-        
-        $row = 4;
-        foreach ($columns as $colName => $rules) {
-            $infoSheet->setCellValue('A' . $row, $colName);
-            $infoSheet->setCellValue('B' . $row, str_contains($rules, 'required') ? 'YES' : 'No');
-            $infoSheet->setCellValue('C' . $row, $this->buildHint($rules));
-            $row++;
-        }
-
-        $infoSheet->getColumnDimension('A')->setAutoSize(true);
-        $infoSheet->getColumnDimension('B')->setAutoSize(true);
-        $infoSheet->getColumnDimension('C')->setAutoSize(true);
+        // Auto-generate Reference Data sheet from 'exists' rules
+        $this->addAutoReferenceSheet($spreadsheet, $columns);
 
         $spreadsheet->setActiveSheetIndex(0);
-
         $writer = new Xlsx($spreadsheet);
-        
+
         return response()->streamDownload(function () use ($writer) {
             $writer->save('php://output');
         }, $filename, [
@@ -261,9 +307,91 @@ trait DataTable
     }
 
     /**
-     * Handle Import from Excel/CSV
+     * Auto-generate Reference Data from exists rules
      */
-    protected function handleImport(Request $request)
+    protected function addAutoReferenceSheet($spreadsheet, $columns)
+    {
+        $references = [];
+        
+        // Extract exists rules
+        foreach ($columns as $col => $rules) {
+            if (preg_match('/exists:([^,|]+),(\w+)/', $rules, $m)) {
+                $table = $m[1];
+                $references[$col] = $table;
+            }
+        }
+
+        // Add custom references if defined
+        if (property_exists($this, 'templateReferences')) {
+            $references = array_merge($references, $this->templateReferences);
+        }
+
+        if (empty($references)) return;
+
+        $infoSheet = $spreadsheet->createSheet();
+        $infoSheet->setTitle('Reference Data');
+        $infoSheet->setCellValue('A1', 'REFERENCE DATA (Use ID in import)');
+        $infoSheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+
+        $row = 3;
+        foreach ($references as $column => $table) {
+            // Section header
+            $tableName = strtoupper(str_replace('_', ' ', $table));
+            $infoSheet->setCellValue("A{$row}", "{$tableName} (for {$column}):");
+            $infoSheet->getStyle("A{$row}")->getFont()->setBold(true);
+            $row++;
+
+            // Get data from table
+            try {
+                $nameCol = $this->guessNameColumn($table);
+                $items = DB::table($table)
+                    ->select(['id', $nameCol])
+                    ->where(function($q) use ($table) {
+                        if (Schema::hasColumn($table, 'is_active')) {
+                            $q->where('is_active', true);
+                        }
+                    })
+                    ->orderBy($nameCol)
+                    ->limit(100)
+                    ->get();
+
+                foreach ($items as $item) {
+                    $infoSheet->setCellValue("A{$row}", $item->id);
+                    $infoSheet->setCellValue("B{$row}", $item->{$nameCol});
+                    $row++;
+                }
+            } catch (\Exception $e) {
+                $infoSheet->setCellValue("A{$row}", "Could not load {$table}");
+                $row++;
+            }
+
+            $row++; // Gap between sections
+        }
+
+        $infoSheet->getColumnDimension('A')->setAutoSize(true);
+        $infoSheet->getColumnDimension('B')->setAutoSize(true);
+    }
+
+    /**
+     * Guess the name column for a table
+     */
+    protected function guessNameColumn($table)
+    {
+        $possibilities = ['name', 'title', 'label', 'short_name', 'code'];
+        
+        foreach ($possibilities as $col) {
+            if (Schema::hasColumn($table, $col)) {
+                return $col;
+            }
+        }
+        
+        return 'id';
+    }
+
+    /**
+     * Import from Excel/CSV
+     */
+    protected function dtImport(Request $request)
     {
         $request->validate([
             'file' => 'required|file|mimes:xlsx,xls,csv|max:10240',
@@ -275,13 +403,11 @@ trait DataTable
             return response()->json(['success' => false, 'message' => 'Import not configured'], 400);
         }
 
-        $file = $request->file('file');
-        
         try {
-            $rows = $this->parseFile($file);
+            $rows = $this->parseFile($request->file('file'));
             
             if (empty($rows)) {
-                return response()->json(['success' => false, 'message' => 'No data found in file'], 400);
+                return response()->json(['success' => false, 'message' => 'No data found'], 400);
             }
 
             $results = ['total' => 0, 'success' => 0, 'failed' => 0, 'errors' => []];
@@ -289,18 +415,17 @@ trait DataTable
             DB::beginTransaction();
 
             foreach ($rows as $index => $row) {
-                $rowNum = $index + 3; // +3 because row 1=header, row 2=hints
+                $rowNum = $index + 3;
                 
-                // Skip empty rows
                 if ($this->isRowEmpty($row)) continue;
-                
-                // Skip hint row (first data row might be hints)
                 if ($index === 0 && $this->isHintRow($row)) continue;
 
                 $results['total']++;
 
-                // Validate
-                $validator = Validator::make($row, $columns);
+                // Adjust unique rules for updates
+                $rules = $this->adjustRulesForUpdate($columns, $row);
+
+                $validator = Validator::make($row, $rules);
                 
                 if ($validator->fails()) {
                     $results['failed']++;
@@ -309,14 +434,13 @@ trait DataTable
                 }
 
                 try {
-                    // Filter out empty values and create
                     $data = array_filter($row, fn($v) => $v !== '' && $v !== null);
                     
-                    // Call custom import method if exists
+                    // Custom import handler or default
                     if (method_exists($this, 'importRow')) {
                         $this->importRow($data, $row);
                     } else {
-                        $this->model::create($data);
+                        $this->defaultImportRow($data);
                     }
                     
                     $results['success']++;
@@ -326,7 +450,6 @@ trait DataTable
                 }
             }
 
-            // Rollback if all failed
             if ($results['success'] === 0 && $results['failed'] > 0) {
                 DB::rollBack();
                 return response()->json([
@@ -340,18 +463,63 @@ trait DataTable
 
             return response()->json([
                 'success' => true,
-                'message' => "{$results['success']} of {$results['total']} records imported successfully",
+                'message' => "{$results['success']} of {$results['total']} imported",
                 'results' => $results
             ]);
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['success' => false, 'message' => 'Import error: ' . $e->getMessage()], 500);
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
 
     /**
-     * Parse Excel or CSV file
+     * Adjust unique rules for existing records
+     */
+    protected function adjustRulesForUpdate($rules, $row)
+    {
+        $adjusted = $rules;
+        $uniqueField = $this->uniqueField ?? 'sku'; // Default unique field
+
+        if (isset($row[$uniqueField]) && !empty($row[$uniqueField])) {
+            $existing = $this->model::where($uniqueField, $row[$uniqueField])->first();
+            if ($existing) {
+                foreach ($adjusted as $col => $rule) {
+                    if (str_contains($rule, 'unique:')) {
+                        // Add exception for existing record
+                        $adjusted[$col] = preg_replace(
+                            '/unique:([^|,]+),([^|,]+)/',
+                            'unique:$1,$2,' . $existing->id,
+                            $rule
+                        );
+                    }
+                }
+            }
+        }
+        
+        return $adjusted;
+    }
+
+    /**
+     * Default import row - creates or updates
+     */
+    protected function defaultImportRow($data)
+    {
+        $uniqueField = $this->uniqueField ?? 'sku';
+        
+        if (isset($data[$uniqueField])) {
+            $existing = $this->model::where($uniqueField, $data[$uniqueField])->first();
+            if ($existing) {
+                $existing->update($data);
+                return $existing;
+            }
+        }
+        
+        return $this->model::create($data);
+    }
+
+    /**
+     * Parse uploaded file
      */
     protected function parseFile($file)
     {
@@ -364,9 +532,39 @@ trait DataTable
         return $this->parseExcel($file);
     }
 
-    /**
-     * Parse CSV file
-     */
+    protected function parseExcel($file)
+    {
+        $spreadsheet = IOFactory::load($file->getPathname());
+        $sheet = $spreadsheet->getActiveSheet();
+        $rows = [];
+        $headers = [];
+        
+        foreach ($sheet->getRowIterator() as $rowIndex => $row) {
+            $cellIterator = $row->getCellIterator();
+            $cellIterator->setIterateOnlyExistingCells(false);
+            
+            $rowData = [];
+            foreach ($cellIterator as $cell) {
+                $rowData[] = trim($cell->getValue() ?? '');
+            }
+            
+            if ($rowIndex === 1) {
+                $headers = $rowData;
+                continue;
+            }
+            
+            $assoc = [];
+            foreach ($headers as $i => $h) {
+                if (!empty($h)) {
+                    $assoc[$h] = $rowData[$i] ?? '';
+                }
+            }
+            $rows[] = $assoc;
+        }
+        
+        return $rows;
+    }
+
     protected function parseCsv($file)
     {
         $rows = [];
@@ -392,45 +590,6 @@ trait DataTable
         return $rows;
     }
 
-    /**
-     * Parse Excel file
-     */
-    protected function parseExcel($file)
-    {
-        $spreadsheet = IOFactory::load($file->getPathname());
-        $sheet = $spreadsheet->getActiveSheet();
-        $rows = [];
-        $headers = [];
-        
-        foreach ($sheet->getRowIterator() as $rowIndex => $row) {
-            $cellIterator = $row->getCellIterator();
-            $cellIterator->setIterateOnlyExistingCells(false);
-            
-            $rowData = [];
-            foreach ($cellIterator as $cell) {
-                $rowData[] = trim($cell->getValue() ?? '');
-            }
-            
-            if ($rowIndex === 1) {
-                $headers = $rowData;
-                continue;
-            }
-            
-            $row = [];
-            foreach ($headers as $i => $h) {
-                if (!empty($h)) {
-                    $row[$h] = $rowData[$i] ?? '';
-                }
-            }
-            $rows[] = $row;
-        }
-        
-        return $rows;
-    }
-
-    /**
-     * Check if row is empty
-     */
     protected function isRowEmpty($row)
     {
         foreach ($row as $v) {
@@ -439,18 +598,12 @@ trait DataTable
         return true;
     }
 
-    /**
-     * Check if row is hint row
-     */
     protected function isHintRow($row)
     {
         $first = reset($row);
         return str_contains(strtolower($first), 'required') || str_contains(strtolower($first), 'optional');
     }
 
-    /**
-     * Build hint text from validation rules
-     */
     protected function buildHint($rules)
     {
         $req = str_contains($rules, 'required') ? 'Required' : 'Optional';
@@ -460,9 +613,28 @@ trait DataTable
         if (str_contains($rules, 'numeric')) return "{$req}, Number";
         if (str_contains($rules, 'date')) return "{$req}, Date (YYYY-MM-DD)";
         if (str_contains($rules, 'boolean')) return "{$req}, 1 or 0";
-        if (preg_match('/in:([^|]+)/', $rules, $m)) return "{$req}, Options: {$m[1]}";
-        if (preg_match('/exists:([^,]+),(\w+)/', $rules, $m)) return "{$req}, ID from {$m[1]}";
+        if (preg_match('/in:([^|]+)/', $rules, $m)) return "{$req}, One of: {$m[1]}";
+        if (preg_match('/exists:([^,]+)/', $rules, $m)) return "{$req}, ID from " . str_replace('_', ' ', $m[1]);
         
         return "{$req}, Text";
+    }
+
+    /**
+     * Bulk Delete
+     */
+    public function bulkDelete(Request $request)
+    {
+        $ids = $request->input('ids', []);
+        
+        if (empty($ids)) {
+            return response()->json(['success' => false, 'message' => 'No items selected'], 400);
+        }
+
+        try {
+            $this->model::whereIn('id', $ids)->delete();
+            return response()->json(['success' => true, 'message' => count($ids) . ' items deleted']);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
     }
 }
