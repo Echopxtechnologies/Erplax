@@ -10,7 +10,7 @@ use App\Http\Controllers\Admin\PermissionController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\Admin\RolePermissionController;
-use App\Http\Controllers\Admin\InventoryController;
+use App\Http\Controllers\Admin\Inventory\InventoryController;
 use App\Http\Controllers\Admin\CronJobController;
 use App\Http\Controllers\Admin\Customers\Index as CustomersIndexController;
 use App\Http\Controllers\Admin\Customers\Form as CustomersFormController;
