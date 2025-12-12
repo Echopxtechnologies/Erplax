@@ -1093,6 +1093,72 @@ class StockController extends BaseController
     }
 
     // ==================== GET PRODUCT LOTS (AJAX) ====================
+
+    /**
+ * Get lots for a product
+ * For RECEIVE: Returns ALL lots (no warehouse filter)
+ * For DELIVER/TRANSFER: Returns lots with stock at warehouse (with warehouse filter)
+ */
+public function productLots(Request $request)
+{
+    $productId = $request->product_id;
+    
+    if (!$productId) {
+        return response()->json(['lots' => []]);
+    }
+    
+    $query = Lot::where('product_id', $productId)
+        ->where('status', 'ACTIVE');
+    
+    // If warehouse_id is provided, filter to lots that have stock at this location
+    if ($request->filled('warehouse_id')) {
+        $warehouseId = $request->warehouse_id;
+        $rackId = $request->rack_id;
+        
+        $query->whereHas('stockLevels', function($q) use ($warehouseId, $rackId) {
+            $q->where('warehouse_id', $warehouseId)
+              ->where('qty', '>', 0);
+            
+            if ($rackId) {
+                $q->where('rack_id', $rackId);
+            }
+        });
+        
+        // Also load stock quantity for display
+        $query->with(['stockLevels' => function($q) use ($warehouseId, $rackId) {
+            $q->where('warehouse_id', $warehouseId);
+            if ($rackId) {
+                $q->where('rack_id', $rackId);
+            }
+        }]);
+    }
+    
+    // Order by expiry date (FEFO - First Expiry First Out)
+    $lots = $query->orderBy('expiry_date', 'asc')->get();
+    
+    // Format the response with all needed fields including prices
+    $formattedLots = $lots->map(function($lot) {
+        $stockQty = 0;
+        if ($lot->relationLoaded('stockLevels') && $lot->stockLevels->count() > 0) {
+            $stockQty = $lot->stockLevels->sum('qty');
+        }
+        
+        return [
+            'id' => $lot->id,
+            'lot_no' => $lot->lot_no,
+            'batch_no' => $lot->batch_no,
+            'manufacturing_date' => $lot->manufacturing_date ? $lot->manufacturing_date->format('Y-m-d') : null,
+            'expiry_date' => $lot->expiry_date ? $lot->expiry_date->format('Y-m-d') : null,
+            'purchase_price' => $lot->purchase_price,  // IMPORTANT: Include lot prices
+            'sale_price' => $lot->sale_price,          // IMPORTANT: Include lot prices
+            'status' => $lot->status,
+            'stock' => $stockQty,
+            'stock_display' => $stockQty . ' ' . ($lot->product->unit->short_name ?? 'PCS'),
+        ];
+    });
+    
+    return response()->json(['lots' => $formattedLots]);
+}
     /**
      * Get available lots for a product (for dropdown population)
      */

@@ -405,8 +405,9 @@
                data-route="{{ route('admin.inventory.products.data') }}">
             <thead>
                 <tr>
-                    <th class="dt-sort" data-col="id">ID</th>
-                    <th data-col="name" data-render="product" style="min-width: 200px;">Product</th>
+                    {{-- ✅ Added dt-clickable to ID and Product columns --}}
+                    <th class="dt-sort dt-clickable" data-col="id">ID</th>
+                    <th class="dt-clickable" data-col="name" data-render="product" style="min-width: 200px;">Product</th>
                     <th class="dt-sort" data-col="category_name">Category</th>
                     <th class="dt-sort" data-col="brand_name">Brand</th>
                     <th class="dt-sort" data-col="purchase_price">Purchase</th>

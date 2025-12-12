@@ -259,6 +259,17 @@
     animation: dtFadeIn 0.2s ease;
 }
 
+/* Bulk Export Dropdown */
+.dt-container .dt-bulk-export-dropdown {
+    position: relative;
+    display: none;
+}
+
+.dt-container .dt-bulk-export-dropdown.show {
+    display: inline-block;
+    animation: dtFadeIn 0.2s ease;
+}
+
 .dt-container .dt-bulk-export-btn {
     padding: 8px 16px;
     border: none;
@@ -268,19 +279,45 @@
     background: #5a67d8;
     color: #fff;
     cursor: pointer;
-    display: none;
     transition: background 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
 }
 
 .dt-container .dt-bulk-export-btn:hover {
     background: #4c56c0;
 }
 
-.dt-container .dt-bulk-export-btn.show {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    animation: dtFadeIn 0.2s ease;
+.dt-container .dt-bulk-export-btn .dt-caret {
+    margin-left: 2px;
+    font-size: 10px;
+    transition: transform 0.2s ease;
+}
+
+.dt-container .dt-bulk-export-dropdown.open .dt-caret {
+    transform: rotate(180deg);
+}
+
+.dt-container .dt-bulk-export-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    margin-top: 6px;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-md);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.12);
+    min-width: 180px;
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+}
+
+.dt-container .dt-bulk-export-dropdown.open .dt-bulk-export-menu {
+    opacity: 1;
+    visibility: visible;
 }
 
 .dt-container .dt-selected-count {
@@ -348,6 +385,17 @@
 
 .dt-container .dt-table tbody tr:last-child td {
     border-bottom: none;
+}
+
+/* Clickable cells */
+.dt-container .dt-table td.dt-clickable-cell {
+    cursor: pointer;
+    transition: color 0.15s ease;
+}
+
+.dt-container .dt-table td.dt-clickable-cell:hover {
+    color: #5a67d8;
+    text-decoration: underline;
 }
 
 /* Checkbox Column */
@@ -599,7 +647,7 @@
 }
 
 /* =========================================
-   IMPORT MODAL
+   MODALS (Import & Delete Confirmation)
    ========================================= */
 
 .dt-modal-overlay {
@@ -629,6 +677,10 @@
     max-width: 520px;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
     animation: dtSlideUp 0.25s ease;
+}
+
+.dt-modal.dt-modal-sm {
+    max-width: 400px;
 }
 
 @keyframes dtSlideUp {
@@ -685,6 +737,38 @@
     display: flex;
     justify-content: flex-end;
     gap: 12px;
+}
+
+/* Delete Modal Specific */
+.dt-delete-icon {
+    width: 60px;
+    height: 60px;
+    background: rgba(229, 62, 62, 0.1);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+    font-size: 28px;
+}
+
+.dt-delete-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+    text-align: center;
+    margin-bottom: 10px;
+}
+
+.dt-delete-message {
+    font-size: 14px;
+    color: var(--text-muted);
+    text-align: center;
+    line-height: 1.6;
+}
+
+.dt-delete-message strong {
+    color: var(--text-primary);
 }
 
 /* File Drop Zone */
@@ -849,6 +933,27 @@
     cursor: not-allowed;
 }
 
+.dt-btn-danger {
+    padding: 10px 24px;
+    border: none;
+    background: #e53e3e;
+    color: #fff;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    font-size: var(--font-sm);
+    font-weight: 600;
+    transition: background 0.15s ease;
+}
+
+.dt-btn-danger:hover:not(:disabled) {
+    background: #c53030;
+}
+
+.dt-btn-danger:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 /* =========================================
    RESPONSIVE
    ========================================= */
@@ -889,11 +994,91 @@
 /**
  * DataTable - Clean JavaScript
  * Handles: List, Search, Filter, Sort, Pagination, Export, Import
+ * Features: Clickable cells, Delete modal, Export selected dropdown
  */
 (function(){
     document.addEventListener('DOMContentLoaded', function(){
         document.querySelectorAll('table.dt-table').forEach(initDT);
     });
+
+    // Global delete modal (shared across all tables)
+    var deleteModal = null;
+    var deleteCallback = null;
+
+    function createDeleteModal(){
+        if(deleteModal) return;
+        
+        deleteModal = document.createElement('div');
+        deleteModal.className = 'dt-modal-overlay';
+        deleteModal.innerHTML = 
+            '<div class="dt-modal dt-modal-sm">' +
+                '<div class="dt-modal-header">' +
+                    '<span class="dt-modal-title">⚠️ Confirm Delete</span>' +
+                    '<button class="dt-modal-close">&times;</button>' +
+                '</div>' +
+                '<div class="dt-modal-body">' +
+                    '<div class="dt-delete-icon">🗑️</div>' +
+                    '<div class="dt-delete-title">Delete Item?</div>' +
+                    '<div class="dt-delete-message">Are you sure you want to delete this item? This action cannot be undone.</div>' +
+                '</div>' +
+                '<div class="dt-modal-footer">' +
+                    '<button class="dt-btn-cancel">Cancel</button>' +
+                    '<button class="dt-btn-danger dt-confirm-delete">Delete</button>' +
+                '</div>' +
+            '</div>';
+        
+        document.body.appendChild(deleteModal);
+        
+        var closeBtn = deleteModal.querySelector('.dt-modal-close');
+        var cancelBtn = deleteModal.querySelector('.dt-btn-cancel');
+        var confirmBtn = deleteModal.querySelector('.dt-confirm-delete');
+        
+        closeBtn.onclick = function(){ hideDeleteModal(); };
+        cancelBtn.onclick = function(){ hideDeleteModal(); };
+        
+        confirmBtn.onclick = function(){
+            if(deleteCallback){
+                confirmBtn.disabled = true;
+                confirmBtn.textContent = 'Deleting...';
+                deleteCallback();
+            }
+        };
+        
+        deleteModal.onclick = function(e){
+            if(e.target === deleteModal) hideDeleteModal();
+        };
+    }
+
+    function showDeleteModal(message, count, callback){
+        createDeleteModal();
+        
+        var titleEl = deleteModal.querySelector('.dt-delete-title');
+        var msgEl = deleteModal.querySelector('.dt-delete-message');
+        var confirmBtn = deleteModal.querySelector('.dt-confirm-delete');
+        
+        if(count > 1){
+            titleEl.textContent = 'Delete ' + count + ' Items?';
+            msgEl.innerHTML = 'Are you sure you want to delete <strong>' + count + ' selected items</strong>? This action cannot be undone.';
+        } else {
+            titleEl.textContent = 'Delete Item?';
+            msgEl.innerHTML = message || 'Are you sure you want to delete this item? This action cannot be undone.';
+        }
+        
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = 'Delete';
+        deleteCallback = callback;
+        deleteModal.classList.add('show');
+    }
+
+    function hideDeleteModal(){
+        if(deleteModal){
+            deleteModal.classList.remove('show');
+            deleteCallback = null;
+            var confirmBtn = deleteModal.querySelector('.dt-confirm-delete');
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = 'Delete';
+        }
+    }
 
     function initDT(table){
         var route = table.dataset.route;
@@ -923,12 +1108,15 @@
         var hasImport = table.classList.contains('dt-import');
         var hasPerPage = table.classList.contains('dt-perpage');
 
+        // Track clickable columns
+        var clickableColumns = [];
+
         // Create wrapper
         var wrapper = document.createElement('div');
         wrapper.className = 'dt-container';
         table.parentNode.insertBefore(wrapper, table);
 
-        var selectedCountEl, bulkDeleteBtn, bulkExportBtn;
+        var selectedCountEl, bulkDeleteBtn, bulkExportDropdown;
         var exportDropdown = null;
 
         // Build toolbar
@@ -976,12 +1164,52 @@
                 bulkDeleteBtn.onclick = function(){ bulkDelete(); };
                 right.appendChild(bulkDeleteBtn);
 
-                bulkExportBtn = document.createElement('button');
+                // Bulk Export Dropdown
+                bulkExportDropdown = document.createElement('div');
+                bulkExportDropdown.className = 'dt-bulk-export-dropdown';
+                
+                var bulkExportBtn = document.createElement('button');
                 bulkExportBtn.type = 'button';
                 bulkExportBtn.className = 'dt-bulk-export-btn';
-                bulkExportBtn.innerHTML = '📤 Export Selected';
-                bulkExportBtn.onclick = function(){ bulkExport(); };
-                right.appendChild(bulkExportBtn);
+                bulkExportBtn.innerHTML = '📤 Export Selected <span class="dt-caret">▼</span>';
+                bulkExportBtn.onclick = function(e){
+                    e.stopPropagation();
+                    bulkExportDropdown.classList.toggle('open');
+                    if(exportDropdown) exportDropdown.classList.remove('open');
+                };
+                
+                var bulkExportMenu = document.createElement('div');
+                bulkExportMenu.className = 'dt-bulk-export-menu dt-export-menu';
+                bulkExportMenu.innerHTML = 
+                    '<button class="dt-export-menu-item" data-format="csv">' +
+                        '<span class="dt-export-icon">📊</span>' +
+                        '<span class="dt-export-label">CSV File</span>' +
+                        '<span class="dt-export-ext">.csv</span>' +
+                    '</button>' +
+                    '<button class="dt-export-menu-item" data-format="xlsx">' +
+                        '<span class="dt-export-icon">📗</span>' +
+                        '<span class="dt-export-label">Excel File</span>' +
+                        '<span class="dt-export-ext">.xlsx</span>' +
+                    '</button>' +
+                    '<div class="dt-export-menu-divider"></div>' +
+                    '<button class="dt-export-menu-item" data-format="pdf">' +
+                        '<span class="dt-export-icon">📕</span>' +
+                        '<span class="dt-export-label">PDF Document</span>' +
+                        '<span class="dt-export-ext">.pdf</span>' +
+                    '</button>';
+                
+                bulkExportMenu.querySelectorAll('.dt-export-menu-item').forEach(function(item){
+                    item.onclick = function(e){
+                        e.stopPropagation();
+                        var format = this.dataset.format;
+                        doExport(format, true); // true = selected only
+                        bulkExportDropdown.classList.remove('open');
+                    };
+                });
+                
+                bulkExportDropdown.appendChild(bulkExportBtn);
+                bulkExportDropdown.appendChild(bulkExportMenu);
+                right.appendChild(bulkExportDropdown);
             }
 
             // Per page select
@@ -1024,6 +1252,7 @@
                 exportBtn.onclick = function(e){
                     e.stopPropagation();
                     exportDropdown.classList.toggle('open');
+                    if(bulkExportDropdown) bulkExportDropdown.classList.remove('open');
                 };
                 
                 var exportMenu = document.createElement('div');
@@ -1050,7 +1279,7 @@
                     item.onclick = function(e){
                         e.stopPropagation();
                         var format = this.dataset.format;
-                        doExport(format);
+                        doExport(format, false); // false = all data
                         exportDropdown.classList.remove('open');
                     };
                 });
@@ -1062,6 +1291,7 @@
                 // Close dropdown on outside click
                 document.addEventListener('click', function(){
                     if(exportDropdown) exportDropdown.classList.remove('open');
+                    if(bulkExportDropdown) bulkExportDropdown.classList.remove('open');
                 });
             }
 
@@ -1102,11 +1332,21 @@
             };
         }
 
-        // Mark actions column
+        // Mark actions column and detect clickable columns
+        var colIndex = 0;
         table.querySelectorAll('thead th').forEach(function(th){
+            if(th.classList.contains('dt-checkbox-col')) return;
+            
             if(th.dataset.render === 'actions'){
                 th.classList.add('dt-actions-col');
             }
+            
+            // Check for dt-clickable class
+            if(th.classList.contains('dt-clickable')){
+                clickableColumns.push(colIndex);
+            }
+            
+            colIndex++;
         });
 
         // Pagination
@@ -1121,10 +1361,13 @@
 
         // Parse columns
         var cols = [];
+        var colIdx = 0;
         table.querySelectorAll('thead th:not(.dt-checkbox-col)').forEach(function(th){
             cols.push({
                 col: th.dataset.col || null,
-                render: th.dataset.render || null
+                render: th.dataset.render || null,
+                clickable: th.classList.contains('dt-clickable'),
+                index: colIdx
             });
             
             // Sortable
@@ -1144,6 +1387,8 @@
                     load();
                 };
             }
+            
+            colIdx++;
         });
 
         // External filters
@@ -1182,11 +1427,11 @@
                 selectedCountEl.innerHTML = '✓ ' + count + ' selected';
                 selectedCountEl.classList.add('show');
                 bulkDeleteBtn.classList.add('show');
-                bulkExportBtn.classList.add('show');
+                bulkExportDropdown.classList.add('show');
             } else {
                 selectedCountEl.classList.remove('show');
                 bulkDeleteBtn.classList.remove('show');
-                bulkExportBtn.classList.remove('show');
+                bulkExportDropdown.classList.remove('show');
             }
         }
 
@@ -1229,10 +1474,12 @@
                 var checkboxCell = hasCheckbox ? 
                     '<td class="dt-checkbox-col"><input type="checkbox" class="dt-checkbox dt-row-check" data-id="' + row.id + '" ' + (isSelected ? 'checked' : '') + '></td>' : '';
                 
-                return '<tr data-id="' + row.id + '" class="' + (isSelected ? 'selected' : '') + '">' + 
+                return '<tr data-id="' + row.id + '" data-view-url="' + (row._show_url || row._edit_url || '') + '" class="' + (isSelected ? 'selected' : '') + '">' + 
                     checkboxCell + 
-                    cols.map(function(c){
-                        var cls = c.render === 'actions' ? ' class="dt-actions-col"' : '';
+                    cols.map(function(c, idx){
+                        var cls = '';
+                        if(c.render === 'actions') cls = ' class="dt-actions-col"';
+                        else if(c.clickable && (row._show_url || row._edit_url)) cls = ' class="dt-clickable-cell" data-col-index="' + idx + '"';
                         return '<td' + cls + '>' + cell(row, c) + '</td>';
                     }).join('') + 
                 '</tr>';
@@ -1263,6 +1510,20 @@
                 b.onclick = function(e){
                     e.preventDefault();
                     del(this.dataset.id);
+                };
+            });
+
+            // Clickable cell handlers
+            tbody.querySelectorAll('.dt-clickable-cell').forEach(function(td){
+                td.onclick = function(e){
+                    // Don't navigate if clicking on a link or button inside
+                    if(e.target.tagName === 'A' || e.target.tagName === 'BUTTON') return;
+                    
+                    var tr = this.closest('tr');
+                    var viewUrl = tr.dataset.viewUrl;
+                    if(viewUrl){
+                        window.location.href = viewUrl;
+                    }
                 };
             });
 
@@ -1343,14 +1604,14 @@
             });
         }
 
-        function doExport(format){
+        function doExport(format, selectedOnly){
             var url = route + '?export=' + format + '&search=' + encodeURIComponent(state.search) + '&sort=' + state.sort + '&dir=' + state.dir;
             
             for(var key in state.filters){
                 if(state.filters[key]) url += '&' + key + '=' + encodeURIComponent(state.filters[key]);
             }
             
-            if(state.selected.length > 0){
+            if(selectedOnly && state.selected.length > 0){
                 url += '&ids=' + state.selected.join(',');
             }
             
@@ -1358,55 +1619,77 @@
         }
 
         function del(id){
-            if(!confirm('Are you sure you want to delete this item?')) return;
-            
-            var dr = route.replace('/data', '') + '/' + id;
-            var csrf = document.querySelector('meta[name="csrf-token"]');
-            
-            fetch(dr, {
-                method: 'DELETE',
-                headers: {
-                    'X-CSRF-TOKEN': csrf ? csrf.content : '',
-                    'Accept': 'application/json'
-                }
-            })
-            .then(function(){
-                state.selected = state.selected.filter(function(x){ return x !== parseInt(id); });
-                load();
-            })
-            .catch(function(){
-                alert('Delete failed');
+            showDeleteModal(null, 1, function(){
+                var dr = route.replace('/data', '') + '/' + id;
+                var csrf = document.querySelector('meta[name="csrf-token"]');
+                
+                fetch(dr, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': csrf ? csrf.content : '',
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(function(r){ return r.json(); })
+                .then(function(json){
+                    hideDeleteModal();
+                    if(json.success !== false){
+                        state.selected = state.selected.filter(function(x){ return x !== parseInt(id); });
+                        load();
+                    } else {
+                        showToast(json.message || 'Delete failed', 'error');
+                    }
+                })
+                .catch(function(){
+                    hideDeleteModal();
+                    showToast('Delete failed', 'error');
+                });
             });
         }
 
         function bulkDelete(){
             if(state.selected.length === 0) return;
-            if(!confirm('Delete ' + state.selected.length + ' selected items?')) return;
             
-            var dr = route.replace('/data', '') + '/bulk-delete';
-            var csrf = document.querySelector('meta[name="csrf-token"]');
-            
-            fetch(dr, {
-                method: 'POST',
-                headers: {
-                    'X-CSRF-TOKEN': csrf ? csrf.content : '',
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ ids: state.selected })
-            })
-            .then(function(){
-                state.selected = [];
-                load();
-            })
-            .catch(function(){
-                alert('Bulk delete failed');
+            showDeleteModal(null, state.selected.length, function(){
+                var dr = route.replace('/data', '') + '/bulk-delete';
+                var csrf = document.querySelector('meta[name="csrf-token"]');
+                
+                var confirmBtn = deleteModal.querySelector('.dt-confirm-delete');
+                
+                fetch(dr, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': csrf ? csrf.content : '',
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ ids: state.selected })
+                })
+                .then(function(r){ return r.json(); })
+                .then(function(json){
+                    hideDeleteModal();
+                    if(json.success !== false){
+                        state.selected = [];
+                        load();
+                    } else {
+                        showToast(json.message || 'Bulk delete failed', 'error');
+                    }
+                })
+                .catch(function(){
+                    hideDeleteModal();
+                    showToast('Bulk delete failed', 'error');
+                });
             });
         }
 
-        function bulkExport(){
-            if(state.selected.length === 0) return;
-            window.location.href = route + '?export=xlsx&ids=' + state.selected.join(',');
+        // Simple toast notification
+        function showToast(message, type){
+            var toast = document.createElement('div');
+            toast.style.cssText = 'position:fixed;bottom:20px;right:20px;padding:14px 20px;border-radius:8px;color:#fff;font-size:14px;font-weight:500;z-index:10000;animation:dtFadeIn 0.2s ease;box-shadow:0 4px 12px rgba(0,0,0,0.15);';
+            toast.style.background = type === 'error' ? '#e53e3e' : '#38a169';
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(function(){ toast.remove(); }, 3000);
         }
 
         // Import Modal
@@ -1473,7 +1756,7 @@
                 function handleFile(file){
                     var ext = file.name.split('.').pop().toLowerCase();
                     if(['xlsx', 'xls', 'csv'].indexOf(ext) === -1){
-                        alert('Please select an Excel or CSV file');
+                        showToast('Please select an Excel or CSV file', 'error');
                         return;
                     }
                     selectedFile = file;
@@ -1581,6 +1864,9 @@
         // Initial load
         load();
         
+        // Expose reload function globally
+        window.dtReload = load;
+        
         // Expose API
         window.dtInstance = window.dtInstance || {};
         window.dtInstance[tableId] = {
@@ -1590,7 +1876,8 @@
                 state.page = 1;
                 load();
             },
-            exportTo: doExport,
+            exportTo: function(format){ doExport(format, false); },
+            exportSelected: function(format){ doExport(format, true); },
             getSelected: function(){ return state.selected; },
             clearSelection: function(){
                 state.selected = [];
@@ -1609,7 +1896,7 @@
             state.selected = [];
             updateBulkUI();
         };
-        table.dtExport = doExport;
+        table.dtExport = function(format){ doExport(format, false); };
     }
 })();
 </script>
