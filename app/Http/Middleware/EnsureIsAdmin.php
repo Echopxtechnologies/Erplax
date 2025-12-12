@@ -12,6 +12,7 @@ class EnsureIsAdmin
 {
     public function handle(Request $request, Closure $next): Response
     {
+        
         // Check if user is authenticated via admin guard
         if (!Auth::guard('admin')->check()) {
             if ($request->expectsJson()) {

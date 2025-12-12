@@ -222,6 +222,80 @@
         to { transform: rotate(360deg); }
     }
 
+    /* Product Preview Card */
+    .product-preview {
+        display: none;
+        align-items: center;
+        gap: 16px;
+        background: var(--body-bg);
+        padding: 16px;
+        border-radius: 10px;
+        border: 1px solid var(--card-border);
+        margin-top: 12px;
+    }
+    
+    .product-preview.show {
+        display: flex;
+    }
+    
+    .product-preview-image {
+        width: 64px;
+        height: 64px;
+        border-radius: 10px;
+        object-fit: cover;
+        border: 1px solid var(--card-border);
+        background: var(--card-bg);
+    }
+    
+    .product-preview-placeholder {
+        width: 64px;
+        height: 64px;
+        border-radius: 10px;
+        background: var(--card-bg);
+        border: 1px solid var(--card-border);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-muted);
+    }
+    
+    .product-preview-placeholder svg {
+        width: 28px;
+        height: 28px;
+    }
+    
+    .product-preview-info {
+        flex: 1;
+    }
+    
+    .product-preview-name {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 4px;
+    }
+    
+    .product-preview-sku {
+        font-size: 13px;
+        color: var(--text-muted);
+        font-family: monospace;
+    }
+    
+    .product-preview-prices {
+        display: flex;
+        gap: 16px;
+        margin-top: 8px;
+    }
+    
+    .product-preview-price {
+        font-size: 12px;
+        color: var(--text-muted);
+    }
+    
+    .product-preview-price strong {
+        color: var(--text-primary);
+    }
+
     .form-actions {
         display: flex;
         gap: 12px;
@@ -255,7 +329,7 @@
         color: #fff;
     }
     
-    .btn-primary:hover {
+    .btn-primary:hover:not(:disabled) {
         transform: translateY(-1px);
         box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
     }
@@ -263,8 +337,6 @@
     .btn-primary:disabled {
         opacity: 0.5;
         cursor: not-allowed;
-        transform: none;
-        box-shadow: none;
     }
     
     .btn-secondary {
@@ -277,62 +349,6 @@
         background: var(--card-border);
     }
 
-    .info-box {
-        background: #eff6ff;
-        border: 1px solid #bfdbfe;
-        border-radius: 8px;
-        padding: 12px 16px;
-        margin-bottom: 20px;
-        display: flex;
-        align-items: flex-start;
-        gap: 10px;
-    }
-    
-    .info-box svg {
-        width: 20px;
-        height: 20px;
-        color: #2563eb;
-        flex-shrink: 0;
-        margin-top: 2px;
-    }
-    
-    .info-box p {
-        margin: 0;
-        font-size: 13px;
-        color: #1e40af;
-    }
-
-    .alert {
-        padding: 12px 16px;
-        border-radius: 8px;
-        margin-bottom: 20px;
-        font-size: 14px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        max-width: 800px;
-        margin-left: auto;
-        margin-right: auto;
-    }
-    
-    .alert svg {
-        width: 20px;
-        height: 20px;
-        flex-shrink: 0;
-    }
-    
-    .alert-error {
-        background: #fee2e2;
-        color: #991b1b;
-        border: 1px solid #fecaca;
-    }
-    
-    .alert-success {
-        background: #d1fae5;
-        color: #065f46;
-        border: 1px solid #a7f3d0;
-    }
-
     .input-wrapper {
         position: relative;
     }
@@ -342,22 +358,13 @@
         right: 12px;
         top: 50%;
         transform: translateY(-50%);
-        width: 20px;
-        height: 20px;
+        width: 18px;
+        height: 18px;
     }
     
-    .input-icon.checking {
-        color: #f59e0b;
-        animation: spin 1s linear infinite;
-    }
-    
-    .input-icon.valid {
-        color: #10b981;
-    }
-    
-    .input-icon.invalid {
-        color: #ef4444;
-    }
+    .input-icon.checking { color: #f59e0b; }
+    .input-icon.valid { color: #10b981; }
+    .input-icon.invalid { color: #ef4444; }
 </style>
 
 <div class="page-container">
@@ -368,65 +375,58 @@
                 <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
             </svg>
         </a>
-        <h1>Add New Lot / Batch</h1>
+        <h1>Create New Lot</h1>
     </div>
-
-    @if(session('error'))
-        <div class="alert alert-error">
-            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-            </svg>
-            {{ session('error') }}
-        </div>
-    @endif
-
-    @if($errors->any())
-        <div class="alert alert-error">
-            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-            </svg>
-            <div>
-                <strong>Please fix the following errors:</strong>
-                <ul style="margin: 5px 0 0 20px; padding: 0;">
-                    @foreach($errors->all() as $error)
-                        <li>{{ $error }}</li>
-                    @endforeach
-                </ul>
-            </div>
-        </div>
-    @endif
 
     <!-- Form Card -->
     <div class="form-card">
         <div class="form-card-header">
-            <h3 class="form-card-title">Lot Information</h3>
+            <h3 class="form-card-title">Lot / Batch Details</h3>
         </div>
         <div class="form-card-body">
-            <div class="info-box">
-                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                </svg>
-                <p>Lots are used to track batch numbers, expiry dates, and manage inventory at a granular level. Only products with "Batch Managed" enabled will appear here.</p>
-            </div>
-
             <form action="{{ route('admin.inventory.lots.store') }}" method="POST" id="lotForm">
                 @csrf
 
-                <!-- Basic Information -->
+                <!-- Product Selection -->
                 <div class="form-section">
-                    <div class="form-section-title">Basic Information</div>
+                    <div class="form-section-title">Product Information</div>
                     
                     <div class="form-group">
-                        <label class="form-label">Product <span class="required">*</span></label>
+                        <label class="form-label">Select Product <span class="required">*</span></label>
                         <select name="product_id" id="product_id" class="form-control" required>
-                            <option value="">-- Select Product --</option>
+                            <option value="">-- Select a batch-managed product --</option>
                             @foreach($products as $product)
-                                <option value="{{ $product->id }}" {{ old('product_id') == $product->id ? 'selected' : '' }}>
+                                <option value="{{ $product->id }}" 
+                                        data-name="{{ $product->name }}"
+                                        data-sku="{{ $product->sku }}"
+                                        data-purchase="{{ $product->purchase_price }}"
+                                        data-sale="{{ $product->sale_price }}"
+                                        data-image="{{ $product->images->where('is_primary', true)->first()?->image_path ?? $product->images->first()?->image_path }}"
+                                        {{ old('product_id') == $product->id ? 'selected' : '' }}>
                                     {{ $product->name }} ({{ $product->sku }})
                                 </option>
                             @endforeach
                         </select>
                         @error('product_id')<div class="form-error">{{ $message }}</div>@enderror
+                        <div class="form-help">Only products with "Batch Managed" enabled are shown</div>
+                        
+                        <!-- Product Preview -->
+                        <div class="product-preview" id="productPreview">
+                            <div class="product-preview-placeholder" id="previewPlaceholder">
+                                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                                </svg>
+                            </div>
+                            <img src="" class="product-preview-image" id="previewImage" style="display:none;" alt="Product">
+                            <div class="product-preview-info">
+                                <div class="product-preview-name" id="previewName"></div>
+                                <div class="product-preview-sku" id="previewSku"></div>
+                                <div class="product-preview-prices">
+                                    <span class="product-preview-price">Purchase: <strong id="previewPurchase"></strong></span>
+                                    <span class="product-preview-price">Sale: <strong id="previewSale"></strong></span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="form-row">
@@ -463,8 +463,8 @@
                     <div class="form-group">
                         <label class="form-label">Status <span class="required">*</span></label>
                         <select name="status" class="form-control" required>
-                            <option value="AVAILABLE" {{ old('status', 'AVAILABLE') == 'AVAILABLE' ? 'selected' : '' }}>Available</option>
-                            <option value="RESERVED" {{ old('status') == 'RESERVED' ? 'selected' : '' }}>Reserved</option>
+                            <option value="ACTIVE" {{ old('status', 'ACTIVE') == 'ACTIVE' ? 'selected' : '' }}>Active</option>
+                            <option value="RECALLED" {{ old('status') == 'RECALLED' ? 'selected' : '' }}>Recalled</option>
                             <option value="EXPIRED" {{ old('status') == 'EXPIRED' ? 'selected' : '' }}>Expired</option>
                             <option value="CONSUMED" {{ old('status') == 'CONSUMED' ? 'selected' : '' }}>Consumed</option>
                         </select>
@@ -473,17 +473,18 @@
 
                 <!-- Pricing -->
                 <div class="form-section">
-                    <div class="form-section-title">Pricing</div>
+                    <div class="form-section-title">Lot-Specific Pricing (Optional)</div>
+                    <div class="form-help" style="margin-bottom: 16px;">Override the product's default prices for this specific lot. Leave empty to use product defaults.</div>
                     
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label">Purchase Price</label>
-                            <input type="number" name="purchase_price" class="form-control" step="0.01" min="0" placeholder="0.00" value="{{ old('purchase_price') }}">
+                            <input type="number" name="purchase_price" id="purchasePrice" class="form-control" step="0.01" min="0" placeholder="Use product default" value="{{ old('purchase_price') }}">
                             <div class="form-help">Cost price for this specific lot</div>
                         </div>
                         <div class="form-group">
                             <label class="form-label">Sale Price</label>
-                            <input type="number" name="sale_price" class="form-control" step="0.01" min="0" placeholder="0.00" value="{{ old('sale_price') }}">
+                            <input type="number" name="sale_price" id="salePrice" class="form-control" step="0.01" min="0" placeholder="Use product default" value="{{ old('sale_price') }}">
                             <div class="form-help">Selling price for this specific lot</div>
                         </div>
                     </div>
@@ -512,7 +513,7 @@
                     
                     <div class="form-group">
                         <label class="form-label">Remarks</label>
-                        <textarea name="remarks" class="form-control" placeholder="Any additional notes about this lot...">{{ old('remarks') }}</textarea>
+                        <textarea name="notes" class="form-control" placeholder="Any additional notes about this lot...">{{ old('notes') }}</textarea>
                     </div>
                 </div>
 
@@ -535,11 +536,76 @@
 let checkTimeout = null;
 let isLotValid = true;
 
-const lotNoInput = document.getElementById('lot_no');
 const productSelect = document.getElementById('product_id');
+const productPreview = document.getElementById('productPreview');
+const previewPlaceholder = document.getElementById('previewPlaceholder');
+const previewImage = document.getElementById('previewImage');
+const previewName = document.getElementById('previewName');
+const previewSku = document.getElementById('previewSku');
+const previewPurchase = document.getElementById('previewPurchase');
+const previewSale = document.getElementById('previewSale');
+const purchasePriceInput = document.getElementById('purchasePrice');
+const salePriceInput = document.getElementById('salePrice');
+
+const lotNoInput = document.getElementById('lot_no');
 const lotNoIcon = document.getElementById('lotNoIcon');
 const lotNoFeedback = document.getElementById('lotNoFeedback');
 const submitBtn = document.getElementById('submitBtn');
+
+// Product selection - show preview
+productSelect.addEventListener('change', function() {
+    const selected = this.options[this.selectedIndex];
+    
+    if (!this.value) {
+        productPreview.classList.remove('show');
+        purchasePriceInput.placeholder = 'Use product default';
+        salePriceInput.placeholder = 'Use product default';
+        return;
+    }
+    
+    const name = selected.dataset.name;
+    const sku = selected.dataset.sku;
+    const purchase = parseFloat(selected.dataset.purchase) || 0;
+    const sale = parseFloat(selected.dataset.sale) || 0;
+    const imagePath = selected.dataset.image;
+    
+    previewName.textContent = name;
+    previewSku.textContent = 'SKU: ' + sku;
+    previewPurchase.textContent = '₹' + purchase.toFixed(2);
+    previewSale.textContent = '₹' + sale.toFixed(2);
+    
+    // Update placeholders
+    purchasePriceInput.placeholder = purchase.toFixed(2);
+    salePriceInput.placeholder = sale.toFixed(2);
+    
+    // Handle image
+    if (imagePath) {
+        previewImage.src = '/storage/' + imagePath;
+        previewImage.style.display = 'block';
+        previewPlaceholder.style.display = 'none';
+        
+        previewImage.onerror = function() {
+            this.style.display = 'none';
+            previewPlaceholder.style.display = 'flex';
+        };
+    } else {
+        previewImage.style.display = 'none';
+        previewPlaceholder.style.display = 'flex';
+    }
+    
+    productPreview.classList.add('show');
+    
+    // Re-check lot number if already entered
+    const lotNo = lotNoInput.value.trim();
+    if (lotNo.length >= 2) {
+        checkLotNumber(lotNo, this.value);
+    }
+});
+
+// Initialize preview if product was pre-selected (e.g., from old() values)
+if (productSelect.value) {
+    productSelect.dispatchEvent(new Event('change'));
+}
 
 // Check lot number on input
 lotNoInput.addEventListener('input', function() {
@@ -571,14 +637,6 @@ lotNoInput.addEventListener('input', function() {
     checkTimeout = setTimeout(() => {
         checkLotNumber(lotNo, productId);
     }, 500);
-});
-
-// Also check when product changes
-productSelect.addEventListener('change', function() {
-    const lotNo = lotNoInput.value.trim();
-    if (lotNo.length >= 2) {
-        checkLotNumber(lotNo, this.value);
-    }
 });
 
 function checkLotNumber(lotNo, productId) {
@@ -629,11 +687,7 @@ function checkLotNumber(lotNo, productId) {
 }
 
 function updateSubmitButton() {
-    if (!isLotValid) {
-        submitBtn.disabled = true;
-    } else {
-        submitBtn.disabled = false;
-    }
+    submitBtn.disabled = !isLotValid;
 }
 
 // Form submission validation

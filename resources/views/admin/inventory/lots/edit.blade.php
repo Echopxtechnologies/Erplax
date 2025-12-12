@@ -175,6 +175,75 @@
         margin-top: 6px;
     }
 
+    /* Product Preview Card */
+    .product-preview {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        background: var(--body-bg);
+        padding: 16px;
+        border-radius: 10px;
+        border: 1px solid var(--card-border);
+    }
+    
+    .product-preview-image {
+        width: 64px;
+        height: 64px;
+        border-radius: 10px;
+        object-fit: cover;
+        border: 1px solid var(--card-border);
+        background: var(--card-bg);
+    }
+    
+    .product-preview-placeholder {
+        width: 64px;
+        height: 64px;
+        border-radius: 10px;
+        background: var(--card-bg);
+        border: 1px solid var(--card-border);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-muted);
+    }
+    
+    .product-preview-placeholder svg {
+        width: 28px;
+        height: 28px;
+    }
+    
+    .product-preview-info {
+        flex: 1;
+    }
+    
+    .product-preview-name {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 4px;
+    }
+    
+    .product-preview-sku {
+        font-size: 13px;
+        color: var(--text-muted);
+        font-family: monospace;
+    }
+    
+    .product-preview-prices {
+        display: flex;
+        gap: 16px;
+        margin-top: 8px;
+    }
+    
+    .product-preview-price {
+        font-size: 12px;
+        color: var(--text-muted);
+    }
+    
+    .product-preview-price strong {
+        color: var(--text-primary);
+    }
+
     .readonly-field {
         background: var(--body-bg);
         padding: 12px 14px;
@@ -182,13 +251,6 @@
         font-size: 14px;
         color: var(--text-primary);
         border: 1px solid var(--card-border);
-    }
-    
-    .readonly-field small {
-        display: block;
-        color: var(--text-muted);
-        font-size: 12px;
-        margin-top: 4px;
     }
 
     .form-actions {
@@ -257,10 +319,10 @@
             <h3 class="form-card-title">Edit: {{ $lot->lot_no }}</h3>
             @php
                 $statusClass = [
-                    'AVAILABLE' => 'badge-success',
-                    'RESERVED' => 'badge-info',
+                    'ACTIVE' => 'badge-success',
+                    'RECALLED' => 'badge-warning',
                     'EXPIRED' => 'badge-danger',
-                    'CONSUMED' => 'badge-warning'
+                    'CONSUMED' => 'badge-info'
                 ][$lot->status] ?? 'badge-info';
             @endphp
             <span class="badge {{ $statusClass }}">{{ $lot->status }}</span>
@@ -276,9 +338,38 @@
                     
                     <div class="form-group">
                         <label class="form-label">Product</label>
-                        <div class="readonly-field">
-                            <strong>{{ $lot->product->name ?? 'N/A' }}</strong>
-                            <small>SKU: {{ $lot->product->sku ?? 'N/A' }}</small>
+                        @php
+                            $primaryImage = $lot->product?->images?->where('is_primary', true)->first() 
+                                ?? $lot->product?->images?->first();
+                        @endphp
+                        <div class="product-preview">
+                            @if($primaryImage)
+                                <img src="{{ asset('storage/' . $primaryImage->image_path) }}" 
+                                     class="product-preview-image" 
+                                     alt="{{ $lot->product->name }}"
+                                     onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+                                <div class="product-preview-placeholder" style="display:none;">
+                                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                                    </svg>
+                                </div>
+                            @else
+                                <div class="product-preview-placeholder">
+                                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                                    </svg>
+                                </div>
+                            @endif
+                            <div class="product-preview-info">
+                                <div class="product-preview-name">{{ $lot->product->name ?? 'N/A' }}</div>
+                                <div class="product-preview-sku">SKU: {{ $lot->product->sku ?? 'N/A' }}</div>
+                                @if($lot->product)
+                                <div class="product-preview-prices">
+                                    <span class="product-preview-price">Purchase: <strong>₹{{ number_format($lot->product->purchase_price, 2) }}</strong></span>
+                                    <span class="product-preview-price">Sale: <strong>₹{{ number_format($lot->product->sale_price, 2) }}</strong></span>
+                                </div>
+                                @endif
+                            </div>
                         </div>
                         <div class="form-help">Product cannot be changed after lot creation</div>
                     </div>
@@ -299,8 +390,8 @@
                     <div class="form-group">
                         <label class="form-label">Status <span class="required">*</span></label>
                         <select name="status" class="form-control" required>
-                            <option value="AVAILABLE" {{ old('status', $lot->status) == 'AVAILABLE' ? 'selected' : '' }}>Available</option>
-                            <option value="RESERVED" {{ old('status', $lot->status) == 'RESERVED' ? 'selected' : '' }}>Reserved</option>
+                           <option value="ACTIVE" {{ old('status', $lot->status) == 'ACTIVE' ? 'selected' : '' }}>Active</option>
+                            <option value="RECALLED" {{ old('status', $lot->status) == 'RECALLED' ? 'selected' : '' }}>Recalled</option>
                             <option value="EXPIRED" {{ old('status', $lot->status) == 'EXPIRED' ? 'selected' : '' }}>Expired</option>
                             <option value="CONSUMED" {{ old('status', $lot->status) == 'CONSUMED' ? 'selected' : '' }}>Consumed</option>
                         </select>
@@ -309,16 +400,17 @@
 
                 <!-- Pricing -->
                 <div class="form-section">
-                    <div class="form-section-title">Pricing</div>
+                    <div class="form-section-title">Lot-Specific Pricing</div>
+                    <div class="form-help" style="margin-bottom: 16px;">Override the product's default prices for this specific lot</div>
                     
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label">Purchase Price</label>
-                            <input type="number" name="purchase_price" class="form-control" step="0.01" min="0" value="{{ old('purchase_price', $lot->purchase_price) }}">
+                            <input type="number" name="purchase_price" class="form-control" step="0.01" min="0" value="{{ old('purchase_price', $lot->purchase_price) }}" placeholder="{{ $lot->product?->purchase_price ?? '0.00' }}">
                         </div>
                         <div class="form-group">
                             <label class="form-label">Sale Price</label>
-                            <input type="number" name="sale_price" class="form-control" step="0.01" min="0" value="{{ old('sale_price', $lot->sale_price) }}">
+                            <input type="number" name="sale_price" class="form-control" step="0.01" min="0" value="{{ old('sale_price', $lot->sale_price) }}" placeholder="{{ $lot->product?->sale_price ?? '0.00' }}">
                         </div>
                     </div>
                 </div>
@@ -330,11 +422,23 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label">Manufacturing Date</label>
-                            <input type="date" name="manufacturing_date" class="form-control" value="{{ old('manufacturing_date', $lot->manufacturing_date) }}">
+                            <input type="date" name="manufacturing_date" class="form-control" value="{{ old('manufacturing_date', $lot->manufacturing_date?->format('Y-m-d')) }}">
                         </div>
                         <div class="form-group">
                             <label class="form-label">Expiry Date</label>
-                            <input type="date" name="expiry_date" class="form-control" value="{{ old('expiry_date', $lot->expiry_date) }}">
+                            <input type="date" name="expiry_date" class="form-control" value="{{ old('expiry_date', $lot->expiry_date?->format('Y-m-d')) }}">
+                            @if($lot->expiry_date)
+                                @php
+                                    $daysToExpiry = now()->diffInDays($lot->expiry_date, false);
+                                @endphp
+                                @if($daysToExpiry < 0)
+                                    <div class="form-help" style="color: #dc2626;">⚠️ This lot has expired {{ abs($daysToExpiry) }} days ago</div>
+                                @elseif($daysToExpiry <= 30)
+                                    <div class="form-help" style="color: #ea580c;">⚠️ Expires in {{ $daysToExpiry }} days</div>
+                                @else
+                                    <div class="form-help">{{ $daysToExpiry }} days until expiry</div>
+                                @endif
+                            @endif
                         </div>
                     </div>
                 </div>
@@ -345,7 +449,7 @@
                     
                     <div class="form-group">
                         <label class="form-label">Remarks</label>
-                        <textarea name="remarks" class="form-control" placeholder="Any additional notes about this lot...">{{ old('remarks', $lot->remarks) }}</textarea>
+                        <textarea name="notes" class="form-control" placeholder="Any additional notes about this lot...">{{ old('notes', $lot->notes) }}</textarea>
                     </div>
                 </div>
 

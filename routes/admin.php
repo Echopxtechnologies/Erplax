@@ -15,6 +15,7 @@ use App\Http\Controllers\Admin\CronJobController;
 use App\Http\Controllers\Admin\Customers\Index as CustomersIndexController;
 use App\Http\Controllers\Admin\Customers\Form as CustomersFormController;
 use App\Http\Controllers\Admin\Customers\CustomerController;
+use App\Http\Controllers\Admin\ClientUserController;
 
 Route::get('/admin', [AdminLoginController::class, 'showLoginForm'])->name('login');
 Route::prefix('admin')->name('admin.')->group(function () {
@@ -39,13 +40,6 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('/{alias}/deactivate', [ModuleController::class, 'deactivate'])->name('deactivate');
             Route::delete('/{alias}/uninstall', [ModuleController::class, 'uninstall'])->name('uninstall');
             Route::delete('/{alias}/delete', [ModuleController::class, 'delete'])->name('delete');
-        });
-
-        // All other routes...
-        Route::prefix('contacts')->name('contacts.')->group(function () {
-            Route::get('/dummy1', [AdminController::class, 'dummy1'])->name('dummy1');
-            Route::get('/dummy2', [AdminController::class, 'dummy2'])->name('dummy2');
-            Route::get('/dummy3', [AdminController::class, 'dummy3'])->name('dummy3');
         });
 
         Route::prefix('settings')->name('settings.')->group(function () {
@@ -82,6 +76,26 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('/users/{id}/edit', [AdminUserController::class, 'edit'])->name('users.edit');
             Route::post('/users/{id}', [AdminUserController::class, 'update'])->name('users.update');
             Route::delete('/users/{id}', [AdminUserController::class, 'destroy'])->name('users.destroy');
+
+            Route::prefix('client')->name('client.')->group(function () {
+                Route::get('/', [ClientUserController::class, 'index'])->name('index');
+                Route::get('/export', [App\Http\Controllers\Admin\ClientUserController::class, 'export'])->name('export');
+                Route::get('/create', [ClientUserController::class, 'create'])->name('create');
+                Route::post('/', [ClientUserController::class, 'store'])->name('store');
+                Route::post('/bulk-delete', [ClientUserController::class, 'bulkDelete'])->name('bulk-delete');
+                Route::get('/{id}', [ClientUserController::class, 'show'])->name('show');
+                Route::get('/{id}/edit', [ClientUserController::class, 'edit'])->name('edit');
+                Route::put('/{id}', [ClientUserController::class, 'update'])->name('update');
+                Route::post('/{id}/toggle-status', [ClientUserController::class, 'toggleStatus'])->name('toggle-status');
+                Route::delete('/{id}', [ClientUserController::class, 'destroy'])->name('destroy');
+            });
+             Route::prefix('taxes')->name('taxes.')->group(function () {
+            Route::get('/', [App\Http\Controllers\Admin\AdminController::class, 'taxIndex'])->name('index');
+            Route::match(['get', 'post'], '/data', [App\Http\Controllers\Admin\AdminController::class, 'taxData'])->name('data');
+            Route::post('/', [App\Http\Controllers\Admin\AdminController::class, 'taxStore'])->name('store');
+            Route::put('/{id}', [App\Http\Controllers\Admin\AdminController::class, 'taxUpdate'])->name('update');
+            Route::delete('/{id}', [App\Http\Controllers\Admin\AdminController::class, 'taxDestroy'])->name('destroy');
+        });
         });
         Route::prefix('cronjob')->name('cronjob.')->group(function () {
             Route::get('/', [CronJobController::class, 'index'])->name('index');
@@ -129,14 +143,6 @@ Route::prefix('admin')->name('admin.')->group(function () {
     Route::delete('/{customer}',   [CustomersFormController::class, 'destroy'])->name('destroy');
 });
 
-
-
-
-
-
-
-
-
 // Notification Routes
 Route::prefix('notifications')->name('notifications.')->group(function () {
     Route::delete('/clear-all', [App\Http\Controllers\Admin\NotificationController::class, 'clearAll'])->name('clear-all');
@@ -148,10 +154,15 @@ Route::prefix('inventory')->name('inventory.')->group(function () {
     // ==================== DASHBOARD ====================
     Route::get('/', [InventoryController::class, 'dashboard'])->name('dashboard');
 
-    // ==================== PRODUCTS ====================
+   // ==================== PRODUCTS ====================
     Route::prefix('products')->name('products.')->group(function () {
+        // Static routes FIRST (before {id} routes)
+        Route::get('/tags/search', [InventoryController::class, 'tagsSearch'])->name('tags.search');
+        Route::get('/attributes', [InventoryController::class, 'getAttributes'])->name('attributes.index');
+        
+        // Standard CRUD
         Route::get('/', [InventoryController::class, 'productsIndex'])->name('index');
-        Route::match(['get', 'post'], '/data', [InventoryController::class, 'productsData'])->name('data');  // <-- Changed
+        Route::match(['get', 'post'], '/data', [InventoryController::class, 'productsData'])->name('data');
         Route::get('/create', [InventoryController::class, 'productsCreate'])->name('create');
         Route::post('/', [InventoryController::class, 'productsStore'])->name('store');
         Route::get('/{id}', [InventoryController::class, 'productsShow'])->name('show');
@@ -159,6 +170,19 @@ Route::prefix('inventory')->name('inventory.')->group(function () {
         Route::put('/{id}', [InventoryController::class, 'productsUpdate'])->name('update');
         Route::post('/{id}/deactivate', [InventoryController::class, 'productsDeactivate'])->name('deactivate');
         Route::delete('/{id}', [InventoryController::class, 'productsDestroy'])->name('destroy');
+        
+        // Product Units AJAX
+        Route::get('/{id}/units', [InventoryController::class, 'productsGetUnits'])->name('units');
+        
+        // Product Variations AJAX
+        Route::get('/{id}/variations', [InventoryController::class, 'getVariations'])->name('variations');
+        Route::post('/{id}/generate-variations', [InventoryController::class, 'generateVariations'])->name('generate-variations');
+    });
+
+    // ==================== VARIATIONS (Separate) ====================
+    Route::prefix('variations')->name('variations.')->group(function () {
+        Route::put('/{id}', [InventoryController::class, 'updateVariation'])->name('update');
+        Route::delete('/{id}', [InventoryController::class, 'deleteVariation'])->name('destroy');
     });
 
     // ==================== WAREHOUSES ====================
@@ -174,20 +198,39 @@ Route::prefix('inventory')->name('inventory.')->group(function () {
         Route::delete('/{id}', [InventoryController::class, 'warehousesDestroy'])->name('destroy');
     });
 
-    // ==================== LOTS ====================
-    Route::prefix('lots')->name('lots.')->group(function () {
-        Route::get('/', [InventoryController::class, 'lotsIndex'])->name('index');
-        Route::get('/data', [InventoryController::class, 'lotsData'])->name('data');
-        Route::get('/check', [InventoryController::class, 'lotsCheck'])->name('check');
-        Route::get('/create', [InventoryController::class, 'lotsCreate'])->name('create');
-        Route::post('/', [InventoryController::class, 'lotsStore'])->name('store');
-        Route::get('/{id}/edit', [InventoryController::class, 'lotsEdit'])->name('edit');
-        Route::put('/{id}', [InventoryController::class, 'lotsUpdate'])->name('update');
-        Route::post('/{id}/deactivate', [InventoryController::class, 'lotsDeactivate'])->name('deactivate');
-        Route::delete('/{id}', [InventoryController::class, 'lotsDestroy'])->name('destroy');
-        Route::get('/by-product/{productId}', [InventoryController::class, 'lotsByProduct'])->name('by-product');
-    });
-
+// ==================== LOTS ====================
+Route::prefix('lots')->name('lots.')->group(function () {
+    
+    // INDEX & DATA
+    Route::get('/', [InventoryController::class, 'lotsIndex'])->name('index');
+    Route::match(['get', 'post'], '/data', [InventoryController::class, 'lotsData'])->name('data');
+    
+    // AJAX ROUTES (must be before {id} routes)
+    Route::get('/check', [InventoryController::class, 'lotsCheck'])->name('check');
+    Route::get('/generate-lot-no', [InventoryController::class, 'lotsGenerateLotNo'])->name('generate-lot-no');
+    Route::get('/expiring-soon', [InventoryController::class, 'lotsExpiringSoon'])->name('expiring-soon');
+    Route::post('/update-statuses', [InventoryController::class, 'lotsUpdateStatuses'])->name('update-statuses');
+    Route::get('/by-product/{productId}', [InventoryController::class, 'lotsByProduct'])->name('by-product');
+    Route::get('/with-stock/{productId}', [InventoryController::class, 'lotsWithStockByProduct'])->name('with-stock');
+    Route::get('/product-info/{productId}', [InventoryController::class, 'lotsGetProductInfo'])->name('product-info');
+    
+    // CREATE & STORE
+    Route::get('/create', [InventoryController::class, 'lotsCreate'])->name('create');
+    Route::post('/', [InventoryController::class, 'lotsStore'])->name('store');
+    
+    // SHOW, EDIT, UPDATE (with {id})
+    Route::get('/{id}', [InventoryController::class, 'lotsShow'])->name('show');
+    Route::get('/{id}/edit', [InventoryController::class, 'lotsEdit'])->name('edit');
+    Route::put('/{id}', [InventoryController::class, 'lotsUpdate'])->name('update');
+    
+    // STATUS CHANGE ROUTES
+    Route::post('/{id}/deactivate', [InventoryController::class, 'lotsDeactivate'])->name('deactivate');
+    Route::post('/{id}/mark-expired', [InventoryController::class, 'lotsMarkExpired'])->name('mark-expired');
+    Route::post('/{id}/mark-recalled', [InventoryController::class, 'lotsMarkRecalled'])->name('mark-recalled');
+    
+    // DELETE
+    Route::delete('/{id}', [InventoryController::class, 'lotsDestroy'])->name('destroy');
+});
     // ==================== STOCK MOVEMENTS ====================
     Route::prefix('stock')->name('stock.')->group(function () {
         Route::get('/movements', [InventoryController::class, 'stockMovements'])->name('movements');
@@ -211,11 +254,13 @@ Route::prefix('inventory')->name('inventory.')->group(function () {
         
         // Check stock (AJAX)
         Route::get('/check', [InventoryController::class, 'stockCheck'])->name('check');
-
-       // Stock Transfer
-      // Stock Transfer
-    Route::get('/transfer', [InventoryController::class, 'stockTransfer'])->name('transfer');
-    Route::post('/transfer', [InventoryController::class, 'stockTransferStore'])->name('transfer.store');
+        // Add these after the /check route (around line 175)
+        Route::get('/product-units', [InventoryController::class, 'stockProductUnits'])->name('product-units');
+        Route::get('/product-lots', [InventoryController::class, 'stockProductLots'])->name('product-lots');
+        // Stock Transfer
+        // Stock Transfer
+        Route::get('/transfer', [InventoryController::class, 'stockTransfer'])->name('transfer');
+        Route::post('/transfer', [InventoryController::class, 'stockTransferStore'])->name('transfer.store');
     });
 
     // Racks
@@ -263,135 +308,135 @@ Route::prefix('inventory')->name('inventory.')->group(function () {
 });
         //testing 
 
-Route::prefix('debug')->name('debug.')->group(function () {
+// Route::prefix('debug')->name('debug.')->group(function () {
     
-    // Test current logged-in admin
-    Route::get('/user', function () {
-        $admin = Auth::guard('admin')->user();
-        dd([
-            'admin' => $admin,
-            'id' => $admin?->id,
-            'name' => $admin?->name,
-            'email' => $admin?->email,
-            'roles' => $admin?->roles?->pluck('name'),
-            'permissions' => $admin?->getAllPermissions()?->pluck('name'),
-        ]);
-    });
-    Route::get('/mail-status', function () {
-    dd(\App\Services\Admin\MailService::getStatus());
-    });
-    Route::get('/send_mail', function () {
-    $result = dd(\App\Services\Admin\MailService::sendTest('googleteam2@echopx.com'));
-    dd($result);
-    });
-    // Test all options/settings
-    Route::get('/options', function () {
-        $options = \App\Models\Option::all();
-        dd([
-            'all_options' => $options->toArray(),
-            'by_group' => $options->groupBy('group'),
-        ]);
-    });
+//     // Test current logged-in admin
+//     Route::get('/user', function () {
+//         $admin = Auth::guard('admin')->user();
+//         dd([
+//             'admin' => $admin,
+//             'id' => $admin?->id,
+//             'name' => $admin?->name,
+//             'email' => $admin?->email,
+//             'roles' => $admin?->roles?->pluck('name'),
+//             'permissions' => $admin?->getAllPermissions()?->pluck('name'),
+//         ]);
+//     });
+//     Route::get('/mail-status', function () {
+//     dd(\App\Services\Admin\MailService::getStatus());
+//     });
+//     Route::get('/send_mail', function () {
+//     $result = dd(\App\Services\Admin\MailService::sendTest('googleteam2@echopx.com'));
+//     dd($result);
+//     });
+//     // Test all options/settings
+//     Route::get('/options', function () {
+//         $options = \App\Models\Option::all();
+//         dd([
+//             'all_options' => $options->toArray(),
+//             'by_group' => $options->groupBy('group'),
+//         ]);
+//     });
 
-    // Test specific settings groups
-    Route::get('/settings/general', function () {
-        dd([
-            'company_name' => \App\Models\Option::get('company_name', ''),
-            'company_email' => \App\Models\Option::get('company_email', ''),
-            'company_phone' => \App\Models\Option::get('company_phone', ''),
-            'company_address' => \App\Models\Option::get('company_address', ''),
-            'company_website' => \App\Models\Option::get('company_website', ''),
-            'company_gst' => \App\Models\Option::get('company_gst', ''),
-            'company_logo' => \App\Models\Option::get('company_logo', ''),
-            'company_favicon' => \App\Models\Option::get('company_favicon', ''),
-            'site_timezone' => \App\Models\Option::get('site_timezone', 'Asia/Kolkata'),
-            'date_format' => \App\Models\Option::get('date_format', 'd/m/Y'),
-            'time_format' => \App\Models\Option::get('time_format', 'h:i A'),
-            'currency_symbol' => \App\Models\Option::get('currency_symbol', '₹'),
-            'currency_code' => \App\Models\Option::get('currency_code', 'INR'),
-            'pagination_limit' => \App\Models\Option::get('pagination_limit', 10),
-        ]);
-    });
+//     // Test specific settings groups
+//     Route::get('/settings/general', function () {
+//         dd([
+//             'company_name' => \App\Models\Option::get('company_name', ''),
+//             'company_email' => \App\Models\Option::get('company_email', ''),
+//             'company_phone' => \App\Models\Option::get('company_phone', ''),
+//             'company_address' => \App\Models\Option::get('company_address', ''),
+//             'company_website' => \App\Models\Option::get('company_website', ''),
+//             'company_gst' => \App\Models\Option::get('company_gst', ''),
+//             'company_logo' => \App\Models\Option::get('company_logo', ''),
+//             'company_favicon' => \App\Models\Option::get('company_favicon', ''),
+//             'site_timezone' => \App\Models\Option::get('site_timezone', 'Asia/Kolkata'),
+//             'date_format' => \App\Models\Option::get('date_format', 'd/m/Y'),
+//             'time_format' => \App\Models\Option::get('time_format', 'h:i A'),
+//             'currency_symbol' => \App\Models\Option::get('currency_symbol', '₹'),
+//             'currency_code' => \App\Models\Option::get('currency_code', 'INR'),
+//             'pagination_limit' => \App\Models\Option::get('pagination_limit', 10),
+//         ]);
+//     });
 
-    // Test email settings
-    Route::get('/settings/email', function () {
-        dd([
-            'mail_mailer' => \App\Models\Option::get('mail_mailer', 'smtp'),
-            'mail_host' => \App\Models\Option::get('mail_host', ''),
-            'mail_port' => \App\Models\Option::get('mail_port', 587),
-            'mail_username' => \App\Models\Option::get('mail_username', ''),
-            'mail_password' => '***hidden***',
-            'mail_encryption' => \App\Models\Option::get('mail_encryption', 'tls'),
-            'mail_from_address' => \App\Models\Option::get('mail_from_address', ''),
-            'mail_from_name' => \App\Models\Option::get('mail_from_name', ''),
-        ]);
-    });
+//     // Test email settings
+//     Route::get('/settings/email', function () {
+//         dd([
+//             'mail_mailer' => \App\Models\Option::get('mail_mailer', 'smtp'),
+//             'mail_host' => \App\Models\Option::get('mail_host', ''),
+//             'mail_port' => \App\Models\Option::get('mail_port', 587),
+//             'mail_username' => \App\Models\Option::get('mail_username', ''),
+//             'mail_password' => '***hidden***',
+//             'mail_encryption' => \App\Models\Option::get('mail_encryption', 'tls'),
+//             'mail_from_address' => \App\Models\Option::get('mail_from_address', ''),
+//             'mail_from_name' => \App\Models\Option::get('mail_from_name', ''),
+//         ]);
+//     });
 
-    // Test roles
-    Route::get('/roles', function () {
-        $roles = \Spatie\Permission\Models\Role::with('permissions')->get();
-        dd([
-            'roles' => $roles->map(fn($r) => [
-                'id' => $r->id,
-                'name' => $r->name,
-                'guard' => $r->guard_name,
-                'permissions' => $r->permissions->pluck('name'),
-            ]),
-        ]);
-    });
+//     // Test roles
+//     Route::get('/roles', function () {
+//         $roles = \Spatie\Permission\Models\Role::with('permissions')->get();
+//         dd([
+//             'roles' => $roles->map(fn($r) => [
+//                 'id' => $r->id,
+//                 'name' => $r->name,
+//                 'guard' => $r->guard_name,
+//                 'permissions' => $r->permissions->pluck('name'),
+//             ]),
+//         ]);
+//     });
 
-    // Test permissions
-    Route::get('/permissions', function () {
-        $permissions = \Spatie\Permission\Models\Permission::all();
-        dd([
-            'count' => $permissions->count(),
-            'permissions' => $permissions->map(fn($p) => [
-                'id' => $p->id,
-                'name' => $p->name,
-                'guard' => $p->guard_name,
-            ]),
-        ]);
-    });
+//     // Test permissions
+//     Route::get('/permissions', function () {
+//         $permissions = \Spatie\Permission\Models\Permission::all();
+//         dd([
+//             'count' => $permissions->count(),
+//             'permissions' => $permissions->map(fn($p) => [
+//                 'id' => $p->id,
+//                 'name' => $p->name,
+//                 'guard' => $p->guard_name,
+//             ]),
+//         ]);
+//     });
 
-    // Test admins
-    Route::get('/admins', function () {
-        $admins = \App\Models\Admin::with('roles')->get();
-        dd([
-            'admins' => $admins->map(fn($a) => [
-                'id' => $a->id,
-                'name' => $a->name,
-                'email' => $a->email,
-                'is_active' => $a->is_active,
-                'roles' => $a->roles->pluck('name'),
-            ]),
-        ]);
-    });
+//     // Test admins
+//     Route::get('/admins', function () {
+//         $admins = \App\Models\Admin::with('roles')->get();
+//         dd([
+//             'admins' => $admins->map(fn($a) => [
+//                 'id' => $a->id,
+//                 'name' => $a->name,
+//                 'email' => $a->email,
+//                 'is_active' => $a->is_active,
+//                 'roles' => $a->roles->pluck('name'),
+//             ]),
+//         ]);
+//     });
 
-    // Test menus
-    Route::get('/menus', function () {
-        $menus = \App\Models\Menu::with('children')->whereNull('parent_id')->get();
-        dd([
-            'menus' => $menus->toArray(),
-        ]);
-    });
+//     // Test menus
+//     Route::get('/menus', function () {
+//         $menus = \App\Models\Menu::with('children')->whereNull('parent_id')->get();
+//         dd([
+//             'menus' => $menus->toArray(),
+//         ]);
+//     });
 
-    // Test modules
-    Route::get('/modules', function () {
-        $modules = \App\Models\Module::all();
-        dd([
-            'modules' => $modules->toArray(),
-        ]);
-    });
+//     // Test modules
+//     Route::get('/modules', function () {
+//         $modules = \App\Models\Module::all();
+//         dd([
+//             'modules' => $modules->toArray(),
+//         ]);
+//     });
 
-    // Test database tables
-    Route::get('/tables', function () {
-        $tables = \DB::select('SHOW TABLES');
-        $key = 'Tables_in_' . env('DB_DATABASE');
-        dd([
-            'tables' => collect($tables)->pluck($key),
-        ]);
-    });
-});
+//     // Test database tables
+//     Route::get('/tables', function () {
+//         $tables = \DB::select('SHOW TABLES');
+//         $key = 'Tables_in_' . env('DB_DATABASE');
+//         dd([
+//             'tables' => collect($tables)->pluck($key),
+//         ]);
+//     });
+// });
 
 
 

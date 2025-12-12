@@ -1,4 +1,9 @@
 <style>
+/* =========================================
+   DATATABLE - Clean Version
+   Balanced colors, no zoom effects
+   ========================================= */
+
 /* Container */
 .dt-container {
     background: var(--card-bg);
@@ -7,14 +12,15 @@
     overflow: hidden;
     margin: 15px 0;
     width: 100%;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
-/* Table Wrapper - HORIZONTAL SCROLL LIKE PERFEX */
+/* Table Wrapper for horizontal scroll */
 .dt-container .dt-table-wrapper {
     overflow-x: auto;
-    overflow-y: visible;
     width: 100%;
-    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: #a0aec0 var(--body-bg);
 }
 
 /* Custom Scrollbar */
@@ -24,15 +30,16 @@
 
 .dt-container .dt-table-wrapper::-webkit-scrollbar-track {
     background: var(--body-bg);
+    border-radius: 4px;
 }
 
 .dt-container .dt-table-wrapper::-webkit-scrollbar-thumb {
-    background: var(--card-border);
+    background: #a0aec0;
     border-radius: 4px;
 }
 
 .dt-container .dt-table-wrapper::-webkit-scrollbar-thumb:hover {
-    background: var(--text-muted);
+    background: #718096;
 }
 
 /* Toolbar */
@@ -40,11 +47,11 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 12px 15px;
+    padding: 14px 16px;
     background: var(--card-bg);
     border-bottom: 1px solid var(--card-border);
     flex-wrap: wrap;
-    gap: 10px;
+    gap: 12px;
 }
 
 .dt-container .dt-toolbar-left,
@@ -55,101 +62,261 @@
     flex-wrap: wrap;
 }
 
+/* Search Input */
 .dt-container .dt-search-input {
-    padding: 7px 12px;
+    padding: 8px 14px;
     border: 1px solid var(--input-border);
     border-radius: var(--radius-md);
     font-size: var(--font-sm);
     background: var(--input-bg);
     color: var(--input-text);
-    min-width: 200px;
+    min-width: 220px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .dt-container .dt-search-input:focus {
     outline: none;
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px var(--primary-light);
+    border-color: #5a67d8;
+    box-shadow: 0 0 0 3px rgba(90, 103, 216, 0.15);
 }
 
+.dt-container .dt-search-input::placeholder {
+    color: var(--text-muted);
+}
+
+/* Per Page Select */
 .dt-container .dt-perpage-select {
-    padding: 7px 10px;
+    padding: 8px 12px;
     border: 1px solid var(--input-border);
     border-radius: var(--radius-md);
     font-size: var(--font-sm);
     background: var(--input-bg);
     color: var(--input-text);
     cursor: pointer;
+    transition: border-color 0.2s ease;
 }
 
-.dt-container .dt-export-btn,
+.dt-container .dt-perpage-select:focus {
+    outline: none;
+    border-color: #5a67d8;
+}
+
+/* Import Button */
 .dt-container .dt-import-btn {
-    padding: 7px 14px;
+    padding: 8px 16px;
     border: none;
     border-radius: var(--radius-md);
     font-size: var(--font-sm);
     font-weight: 500;
+    background: #5a67d8;
+    color: #fff;
     cursor: pointer;
-    transition: all 0.15s;
+    transition: background 0.2s ease;
     display: inline-flex;
     align-items: center;
     gap: 6px;
 }
 
-.dt-container .dt-export-btn {
-    background: var(--success);
-    color: #fff;
-}
-
-.dt-container .dt-import-btn {
-    background: var(--primary);
-    color: #fff;
-}
-
-.dt-container .dt-export-btn:hover,
 .dt-container .dt-import-btn:hover {
-    opacity: 0.9;
+    background: #4c56c0;
 }
 
-.dt-container .dt-bulk-delete-btn {
-    padding: 7px 14px;
+/* Export Dropdown */
+.dt-container .dt-export-dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.dt-container .dt-export-btn {
+    padding: 8px 16px;
     border: none;
     border-radius: var(--radius-md);
     font-size: var(--font-sm);
     font-weight: 500;
-    background: var(--danger);
+    background: #38a169;
+    color: #fff;
+    cursor: pointer;
+    transition: background 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.dt-container .dt-export-btn:hover {
+    background: #2f8a5a;
+}
+
+.dt-container .dt-export-btn .dt-caret {
+    margin-left: 2px;
+    font-size: 10px;
+    transition: transform 0.2s ease;
+}
+
+.dt-container .dt-export-dropdown.open .dt-caret {
+    transform: rotate(180deg);
+}
+
+.dt-container .dt-export-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 6px;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-md);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.12);
+    min-width: 180px;
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+}
+
+.dt-container .dt-export-dropdown.open .dt-export-menu {
+    opacity: 1;
+    visibility: visible;
+}
+
+.dt-container .dt-export-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 16px;
+    cursor: pointer;
+    font-size: var(--font-sm);
+    color: var(--text-primary);
+    transition: background 0.15s ease;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+}
+
+.dt-container .dt-export-menu-item:first-child {
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+
+.dt-container .dt-export-menu-item:last-child {
+    border-radius: 0 0 var(--radius-md) var(--radius-md);
+}
+
+.dt-container .dt-export-menu-item:hover {
+    background: var(--body-bg);
+}
+
+.dt-container .dt-export-menu-item .dt-export-icon {
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+}
+
+.dt-container .dt-export-menu-item .dt-export-label {
+    flex: 1;
+    font-weight: 500;
+}
+
+.dt-container .dt-export-menu-item .dt-export-ext {
+    font-size: 10px;
+    color: var(--text-muted);
+    background: var(--body-bg);
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.dt-container .dt-export-menu-divider {
+    height: 1px;
+    background: var(--card-border);
+    margin: 6px 0;
+}
+
+/* Bulk Action Buttons */
+.dt-container .dt-bulk-delete-btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: var(--font-sm);
+    font-weight: 500;
+    background: #e53e3e;
     color: #fff;
     cursor: pointer;
     display: none;
+    transition: background 0.2s ease;
+}
+
+.dt-container .dt-bulk-delete-btn:hover {
+    background: #c53030;
 }
 
 .dt-container .dt-bulk-delete-btn.show {
     display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    animation: dtFadeIn 0.2s ease;
+}
+
+.dt-container .dt-bulk-export-btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: var(--font-sm);
+    font-weight: 500;
+    background: #5a67d8;
+    color: #fff;
+    cursor: pointer;
+    display: none;
+    transition: background 0.2s ease;
+}
+
+.dt-container .dt-bulk-export-btn:hover {
+    background: #4c56c0;
+}
+
+.dt-container .dt-bulk-export-btn.show {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    animation: dtFadeIn 0.2s ease;
 }
 
 .dt-container .dt-selected-count {
     font-size: var(--font-sm);
     display: none;
-    padding: 7px 12px;
-    background: var(--primary-light);
-    color: var(--primary);
+    padding: 8px 14px;
+    background: rgba(90, 103, 216, 0.1);
+    color: #5a67d8;
     border-radius: var(--radius-md);
-    font-weight: 500;
+    font-weight: 600;
+    border: 1px solid rgba(90, 103, 216, 0.2);
 }
 
 .dt-container .dt-selected-count.show {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    animation: dtFadeIn 0.2s ease;
 }
 
-/* Table - AUTO WIDTH, NO TRUNCATION */
+/* Animation */
+@keyframes dtFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Table */
 .dt-container .dt-table {
     width: 100%;
-    min-width: max-content;
+    min-width: 100%;
     border-collapse: collapse;
 }
 
 .dt-container .dt-table th,
 .dt-container .dt-table td {
-    padding: 11px 14px;
+    padding: 12px 16px;
     text-align: left;
     border-bottom: 1px solid var(--card-border);
     color: var(--text-primary);
@@ -160,9 +327,14 @@
 .dt-container .dt-table th {
     background: var(--body-bg);
     font-weight: 600;
+    color: var(--text-primary);
     position: sticky;
     top: 0;
-    z-index: 1;
+    z-index: 10;
+}
+
+.dt-container .dt-table tbody tr {
+    transition: background 0.15s ease;
 }
 
 .dt-container .dt-table tbody tr:hover {
@@ -170,34 +342,44 @@
 }
 
 .dt-container .dt-table tbody tr.selected {
-    background: var(--primary-light);
+    background: rgba(90, 103, 216, 0.08);
+    border-left: 3px solid #5a67d8;
 }
 
+.dt-container .dt-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Checkbox Column */
 .dt-container .dt-table th.dt-checkbox-col,
 .dt-container .dt-table td.dt-checkbox-col {
-    width: 45px;
-    min-width: 45px;
+    width: 50px;
+    min-width: 50px;
     text-align: center;
-    padding: 11px 10px;
+    padding: 12px;
 }
 
 .dt-container .dt-checkbox {
-    width: 16px;
-    height: 16px;
+    width: 18px;
+    height: 18px;
     cursor: pointer;
-    accent-color: var(--primary);
+    accent-color: #5a67d8;
 }
 
+/* Actions Column */
 .dt-container .dt-table th.dt-actions-col,
 .dt-container .dt-table td.dt-actions-col {
-    text-align: center;
+    width: 160px;
+    min-width: 160px;
 }
 
+/* Sortable Headers */
 .dt-container .dt-table th.dt-sort {
     cursor: pointer;
     user-select: none;
     position: relative;
-    padding-right: 22px;
+    padding-right: 28px;
+    transition: background 0.15s ease;
 }
 
 .dt-container .dt-table th.dt-sort:hover {
@@ -207,21 +389,27 @@
 .dt-container .dt-table th.dt-sort::after {
     content: '↕';
     position: absolute;
-    right: 8px;
+    right: 10px;
     opacity: 0.3;
-    font-size: 11px;
+    font-size: 12px;
+    color: var(--text-muted);
+    transition: opacity 0.2s ease;
+}
+
+.dt-container .dt-table th.dt-sort:hover::after {
+    opacity: 0.5;
 }
 
 .dt-container .dt-table th.dt-sort.asc::after {
     content: '↑';
     opacity: 1;
-    color: var(--primary);
+    color: #5a67d8;
 }
 
 .dt-container .dt-table th.dt-sort.desc::after {
     content: '↓';
     opacity: 1;
-    color: var(--primary);
+    color: #5a67d8;
 }
 
 /* Pagination */
@@ -229,36 +417,39 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 12px 15px;
+    padding: 14px 16px;
     background: var(--card-bg);
     border-top: 1px solid var(--card-border);
     flex-wrap: wrap;
-    gap: 10px;
+    gap: 12px;
 }
 
 .dt-container .dt-info {
     color: var(--text-muted);
     font-size: var(--font-sm);
+    font-weight: 500;
 }
 
 .dt-container .dt-pages {
     display: flex;
-    gap: 4px;
+    gap: 5px;
 }
 
 .dt-container .dt-pages button {
-    padding: 5px 10px;
+    padding: 6px 12px;
     border: 1px solid var(--input-border);
     background: var(--input-bg);
     color: var(--text-primary);
     border-radius: var(--radius-sm);
     cursor: pointer;
     font-size: var(--font-xs);
+    font-weight: 500;
+    transition: border-color 0.15s ease, background 0.15s ease;
 }
 
 .dt-container .dt-pages button:hover:not(:disabled) {
     background: var(--body-bg);
-    border-color: var(--primary);
+    border-color: #5a67d8;
 }
 
 .dt-container .dt-pages button:disabled {
@@ -267,8 +458,8 @@
 }
 
 .dt-container .dt-pages button.active {
-    background: var(--primary);
-    border-color: var(--primary);
+    background: #5a67d8;
+    border-color: #5a67d8;
     color: #fff;
 }
 
@@ -278,40 +469,56 @@
     border-radius: 20px;
     font-size: var(--font-xs);
     font-weight: 600;
-    display: inline-block;
-    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    text-transform: capitalize;
+    letter-spacing: 0.3px;
 }
 
 .dt-container .dt-badge-active,
-.dt-container .dt-badge-success {
-    background: var(--success-light);
-    color: var(--success);
+.dt-container .dt-badge-success,
+.dt-container .dt-badge-completed {
+    background: rgba(56, 161, 105, 0.12);
+    color: #2f855a;
+    border: 1px solid rgba(56, 161, 105, 0.2);
 }
 
 .dt-container .dt-badge-inactive,
-.dt-container .dt-badge-secondary {
+.dt-container .dt-badge-secondary,
+.dt-container .dt-badge-draft {
     background: var(--body-bg);
     color: var(--text-muted);
+    border: 1px solid var(--card-border);
+}
+
+.dt-container .dt-badge-graduated,
+.dt-container .dt-badge-info {
+    background: rgba(90, 103, 216, 0.12);
+    color: #4c56c0;
+    border: 1px solid rgba(90, 103, 216, 0.2);
 }
 
 .dt-container .dt-badge-pending,
 .dt-container .dt-badge-warning {
-    background: var(--warning-light);
-    color: var(--warning);
+    background: rgba(221, 156, 38, 0.12);
+    color: #b7791f;
+    border: 1px solid rgba(221, 156, 38, 0.2);
 }
 
+.dt-container .dt-badge-cancelled,
 .dt-container .dt-badge-danger,
 .dt-container .dt-badge-failed {
-    background: var(--danger-light);
-    color: var(--danger);
+    background: rgba(229, 62, 62, 0.12);
+    color: #c53030;
+    border: 1px solid rgba(229, 62, 62, 0.2);
 }
 
-/* Actions */
+/* Action Buttons */
 .dt-container .dt-actions {
     display: flex;
     gap: 6px;
-    justify-content: center;
-    align-items: center;
+    flex-wrap: nowrap;
 }
 
 .dt-container .dt-btn {
@@ -321,63 +528,122 @@
     cursor: pointer;
     font-size: var(--font-xs);
     text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     font-weight: 500;
     white-space: nowrap;
-}
-
-.dt-container .dt-btn-view {
-    background: var(--primary);
-    color: #fff;
-}
-
-.dt-container .dt-btn-edit {
-    background: var(--warning);
-    color: #fff;
-}
-
-.dt-container .dt-btn-delete {
-    background: var(--danger);
-    color: #fff;
+    transition: opacity 0.15s ease;
+    min-width: 50px;
 }
 
 .dt-container .dt-btn:hover {
     opacity: 0.85;
 }
 
+.dt-container .dt-btn-view {
+    background: #5a67d8;
+    color: #fff;
+}
+
+.dt-container .dt-btn-edit {
+    background: #dd9c26;
+    color: #fff;
+}
+
+.dt-container .dt-btn-delete {
+    background: #e53e3e;
+    color: #fff;
+}
+
+/* Loading State */
 .dt-container .dt-loading {
     text-align: center;
-    padding: 40px;
+    padding: 50px 20px;
+    color: var(--text-muted);
+    font-size: var(--font-sm);
+}
+
+.dt-container .dt-loading::before {
+    content: '';
+    display: block;
+    width: 36px;
+    height: 36px;
+    margin: 0 auto 15px;
+    border: 3px solid var(--card-border);
+    border-top-color: #5a67d8;
+    border-radius: 50%;
+    animation: dtSpin 0.8s linear infinite;
+}
+
+@keyframes dtSpin {
+    to { transform: rotate(360deg); }
+}
+
+/* Empty State */
+.dt-container .dt-empty {
+    text-align: center;
+    padding: 60px 20px;
     color: var(--text-muted);
 }
 
-/* Import Modal */
+.dt-container .dt-empty-icon {
+    font-size: 48px;
+    margin-bottom: 15px;
+    opacity: 0.5;
+}
+
+.dt-container .dt-empty-text {
+    font-size: var(--font-sm);
+    font-weight: 500;
+}
+
+/* =========================================
+   IMPORT MODAL
+   ========================================= */
+
 .dt-modal-overlay {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0,0,0,.5);
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(2px);
     display: none;
     align-items: center;
     justify-content: center;
     z-index: 9999;
+    padding: 20px;
 }
 
 .dt-modal-overlay.show {
     display: flex;
+    animation: dtFadeIn 0.2s ease;
 }
 
 .dt-modal {
     background: var(--card-bg);
     border-radius: var(--radius-lg);
-    width: 90%;
-    max-width: 500px;
-    box-shadow: 0 20px 60px rgba(0,0,0,.3);
+    width: 100%;
+    max-width: 520px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+    animation: dtSlideUp 0.25s ease;
+}
+
+@keyframes dtSlideUp {
+    from {
+        opacity: 0;
+        transform: translateY(15px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .dt-modal-header {
-    padding: 16px 20px;
+    padding: 18px 24px;
     border-bottom: 1px solid var(--card-border);
     display: flex;
     justify-content: space-between;
@@ -385,59 +651,78 @@
 }
 
 .dt-modal-title {
-    font-size: 16px;
+    font-size: 17px;
     font-weight: 600;
     color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
 .dt-modal-close {
     background: none;
     border: none;
-    font-size: 24px;
+    font-size: 26px;
     cursor: pointer;
     color: var(--text-muted);
     line-height: 1;
+    padding: 4px;
+    border-radius: var(--radius-sm);
+    transition: color 0.15s ease;
+}
+
+.dt-modal-close:hover {
+    color: #e53e3e;
 }
 
 .dt-modal-body {
-    padding: 20px;
+    padding: 24px;
 }
 
 .dt-modal-footer {
-    padding: 16px 20px;
+    padding: 18px 24px;
     border-top: 1px solid var(--card-border);
     display: flex;
     justify-content: flex-end;
-    gap: 10px;
+    gap: 12px;
 }
 
+/* File Drop Zone */
 .dt-file-drop {
     border: 2px dashed var(--card-border);
-    border-radius: var(--radius-md);
-    padding: 40px 20px;
+    border-radius: var(--radius-lg);
+    padding: 50px 24px;
     text-align: center;
     cursor: pointer;
-    transition: all .2s;
+    transition: border-color 0.2s ease, background 0.2s ease;
+    background: var(--body-bg);
 }
 
-.dt-file-drop:hover,
+.dt-file-drop:hover {
+    border-color: #5a67d8;
+    background: rgba(90, 103, 216, 0.04);
+}
+
 .dt-file-drop.dragover {
-    border-color: var(--primary);
-    background: var(--primary-light);
+    border-color: #5a67d8;
+    background: rgba(90, 103, 216, 0.06);
 }
 
 .dt-file-drop-icon {
-    font-size: 40px;
-    margin-bottom: 10px;
+    font-size: 50px;
+    margin-bottom: 12px;
+    opacity: 0.7;
 }
 
 .dt-file-drop-text {
     color: var(--text-muted);
     font-size: var(--font-sm);
+    line-height: 1.6;
 }
 
 .dt-file-drop-text strong {
-    color: var(--primary);
+    color: #5a67d8;
+    font-weight: 600;
 }
 
 .dt-file-input {
@@ -445,94 +730,166 @@
 }
 
 .dt-file-name {
-    margin-top: 10px;
-    padding: 10px;
-    background: var(--body-bg);
-    border-radius: var(--radius-sm);
+    margin-top: 15px;
+    padding: 12px 16px;
+    background: rgba(56, 161, 105, 0.1);
+    border: 1px solid rgba(56, 161, 105, 0.2);
+    border-radius: var(--radius-md);
     font-size: var(--font-sm);
     display: none;
+    color: #2f855a;
+    font-weight: 500;
 }
 
 .dt-file-name.show {
-    display: block;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    animation: dtFadeIn 0.2s ease;
 }
 
 .dt-template-link {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    color: var(--primary);
+    gap: 8px;
+    color: #5a67d8;
     font-size: var(--font-sm);
     text-decoration: none;
-    margin-top: 15px;
+    margin-top: 18px;
+    padding: 8px 14px;
+    background: rgba(90, 103, 216, 0.08);
+    border-radius: var(--radius-md);
+    font-weight: 500;
+    transition: background 0.15s ease;
 }
 
 .dt-template-link:hover {
-    text-decoration: underline;
+    background: rgba(90, 103, 216, 0.15);
 }
 
+/* Import Results */
 .dt-import-results {
-    margin-top: 15px;
-    padding: 12px;
-    border-radius: var(--radius-sm);
+    margin-top: 18px;
+    padding: 14px 16px;
+    border-radius: var(--radius-md);
     font-size: var(--font-sm);
     display: none;
+    font-weight: 500;
 }
 
 .dt-import-results.show {
     display: block;
+    animation: dtFadeIn 0.2s ease;
 }
 
 .dt-import-results.success {
-    background: var(--success-light);
-    color: var(--success);
+    background: rgba(56, 161, 105, 0.1);
+    color: #2f855a;
+    border: 1px solid rgba(56, 161, 105, 0.2);
 }
 
 .dt-import-results.error {
-    background: var(--danger-light);
-    color: var(--danger);
+    background: rgba(229, 62, 62, 0.1);
+    color: #c53030;
+    border: 1px solid rgba(229, 62, 62, 0.2);
 }
 
 .dt-import-errors {
-    margin-top: 10px;
-    max-height: 150px;
+    margin-top: 12px;
+    max-height: 160px;
     overflow-y: auto;
     font-size: 12px;
+    font-weight: 400;
 }
 
 .dt-import-errors div {
-    padding: 4px 0;
-    border-bottom: 1px solid rgba(0,0,0,.1);
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 }
 
+.dt-import-errors div:last-child {
+    border-bottom: none;
+}
+
+/* Modal Buttons */
 .dt-btn-cancel {
-    padding: 8px 16px;
+    padding: 10px 20px;
     border: 1px solid var(--card-border);
     background: var(--card-bg);
     color: var(--text-primary);
     border-radius: var(--radius-md);
     cursor: pointer;
     font-size: var(--font-sm);
+    font-weight: 500;
+    transition: background 0.15s ease;
+}
+
+.dt-btn-cancel:hover {
+    background: var(--body-bg);
 }
 
 .dt-btn-submit {
-    padding: 8px 16px;
+    padding: 10px 24px;
     border: none;
-    background: var(--primary);
+    background: #5a67d8;
     color: #fff;
     border-radius: var(--radius-md);
     cursor: pointer;
     font-size: var(--font-sm);
-    font-weight: 500;
+    font-weight: 600;
+    transition: background 0.15s ease;
+}
+
+.dt-btn-submit:hover:not(:disabled) {
+    background: #4c56c0;
 }
 
 .dt-btn-submit:disabled {
-    opacity: .5;
+    opacity: 0.5;
     cursor: not-allowed;
+}
+
+/* =========================================
+   RESPONSIVE
+   ========================================= */
+
+@media (max-width: 768px) {
+    .dt-container .dt-toolbar {
+        padding: 12px;
+    }
+    
+    .dt-container .dt-toolbar-left,
+    .dt-container .dt-toolbar-right {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .dt-container .dt-search-input {
+        min-width: 100%;
+    }
+    
+    .dt-container .dt-pagination {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .dt-container .dt-table th,
+    .dt-container .dt-table td {
+        padding: 10px 12px;
+    }
+    
+    .dt-modal {
+        max-width: 100%;
+        margin: 10px;
+    }
 }
 </style>
 
 <script>
+/**
+ * DataTable - Clean JavaScript
+ * Handles: List, Search, Filter, Sort, Pagination, Export, Import
+ */
 (function(){
     document.addEventListener('DOMContentLoaded', function(){
         document.querySelectorAll('table.dt-table').forEach(initDT);
@@ -540,26 +897,41 @@
 
     function initDT(table){
         var route = table.dataset.route;
-        if(!route) return;
+        if(!route){
+            console.error('dt-table: data-route required');
+            return;
+        }
 
-        var tableId = table.id || 'dt-' + Math.random().toString(36).substr(2,9);
+        var tableId = table.id || 'dt-' + Math.random().toString(36).substr(2, 9);
         table.id = tableId;
 
-        var state = {page:1, perPage:10, search:'', sort:'id', dir:'desc', selected:[], filters:{}};
+        // State
+        var state = {
+            page: 1,
+            perPage: 10,
+            search: '',
+            sort: 'id',
+            dir: 'desc',
+            selected: [],
+            filters: {}
+        };
 
+        // Feature flags from classes
         var hasCheckbox = table.classList.contains('dt-checkbox');
         var hasSearch = table.classList.contains('dt-search');
         var hasExport = table.classList.contains('dt-export');
         var hasImport = table.classList.contains('dt-import');
         var hasPerPage = table.classList.contains('dt-perpage');
 
+        // Create wrapper
         var wrapper = document.createElement('div');
         wrapper.className = 'dt-container';
         table.parentNode.insertBefore(wrapper, table);
 
-        var selectedCountEl, bulkDeleteBtn;
+        var selectedCountEl, bulkDeleteBtn, bulkExportBtn;
+        var exportDropdown = null;
 
-        // Toolbar
+        // Build toolbar
         if(hasSearch || hasExport || hasImport || hasPerPage || hasCheckbox){
             var toolbar = document.createElement('div');
             toolbar.className = 'dt-toolbar';
@@ -567,15 +939,16 @@
             var left = document.createElement('div');
             left.className = 'dt-toolbar-left';
 
+            // Search
             if(hasSearch){
                 var inp = document.createElement('input');
                 inp.type = 'text';
-                inp.placeholder = 'Search...';
+                inp.placeholder = '🔍 Search...';
                 inp.className = 'dt-search-input';
-                var searchTimer;
+                var t;
                 inp.oninput = function(){
-                    clearTimeout(searchTimer);
-                    searchTimer = setTimeout(function(){
+                    clearTimeout(t);
+                    t = setTimeout(function(){
                         state.search = inp.value;
                         state.page = 1;
                         load();
@@ -584,6 +957,7 @@
                 left.appendChild(inp);
             }
 
+            // Selected count
             if(hasCheckbox){
                 selectedCountEl = document.createElement('span');
                 selectedCountEl.className = 'dt-selected-count';
@@ -593,19 +967,28 @@
             var right = document.createElement('div');
             right.className = 'dt-toolbar-right';
 
+            // Bulk delete button
             if(hasCheckbox){
                 bulkDeleteBtn = document.createElement('button');
                 bulkDeleteBtn.type = 'button';
                 bulkDeleteBtn.className = 'dt-bulk-delete-btn';
-                bulkDeleteBtn.textContent = 'Delete Selected';
-                bulkDeleteBtn.onclick = bulkDelete;
+                bulkDeleteBtn.innerHTML = '🗑️ Delete Selected';
+                bulkDeleteBtn.onclick = function(){ bulkDelete(); };
                 right.appendChild(bulkDeleteBtn);
+
+                bulkExportBtn = document.createElement('button');
+                bulkExportBtn.type = 'button';
+                bulkExportBtn.className = 'dt-bulk-export-btn';
+                bulkExportBtn.innerHTML = '📤 Export Selected';
+                bulkExportBtn.onclick = function(){ bulkExport(); };
+                right.appendChild(bulkExportBtn);
             }
 
+            // Per page select
             if(hasPerPage){
                 var sel = document.createElement('select');
                 sel.className = 'dt-perpage-select';
-                [10,25,50,100].forEach(function(n){
+                [10, 25, 50, 100].forEach(function(n){
                     var o = document.createElement('option');
                     o.value = n;
                     o.textContent = n + ' rows';
@@ -619,6 +1002,7 @@
                 right.appendChild(sel);
             }
 
+            // Import button
             if(hasImport){
                 var importBtn = document.createElement('button');
                 importBtn.type = 'button';
@@ -628,19 +1012,57 @@
                 right.appendChild(importBtn);
             }
 
+            // Export dropdown
             if(hasExport){
+                exportDropdown = document.createElement('div');
+                exportDropdown.className = 'dt-export-dropdown';
+                
                 var exportBtn = document.createElement('button');
                 exportBtn.type = 'button';
                 exportBtn.className = 'dt-export-btn';
-                exportBtn.innerHTML = '📤 Export';
-                exportBtn.onclick = function(){
-                    var url = route + '?export=csv&search=' + encodeURIComponent(state.search) + '&sort=' + state.sort + '&dir=' + state.dir;
-                    for(var key in state.filters){
-                        if(state.filters[key]) url += '&' + key + '=' + encodeURIComponent(state.filters[key]);
-                    }
-                    window.location.href = url;
+                exportBtn.innerHTML = '📤 Export <span class="dt-caret">▼</span>';
+                exportBtn.onclick = function(e){
+                    e.stopPropagation();
+                    exportDropdown.classList.toggle('open');
                 };
-                right.appendChild(exportBtn);
+                
+                var exportMenu = document.createElement('div');
+                exportMenu.className = 'dt-export-menu';
+                exportMenu.innerHTML = 
+                    '<button class="dt-export-menu-item" data-format="csv">' +
+                        '<span class="dt-export-icon">📊</span>' +
+                        '<span class="dt-export-label">CSV File</span>' +
+                        '<span class="dt-export-ext">.csv</span>' +
+                    '</button>' +
+                    '<button class="dt-export-menu-item" data-format="xlsx">' +
+                        '<span class="dt-export-icon">📗</span>' +
+                        '<span class="dt-export-label">Excel File</span>' +
+                        '<span class="dt-export-ext">.xlsx</span>' +
+                    '</button>' +
+                    '<div class="dt-export-menu-divider"></div>' +
+                    '<button class="dt-export-menu-item" data-format="pdf">' +
+                        '<span class="dt-export-icon">📕</span>' +
+                        '<span class="dt-export-label">PDF Document</span>' +
+                        '<span class="dt-export-ext">.pdf</span>' +
+                    '</button>';
+                
+                exportMenu.querySelectorAll('.dt-export-menu-item').forEach(function(item){
+                    item.onclick = function(e){
+                        e.stopPropagation();
+                        var format = this.dataset.format;
+                        doExport(format);
+                        exportDropdown.classList.remove('open');
+                    };
+                });
+                
+                exportDropdown.appendChild(exportBtn);
+                exportDropdown.appendChild(exportMenu);
+                right.appendChild(exportDropdown);
+                
+                // Close dropdown on outside click
+                document.addEventListener('click', function(){
+                    if(exportDropdown) exportDropdown.classList.remove('open');
+                });
             }
 
             toolbar.appendChild(left);
@@ -648,16 +1070,18 @@
             wrapper.appendChild(toolbar);
         }
 
+        // Table wrapper for horizontal scroll
         var tableWrapper = document.createElement('div');
         tableWrapper.className = 'dt-table-wrapper';
         tableWrapper.appendChild(table);
         wrapper.appendChild(tableWrapper);
 
+        // Add checkbox header
         if(hasCheckbox){
             var thead = table.querySelector('thead tr');
             var checkTh = document.createElement('th');
             checkTh.className = 'dt-checkbox-col';
-            checkTh.innerHTML = '<input type="checkbox" class="dt-checkbox dt-check-all">';
+            checkTh.innerHTML = '<input type="checkbox" class="dt-checkbox dt-check-all" title="Select All">';
             thead.insertBefore(checkTh, thead.firstChild);
 
             checkTh.querySelector('.dt-check-all').onchange = function(){
@@ -667,10 +1091,10 @@
                     var id = parseInt(cb.dataset.id);
                     var tr = cb.closest('tr');
                     if(checked){
-                        if(state.selected.indexOf(id)===-1) state.selected.push(id);
+                        if(state.selected.indexOf(id) === -1) state.selected.push(id);
                         tr.classList.add('selected');
                     } else {
-                        state.selected = state.selected.filter(function(x){return x!==id;});
+                        state.selected = state.selected.filter(function(x){ return x !== id; });
                         tr.classList.remove('selected');
                     }
                 });
@@ -678,10 +1102,14 @@
             };
         }
 
+        // Mark actions column
         table.querySelectorAll('thead th').forEach(function(th){
-            if(th.dataset.render==='actions') th.classList.add('dt-actions-col');
+            if(th.dataset.render === 'actions'){
+                th.classList.add('dt-actions-col');
+            }
         });
 
+        // Pagination
         var pag = document.createElement('div');
         pag.className = 'dt-pagination';
         pag.innerHTML = '<span class="dt-info"></span><div class="dt-pages"></div>';
@@ -691,30 +1119,42 @@
         var infoEl = pag.querySelector('.dt-info');
         var pagesEl = pag.querySelector('.dt-pages');
 
+        // Parse columns
         var cols = [];
         table.querySelectorAll('thead th:not(.dt-checkbox-col)').forEach(function(th){
-            cols.push({col:th.dataset.col||null, render:th.dataset.render||null});
+            cols.push({
+                col: th.dataset.col || null,
+                render: th.dataset.render || null
+            });
+            
+            // Sortable
             if(th.classList.contains('dt-sort') && th.dataset.col){
                 th.onclick = function(){
                     var c = this.dataset.col;
-                    if(state.sort===c) state.dir = state.dir==='asc'?'desc':'asc';
-                    else {state.sort=c; state.dir='asc';}
-                    table.querySelectorAll('th.dt-sort').forEach(function(h){h.classList.remove('asc','desc');});
+                    if(state.sort === c){
+                        state.dir = state.dir === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        state.sort = c;
+                        state.dir = 'asc';
+                    }
+                    table.querySelectorAll('th.dt-sort').forEach(function(h){
+                        h.classList.remove('asc', 'desc');
+                    });
                     this.classList.add(state.dir);
                     load();
                 };
             }
         });
 
-        // External filters - data-dt-filter
+        // External filters
         document.querySelectorAll('[data-dt-filter]').forEach(function(el){
             var targetTable = el.dataset.dtTable;
-            if(!targetTable || targetTable===tableId){
+            if(!targetTable || targetTable === tableId){
                 var column = el.dataset.dtFilter;
                 var tagName = el.tagName.toUpperCase();
                 var inputType = el.type || '';
                 
-                if(tagName==='SELECT' || inputType==='date'){
+                if(tagName === 'SELECT' || inputType === 'date'){
                     el.addEventListener('change', function(){
                         state.filters[column] = this.value;
                         state.page = 1;
@@ -738,147 +1178,238 @@
         function updateBulkUI(){
             if(!hasCheckbox) return;
             var count = state.selected.length;
-            if(count>0){
-                selectedCountEl.textContent = count + ' selected';
+            if(count > 0){
+                selectedCountEl.innerHTML = '✓ ' + count + ' selected';
                 selectedCountEl.classList.add('show');
                 bulkDeleteBtn.classList.add('show');
+                bulkExportBtn.classList.add('show');
             } else {
                 selectedCountEl.classList.remove('show');
                 bulkDeleteBtn.classList.remove('show');
+                bulkExportBtn.classList.remove('show');
             }
         }
 
         function load(){
-            var colCount = cols.length + (hasCheckbox?1:0);
-            tbody.innerHTML = '<tr><td colspan="'+colCount+'" class="dt-loading">Loading...</td></tr>';
+            var colSpan = cols.length + (hasCheckbox ? 1 : 0);
+            tbody.innerHTML = '<tr><td colspan="' + colSpan + '" class="dt-loading">Loading data...</td></tr>';
             
-            var url = route + '?page=' + state.page + '&per_page=' + state.perPage + '&search=' + encodeURIComponent(state.search) + '&sort=' + state.sort + '&dir=' + state.dir;
+            var params = new URLSearchParams();
+            params.set('page', state.page);
+            params.set('per_page', state.perPage);
+            if(state.search) params.set('search', state.search);
+            params.set('sort', state.sort);
+            params.set('dir', state.dir);
             
             for(var key in state.filters){
-                if(state.filters[key]!=='' && state.filters[key]!==null){
-                    url += '&' + key + '=' + encodeURIComponent(state.filters[key]);
-                }
+                if(state.filters[key]) params.set(key, state.filters[key]);
             }
-            
-            fetch(url)
-                .then(function(r){return r.json();})
-                .then(function(json){render(json);renderPag(json);})
+
+            fetch(route + '?' + params.toString())
+                .then(function(r){ return r.json(); })
+                .then(function(json){
+                    render(json);
+                    renderPag(json);
+                })
                 .catch(function(e){
-                    tbody.innerHTML = '<tr><td colspan="'+colCount+'" class="dt-loading" style="color:var(--danger)">Error loading</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="' + colSpan + '" class="dt-loading" style="color:#c53030">❌ Error loading data</td></tr>';
                 });
         }
 
         function render(json){
-            var colCount = cols.length + (hasCheckbox?1:0);
+            var colSpan = cols.length + (hasCheckbox ? 1 : 0);
+            
             if(!json.data || !json.data.length){
-                tbody.innerHTML = '<tr><td colspan="'+colCount+'" class="dt-loading">No data found</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="' + colSpan + '"><div class="dt-empty"><div class="dt-empty-icon">📭</div><div class="dt-empty-text">No data found</div></div></td></tr>';
                 return;
             }
             
             tbody.innerHTML = json.data.map(function(row){
-                var isSelected = state.selected.indexOf(row.id)!==-1;
-                var checkboxCell = hasCheckbox ? '<td class="dt-checkbox-col"><input type="checkbox" class="dt-checkbox dt-row-check" data-id="'+row.id+'" '+(isSelected?'checked':'')+'></td>' : '';
-                return '<tr data-id="'+row.id+'" class="'+(isSelected?'selected':'')+'">' + checkboxCell + cols.map(function(c){
-                    var cls = c.render==='actions'?' class="dt-actions-col"':'';
-                    return '<td'+cls+'>'+cell(row,c)+'</td>';
-                }).join('') + '</tr>';
+                var isSelected = state.selected.indexOf(row.id) !== -1;
+                var checkboxCell = hasCheckbox ? 
+                    '<td class="dt-checkbox-col"><input type="checkbox" class="dt-checkbox dt-row-check" data-id="' + row.id + '" ' + (isSelected ? 'checked' : '') + '></td>' : '';
+                
+                return '<tr data-id="' + row.id + '" class="' + (isSelected ? 'selected' : '') + '">' + 
+                    checkboxCell + 
+                    cols.map(function(c){
+                        var cls = c.render === 'actions' ? ' class="dt-actions-col"' : '';
+                        return '<td' + cls + '>' + cell(row, c) + '</td>';
+                    }).join('') + 
+                '</tr>';
             }).join('');
 
+            // Checkbox handlers
             tbody.querySelectorAll('.dt-row-check').forEach(function(cb){
                 cb.onchange = function(){
                     var id = parseInt(this.dataset.id);
                     var tr = this.closest('tr');
                     if(this.checked){
-                        if(state.selected.indexOf(id)===-1) state.selected.push(id);
+                        if(state.selected.indexOf(id) === -1) state.selected.push(id);
                         tr.classList.add('selected');
                     } else {
-                        state.selected = state.selected.filter(function(x){return x!==id;});
+                        state.selected = state.selected.filter(function(x){ return x !== id; });
                         tr.classList.remove('selected');
                     }
                     updateBulkUI();
+                    
+                    var allChecked = tbody.querySelectorAll('.dt-row-check').length === tbody.querySelectorAll('.dt-row-check:checked').length;
+                    var selectAll = table.querySelector('.dt-check-all');
+                    if(selectAll) selectAll.checked = allChecked;
                 };
             });
 
+            // Delete handlers
             tbody.querySelectorAll('.dt-btn-delete').forEach(function(b){
-                b.onclick = function(e){e.preventDefault();del(this.dataset.url, this.dataset.id);};
+                b.onclick = function(e){
+                    e.preventDefault();
+                    del(this.dataset.id);
+                };
             });
 
             updateBulkUI();
         }
 
-        function cell(row,c){
+        function cell(row, c){
             var v = c.col ? row[c.col] : null;
             
+            // Custom render support
             if(c.render && window.dtRenders && window.dtRenders[c.render]){
                 return window.dtRenders[c.render](v, row);
             }
             
             switch(c.render){
-                case 'date': return v ? new Date(v).toLocaleDateString() : '-';
-                case 'datetime': return v ? new Date(v).toLocaleString() : '-';
+                case 'date':
+                    return v ? new Date(v).toLocaleDateString() : '-';
+                case 'datetime':
+                    return v ? new Date(v).toLocaleString() : '-';
                 case 'badge':
-                    var cls = {active:'active',inactive:'inactive',pending:'pending',success:'success',failed:'danger'}[v] || 'secondary';
-                    return '<span class="dt-badge dt-badge-'+cls+'">'+(v||'-')+'</span>';
+                    var cls = badge(v);
+                    return '<span class="dt-badge dt-badge-' + cls + '">' + (v || '-') + '</span>';
                 case 'actions':
                     var h = '<div class="dt-actions">';
-                    if(row._show_url) h += '<a href="'+row._show_url+'" class="dt-btn dt-btn-view">View</a>';
-                    if(row._edit_url) h += '<a href="'+row._edit_url+'" class="dt-btn dt-btn-edit">Edit</a>';
-                    if(row._delete_url) h += '<button class="dt-btn dt-btn-delete" data-url="'+row._delete_url+'" data-id="'+row.id+'">Delete</button>';
+                    if(row._show_url && row._show_url !== '#'){
+                        h += '<a href="' + row._show_url + '" class="dt-btn dt-btn-view">View</a>';
+                    }
+                    if(row._edit_url && row._edit_url !== '#'){
+                        h += '<a href="' + row._edit_url + '" class="dt-btn dt-btn-edit">Edit</a>';
+                    }
+                    h += '<button class="dt-btn dt-btn-delete" data-id="' + row.id + '">Delete</button>';
                     h += '</div>';
                     return h;
-                default: return v!==null && v!==undefined ? v : '-';
+                default:
+                    return v !== null && v !== undefined ? v : '-';
             }
         }
 
+        function badge(s){
+            var m = {
+                active: 'active',
+                inactive: 'inactive',
+                graduated: 'graduated',
+                pending: 'pending',
+                cancelled: 'cancelled',
+                completed: 'success',
+                draft: 'secondary',
+                success: 'success',
+                failed: 'danger'
+            };
+            return m[s] || 'secondary';
+        }
+
         function renderPag(json){
-            infoEl.textContent = 'Page '+json.current_page+' of '+json.last_page+' ('+json.total+' total)';
-            var h = '<button '+(json.current_page<=1?'disabled':'')+' data-p="'+(json.current_page-1)+'">Prev</button>';
-            for(var i=1;i<=json.last_page;i++){
-                if(i===1||i===json.last_page||(i>=json.current_page-1&&i<=json.current_page+1)){
-                    h += '<button class="'+(i===json.current_page?'active':'')+'" data-p="'+i+'">'+i+'</button>';
-                } else if(i===json.current_page-2||i===json.current_page+2){
-                    h += '<span style="padding:0 4px">...</span>';
+            infoEl.textContent = 'Page ' + json.current_page + ' of ' + json.last_page + ' (' + json.total + ' total)';
+            
+            var h = '<button ' + (json.current_page <= 1 ? 'disabled' : '') + ' data-p="' + (json.current_page - 1) + '">← Prev</button>';
+            
+            for(var i = 1; i <= json.last_page; i++){
+                if(i === 1 || i === json.last_page || (i >= json.current_page - 1 && i <= json.current_page + 1)){
+                    h += '<button class="' + (i === json.current_page ? 'active' : '') + '" data-p="' + i + '">' + i + '</button>';
+                } else if(i === json.current_page - 2 || i === json.current_page + 2){
+                    h += '<span style="color:var(--text-muted);padding:0 6px">...</span>';
                 }
             }
-            h += '<button '+(json.current_page>=json.last_page?'disabled':'')+' data-p="'+(json.current_page+1)+'">Next</button>';
+            
+            h += '<button ' + (json.current_page >= json.last_page ? 'disabled' : '') + ' data-p="' + (json.current_page + 1) + '">Next →</button>';
+            
             pagesEl.innerHTML = h;
             pagesEl.querySelectorAll('button').forEach(function(b){
                 b.onclick = function(){
                     var p = parseInt(this.dataset.p);
-                    if(p && !this.disabled){state.page=p;load();}
+                    if(p && !this.disabled){
+                        state.page = p;
+                        load();
+                    }
                 };
             });
         }
 
-        function del(url, id){
-            if(!confirm('Delete this item?')) return;
+        function doExport(format){
+            var url = route + '?export=' + format + '&search=' + encodeURIComponent(state.search) + '&sort=' + state.sort + '&dir=' + state.dir;
+            
+            for(var key in state.filters){
+                if(state.filters[key]) url += '&' + key + '=' + encodeURIComponent(state.filters[key]);
+            }
+            
+            if(state.selected.length > 0){
+                url += '&ids=' + state.selected.join(',');
+            }
+            
+            window.location.href = url;
+        }
+
+        function del(id){
+            if(!confirm('Are you sure you want to delete this item?')) return;
+            
+            var dr = route.replace('/data', '') + '/' + id;
             var csrf = document.querySelector('meta[name="csrf-token"]');
-            fetch(url, {
-                method:'DELETE',
-                headers:{'X-CSRF-TOKEN':csrf?csrf.content:'','Accept':'application/json'}
-            })
-            .then(function(r){return r.json();})
-            .then(function(json){
-                if(json.success){
-                    state.selected=state.selected.filter(function(x){return x!==parseInt(id);});
-                    load();
-                } else {
-                    alert(json.message || 'Delete failed');
+            
+            fetch(dr, {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRF-TOKEN': csrf ? csrf.content : '',
+                    'Accept': 'application/json'
                 }
             })
-            .catch(function(){alert('Delete failed');});
+            .then(function(){
+                state.selected = state.selected.filter(function(x){ return x !== parseInt(id); });
+                load();
+            })
+            .catch(function(){
+                alert('Delete failed');
+            });
         }
 
         function bulkDelete(){
-            if(!state.selected.length || !confirm('Delete '+state.selected.length+' items?')) return;
+            if(state.selected.length === 0) return;
+            if(!confirm('Delete ' + state.selected.length + ' selected items?')) return;
+            
+            var dr = route.replace('/data', '') + '/bulk-delete';
             var csrf = document.querySelector('meta[name="csrf-token"]');
-            fetch(route.replace('/data','') + '/bulk-delete', {
-                method:'POST',
-                headers:{'X-CSRF-TOKEN':csrf?csrf.content:'','Accept':'application/json','Content-Type':'application/json'},
-                body:JSON.stringify({ids:state.selected})
-            }).then(function(){state.selected=[];load();});
+            
+            fetch(dr, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrf ? csrf.content : '',
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ ids: state.selected })
+            })
+            .then(function(){
+                state.selected = [];
+                load();
+            })
+            .catch(function(){
+                alert('Bulk delete failed');
+            });
         }
 
+        function bulkExport(){
+            if(state.selected.length === 0) return;
+            window.location.href = route + '?export=xlsx&ids=' + state.selected.join(',');
+        }
+
+        // Import Modal
         var importModal = null;
         var selectedFile = null;
 
@@ -887,26 +1418,27 @@
                 importModal = document.createElement('div');
                 importModal.className = 'dt-modal-overlay';
                 importModal.innerHTML = 
-                    '<div class="dt-modal">'+
-                        '<div class="dt-modal-header">'+
-                            '<span class="dt-modal-title">📥 Import Data</span>'+
-                            '<button class="dt-modal-close">&times;</button>'+
-                        '</div>'+
-                        '<div class="dt-modal-body">'+
-                            '<div class="dt-file-drop">'+
-                                '<div class="dt-file-drop-icon">📁</div>'+
-                                '<div class="dt-file-drop-text">Drop Excel/CSV file here or <strong>click to browse</strong></div>'+
-                                '<input type="file" class="dt-file-input" accept=".xlsx,.xls,.csv">'+
-                            '</div>'+
-                            '<div class="dt-file-name"></div>'+
-                            '<a href="'+route+'?template=1" class="dt-template-link">📄 Download Template</a>'+
-                            '<div class="dt-import-results"></div>'+
-                        '</div>'+
-                        '<div class="dt-modal-footer">'+
-                            '<button class="dt-btn-cancel">Cancel</button>'+
-                            '<button class="dt-btn-submit" disabled>Import</button>'+
-                        '</div>'+
+                    '<div class="dt-modal">' +
+                        '<div class="dt-modal-header">' +
+                            '<span class="dt-modal-title">📥 Import Data</span>' +
+                            '<button class="dt-modal-close">&times;</button>' +
+                        '</div>' +
+                        '<div class="dt-modal-body">' +
+                            '<div class="dt-file-drop">' +
+                                '<div class="dt-file-drop-icon">📁</div>' +
+                                '<div class="dt-file-drop-text">Drop Excel/CSV file here<br>or <strong>click to browse</strong></div>' +
+                                '<input type="file" class="dt-file-input" accept=".xlsx,.xls,.csv">' +
+                            '</div>' +
+                            '<div class="dt-file-name"></div>' +
+                            '<a href="' + route + '?template=1" class="dt-template-link">📄 Download Import Template</a>' +
+                            '<div class="dt-import-results"></div>' +
+                        '</div>' +
+                        '<div class="dt-modal-footer">' +
+                            '<button class="dt-btn-cancel">Cancel</button>' +
+                            '<button class="dt-btn-submit" disabled>Import Data</button>' +
+                        '</div>' +
                     '</div>';
+                    
                 document.body.appendChild(importModal);
 
                 var dropZone = importModal.querySelector('.dt-file-drop');
@@ -917,9 +1449,17 @@
                 var closeBtn = importModal.querySelector('.dt-modal-close');
                 var cancelBtn = importModal.querySelector('.dt-btn-cancel');
 
-                dropZone.onclick = function(){fileInput.click();};
-                dropZone.ondragover = function(e){e.preventDefault();this.classList.add('dragover');};
-                dropZone.ondragleave = function(){this.classList.remove('dragover');};
+                dropZone.onclick = function(){ fileInput.click(); };
+                
+                dropZone.ondragover = function(e){
+                    e.preventDefault();
+                    this.classList.add('dragover');
+                };
+                
+                dropZone.ondragleave = function(){
+                    this.classList.remove('dragover');
+                };
+                
                 dropZone.ondrop = function(e){
                     e.preventDefault();
                     this.classList.remove('dragover');
@@ -932,21 +1472,21 @@
 
                 function handleFile(file){
                     var ext = file.name.split('.').pop().toLowerCase();
-                    if(['xlsx','xls','csv'].indexOf(ext)===-1){
-                        alert('Please select Excel or CSV file');
+                    if(['xlsx', 'xls', 'csv'].indexOf(ext) === -1){
+                        alert('Please select an Excel or CSV file');
                         return;
                     }
                     selectedFile = file;
-                    fileName.textContent = '📄 ' + file.name + ' (' + formatSize(file.size) + ')';
+                    fileName.innerHTML = '✅ ' + file.name + ' (' + formatSize(file.size) + ')';
                     fileName.classList.add('show');
                     submitBtn.disabled = false;
                     results.classList.remove('show');
                 }
 
                 function formatSize(bytes){
-                    if(bytes<1024) return bytes+' B';
-                    if(bytes<1048576) return (bytes/1024).toFixed(1)+' KB';
-                    return (bytes/1048576).toFixed(1)+' MB';
+                    if(bytes < 1024) return bytes + ' B';
+                    if(bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+                    return (bytes / 1048576).toFixed(1) + ' MB';
                 }
 
                 submitBtn.onclick = function(){
@@ -962,23 +1502,26 @@
                     var csrf = document.querySelector('meta[name="csrf-token"]');
                     
                     fetch(route, {
-                        method:'POST',
-                        headers:{'X-CSRF-TOKEN':csrf?csrf.content:''},
-                        body:formData
+                        method: 'POST',
+                        headers: { 'X-CSRF-TOKEN': csrf ? csrf.content : '' },
+                        body: formData
                     })
-                    .then(function(r){return r.json();})
+                    .then(function(r){ return r.json(); })
                     .then(function(json){
-                        submitBtn.textContent = 'Import';
+                        submitBtn.textContent = 'Import Data';
                         
                         if(json.success){
                             results.className = 'dt-import-results show success';
                             results.innerHTML = '✅ ' + json.message;
+                            
                             if(json.results && json.results.errors && json.results.errors.length){
                                 results.innerHTML += '<div class="dt-import-errors">' + 
-                                    json.results.errors.map(function(e){return '<div>⚠️ '+e+'</div>';}).join('') + 
+                                    json.results.errors.map(function(e){ return '<div>⚠️ ' + e + '</div>'; }).join('') + 
                                 '</div>';
                             }
+                            
                             load();
+                            
                             setTimeout(function(){
                                 importModal.classList.remove('show');
                                 resetModal();
@@ -986,16 +1529,18 @@
                         } else {
                             results.className = 'dt-import-results show error';
                             results.innerHTML = '❌ ' + json.message;
+                            
                             if(json.results && json.results.errors){
                                 results.innerHTML += '<div class="dt-import-errors">' + 
-                                    json.results.errors.map(function(e){return '<div>'+e+'</div>';}).join('') + 
+                                    json.results.errors.map(function(e){ return '<div>' + e + '</div>'; }).join('') + 
                                 '</div>';
                             }
+                            
                             submitBtn.disabled = false;
                         }
                     })
                     .catch(function(e){
-                        submitBtn.textContent = 'Import';
+                        submitBtn.textContent = 'Import Data';
                         submitBtn.disabled = false;
                         results.className = 'dt-import-results show error';
                         results.innerHTML = '❌ Error: ' + e.message;
@@ -1007,26 +1552,64 @@
                     fileInput.value = '';
                     fileName.classList.remove('show');
                     submitBtn.disabled = true;
-                    submitBtn.textContent = 'Import';
+                    submitBtn.textContent = 'Import Data';
                     results.classList.remove('show');
                 }
 
-                closeBtn.onclick = function(){importModal.classList.remove('show');resetModal();};
-                cancelBtn.onclick = function(){importModal.classList.remove('show');resetModal();};
+                closeBtn.onclick = function(){
+                    importModal.classList.remove('show');
+                    resetModal();
+                };
+                
+                cancelBtn.onclick = function(){
+                    importModal.classList.remove('show');
+                    resetModal();
+                };
+                
+                // Close on backdrop click
+                importModal.onclick = function(e){
+                    if(e.target === importModal){
+                        importModal.classList.remove('show');
+                        resetModal();
+                    }
+                };
             }
 
             importModal.classList.add('show');
         }
 
+        // Initial load
         load();
         
+        // Expose API
         window.dtInstance = window.dtInstance || {};
         window.dtInstance[tableId] = {
             reload: load,
-            setFilter: function(col,val){state.filters[col]=val;state.page=1;load();}
+            setFilter: function(col, val){
+                state.filters[col] = val;
+                state.page = 1;
+                load();
+            },
+            exportTo: doExport,
+            getSelected: function(){ return state.selected; },
+            clearSelection: function(){
+                state.selected = [];
+                updateBulkUI();
+            }
         };
+        
+        // Legacy API
         table.dtReload = load;
-        table.dtSetFilter = function(col,val){state.filters[col]=val;state.page=1;load();};
+        table.dtSetFilter = function(col, val){
+            state.filters[col] = val;
+            state.page = 1;
+            load();
+        };
+        table.dtClearSelection = function(){
+            state.selected = [];
+            updateBulkUI();
+        };
+        table.dtExport = doExport;
     }
 })();
 </script>

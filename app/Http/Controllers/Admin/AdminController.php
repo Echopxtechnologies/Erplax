@@ -15,6 +15,7 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use App\Traits\DataTable;
 use App\Models\Option;
+use App\Models\Inventory\Tax;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Mail;
 
@@ -1072,7 +1073,170 @@ public function sendTestEmail(Request $request)
         
         return redirect()->route('admin.login')->with('success', 'Logged out successfully.');
     }
+    /*
+    |--------------------------------------------------------------------------
+    | Tax Management Methods
+    |--------------------------------------------------------------------------
+    */
 
+    /**
+     * Tax Management Index
+     */
+    public function taxIndex()
+    {
+        $stats = [
+            'total' => Tax::count(),
+            'active' => Tax::where('is_active', true)->count(),
+            'inactive' => Tax::where('is_active', false)->count(),
+        ];
+        
+        return view('admin.settings.taxes.index', compact('stats'));
+    }
+
+    /**
+     * Tax Data (DataTable)
+     */
+    public function taxData(Request $request)
+    {
+        // Handle Store (POST with form data, not file)
+        if ($request->isMethod('post') && !$request->hasFile('file') && $request->has('name')) {
+            return $this->taxStore($request);
+        }
+
+        // Build query
+        $query = Tax::query();
+
+        // Search
+        if ($search = $request->get('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                ->orWhere('rate', 'like', "%{$search}%");
+            });
+        }
+
+        // Filter by status
+        if ($request->filled('is_active')) {
+            $query->where('is_active', $request->is_active);
+        }
+
+        // Sorting
+        $sortField = $request->get('sort', 'id');
+        $sortDir = $request->get('dir', 'desc');
+        $query->orderBy($sortField, $sortDir);
+
+        // Paginate
+        $perPage = $request->get('per_page', 25);
+        $data = $query->paginate($perPage);
+
+        $items = collect($data->items())->map(function ($item) {
+            return [
+                'id' => $item->id,
+                'name' => $item->name,
+                'rate' => $item->rate,
+                'rate_display' => number_format($item->rate, 2) . '%',
+                'is_active' => $item->is_active,
+                'status' => $item->is_active ? 'Active' : 'Inactive',
+                'created_at' => $item->created_at->format('d M Y'),
+                '_edit_url' => route('admin.settings.taxes.update', $item->id),
+                '_delete_url' => route('admin.settings.taxes.destroy', $item->id),
+            ];
+        });
+
+        return response()->json([
+            'data' => $items,
+            'total' => $data->total(),
+            'current_page' => $data->currentPage(),
+            'last_page' => $data->lastPage(),
+        ]);
+    }
+
+    /**
+     * Store Tax
+     */
+    public function taxStore(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:100|unique:taxes,name',
+            'rate' => 'required|numeric|min:0|max:100',
+            'is_active' => 'nullable|boolean',
+        ]);
+
+        $validated['is_active'] = $request->has('is_active') || $request->is_active == '1';
+
+        $tax = Tax::create($validated);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Tax created successfully!',
+                'data' => $tax,
+            ]);
+        }
+
+        return redirect()->route('admin.settings.taxes.index')->with('success', 'Tax created successfully!');
+    }
+
+    /**
+     * Update Tax
+     */
+    public function taxUpdate(Request $request, $id)
+    {
+        $tax = Tax::findOrFail($id);
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:100|unique:taxes,name,' . $id,
+            'rate' => 'required|numeric|min:0|max:100',
+            'is_active' => 'nullable|boolean',
+        ]);
+
+        $validated['is_active'] = $request->has('is_active') || $request->is_active == '1';
+
+        $tax->update($validated);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Tax updated successfully!',
+                'data' => $tax,
+            ]);
+        }
+
+        return redirect()->route('admin.settings.taxes.index')->with('success', 'Tax updated successfully!');
+    }
+
+    /**
+     * Delete Tax
+     */
+    public function taxDestroy($id)
+    {
+        $tax = Tax::findOrFail($id);
+
+        // Check if tax is in use
+        $inUseCount = \App\Models\Inventory\Product::where('tax_1_id', $id)
+            ->orWhere('tax_2_id', $id)
+            ->count();
+
+        if ($inUseCount > 0) {
+            if (request()->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Cannot delete tax. It is assigned to {$inUseCount} product(s).",
+                ], 422);
+            }
+            return back()->with('error', "Cannot delete tax. It is assigned to {$inUseCount} product(s).");
+        }
+
+        $tax->delete();
+
+        if (request()->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Tax deleted successfully!',
+            ]);
+        }
+
+        return redirect()->route('admin.settings.taxes.index')->with('success', 'Tax deleted successfully!');
+    }
     /*
     |--------------------------------------------------------------------------
     | Menu Configuration

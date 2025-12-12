@@ -15,16 +15,20 @@ class Rack extends Model
         'zone',
         'aisle',
         'level',
-        'capacity',
+        'max_capacity',        // Changed from 'capacity'
         'capacity_unit_id',
+        'max_weight',          // Added
         'description',
         'is_active',
     ];
 
     protected $casts = [
-        'capacity' => 'decimal:3',
+        'max_capacity' => 'decimal:2',
+        'max_weight' => 'decimal:2',
         'is_active' => 'boolean',
     ];
+
+    // ==================== RELATIONSHIPS ====================
 
     public function warehouse(): BelongsTo
     {
@@ -46,18 +50,19 @@ class Rack extends Model
         return $this->hasMany(StockMovement::class);
     }
 
+    // ==================== ACCESSORS ====================
+
     /**
-     * Get full location path
+     * Get full location path (Zone › Aisle › Level)
      */
     public function getFullLocationAttribute(): string
     {
         $parts = array_filter([
             $this->zone,
-            $this->aisle,
-            $this->name,
-            $this->level
+            $this->aisle ? "Aisle {$this->aisle}" : null,
+            $this->level ? "Level {$this->level}" : null,
         ]);
-        return implode(' › ', $parts);
+        return $parts ? implode(' › ', $parts) : '-';
     }
 
     /**
@@ -65,8 +70,30 @@ class Rack extends Model
      */
     public function getFullNameAttribute(): string
     {
-        return $this->warehouse->name . ' > ' . $this->name . ' (' . $this->code . ')';
+        return ($this->warehouse?->name ?? 'Unknown') . ' > ' . $this->name . ' (' . $this->code . ')';
     }
+
+    /**
+     * Get capacity display with unit
+     */
+    public function getCapacityDisplayAttribute(): ?string
+    {
+        if (!$this->max_capacity) return null;
+        
+        $unit = $this->capacityUnit?->short_name ?? '';
+        return number_format($this->max_capacity, 2) . ($unit ? ' ' . $unit : '');
+    }
+
+    /**
+     * Get weight display
+     */
+    public function getWeightDisplayAttribute(): ?string
+    {
+        if (!$this->max_weight) return null;
+        return number_format($this->max_weight, 2) . ' kg';
+    }
+
+    // ==================== METHODS ====================
 
     /**
      * Get current stock in this rack
@@ -83,10 +110,35 @@ class Rack extends Model
     }
 
     /**
-     * Scope for active racks
+     * Check if rack has any stock
      */
+    public function hasStock(): bool
+    {
+        return $this->stockLevels()->where('qty', '>', 0)->exists();
+    }
+
+    /**
+     * Get stock count (number of different products)
+     */
+    public function getStockCountAttribute(): int
+    {
+        return $this->stockLevels()->where('qty', '>', 0)->count();
+    }
+
+    // ==================== SCOPES ====================
+
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
+    }
+
+    public function scopeInWarehouse($query, $warehouseId)
+    {
+        return $query->where('warehouse_id', $warehouseId);
+    }
+
+    public function scopeInZone($query, $zone)
+    {
+        return $query->where('zone', $zone);
     }
 }

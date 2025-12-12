@@ -265,6 +265,111 @@
         height: 16px;
         color: var(--text-muted);
     }
+
+    /* Variations */
+    .variations-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 12px;
+    }
+    
+    .variation-card {
+        background: var(--body-bg);
+        border: 1px solid var(--card-border);
+        border-radius: 8px;
+        padding: 14px;
+    }
+    
+    .variation-card.inactive {
+        opacity: 0.5;
+    }
+    
+    .variation-sku {
+        font-weight: 600;
+        font-size: 13px;
+        color: var(--text-primary);
+        margin-bottom: 4px;
+    }
+    
+    .variation-name {
+        font-size: 12px;
+        color: var(--text-muted);
+        margin-bottom: 8px;
+    }
+    
+    .variation-attrs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        margin-bottom: 8px;
+    }
+    
+    .variation-attr {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        background: var(--card-bg);
+        border: 1px solid var(--card-border);
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+    }
+    
+    .variation-attr .color-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        border: 1px solid var(--card-border);
+    }
+    
+    .variation-meta {
+        display: flex;
+        justify-content: space-between;
+        font-size: 12px;
+    }
+    
+    .variation-price {
+        font-weight: 600;
+        color: #059669;
+    }
+    
+    .variation-stock {
+        color: var(--text-muted);
+    }
+
+    .flags-display {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid var(--card-border);
+    }
+    
+    .flag-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 500;
+    }
+    
+    .flag-badge.active {
+        background: #d1fae5;
+        color: #065f46;
+    }
+    
+    .flag-badge.inactive {
+        background: var(--body-bg);
+        color: var(--text-muted);
+    }
+    
+    .flag-badge svg {
+        width: 14px;
+        height: 14px;
+    }
 </style>
 
 <div style="padding: 20px;">
@@ -279,6 +384,9 @@
         <span class="badge {{ $product->is_active ? 'badge-success' : 'badge-danger' }}">
             {{ $product->is_active ? 'Active' : 'Inactive' }}
         </span>
+        @if($product->has_variants)
+        <span class="badge badge-purple">Has Variants</span>
+        @endif
     </div>
 
     <div class="content-grid">
@@ -329,6 +437,12 @@
                             <label>Sale Price</label>
                             <span class="price">₹{{ number_format($product->sale_price, 2) }}</span>
                         </div>
+                        @if($product->mrp)
+                        <div class="info-item">
+                            <label>MRP</label>
+                            <span class="price">₹{{ number_format($product->mrp, 2) }}</span>
+                        </div>
+                        @endif
                         <div class="info-item">
                             <label>Min Stock</label>
                             <span>{{ $product->min_stock_level }} {{ $product->unit->short_name ?? 'PCS' }}</span>
@@ -337,12 +451,54 @@
                             <label>Max Stock</label>
                             <span>{{ $product->max_stock_level }} {{ $product->unit->short_name ?? 'PCS' }}</span>
                         </div>
+                        @if($product->tax_1_name)
                         <div class="info-item">
-                            <label>Batch Managed</label>
-                            <span class="badge {{ $product->is_batch_managed ? 'badge-info' : 'badge-warning' }}">
-                                {{ $product->is_batch_managed ? 'Yes' : 'No' }}
-                            </span>
+                            <label>{{ $product->tax_1_name }}</label>
+                            <span>{{ $product->tax_1_rate }}%</span>
                         </div>
+                        @endif
+                        @if($product->tax_2_name)
+                        <div class="info-item">
+                            <label>{{ $product->tax_2_name }}</label>
+                            <span>{{ $product->tax_2_rate }}%</span>
+                        </div>
+                        @endif
+                    </div>
+                    
+                    <!-- Flags -->
+                    <div class="flags-display">
+                        <span class="flag-badge {{ $product->can_be_sold ? 'active' : 'inactive' }}">
+                            @if($product->can_be_sold)
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                            @else
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                            @endif
+                            Can be Sold
+                        </span>
+                        <span class="flag-badge {{ $product->can_be_purchased ? 'active' : 'inactive' }}">
+                            @if($product->can_be_purchased)
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                            @else
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                            @endif
+                            Can be Purchased
+                        </span>
+                        <span class="flag-badge {{ $product->track_inventory ? 'active' : 'inactive' }}">
+                            @if($product->track_inventory)
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                            @else
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                            @endif
+                            Track Inventory
+                        </span>
+                        <span class="flag-badge {{ $product->is_batch_managed ? 'active' : 'inactive' }}">
+                            @if($product->is_batch_managed)
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                            @else
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                            @endif
+                            Batch Managed
+                        </span>
                     </div>
                     
                     @if($product->description)
@@ -353,6 +509,39 @@
                     @endif
                 </div>
             </div>
+
+            <!-- Variations -->
+            @if($product->has_variants && $product->variations->count() > 0)
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Variations ({{ $product->variations->count() }})</h3>
+                </div>
+                <div class="card-body">
+                    <div class="variations-grid">
+                        @foreach($product->variations as $variation)
+                        <div class="variation-card {{ $variation->is_active ? '' : 'inactive' }}">
+                            <div class="variation-sku">{{ $variation->sku }}</div>
+                            <div class="variation-name">{{ $variation->display_name }}</div>
+                            <div class="variation-attrs">
+                                @foreach($variation->attributeValues as $attrValue)
+                                <span class="variation-attr">
+                                    @if($attrValue->color_code)
+                                    <span class="color-dot" style="background: {{ $attrValue->color_code }};"></span>
+                                    @endif
+                                    {{ $attrValue->value }}
+                                </span>
+                                @endforeach
+                            </div>
+                            <div class="variation-meta">
+                                <span class="variation-price">₹{{ number_format($variation->effective_sale_price, 2) }}</span>
+                                <span class="variation-stock">{{ $variation->current_stock }} {{ $product->unit->short_name ?? 'PCS' }}</span>
+                            </div>
+                        </div>
+                        @endforeach
+                    </div>
+                </div>
+            </div>
+            @endif
 
             <!-- Stock by Warehouse -->
             <div class="card">
@@ -365,7 +554,6 @@
                             <thead>
                                 <tr>
                                     <th>Warehouse</th>
-                                    <th>Rack</th>
                                     <th>Quantity</th>
                                     <th>Value</th>
                                 </tr>
@@ -381,15 +569,8 @@
                                             {{ $stock->warehouse->name ?? '-' }}
                                         </div>
                                     </td>
-                                    <td>
-                                        @if($stock->rack)
-                                            <span class="badge badge-purple">{{ $stock->rack->code }}</span>
-                                        @else
-                                            <span style="color: var(--text-muted);">-</span>
-                                        @endif
-                                    </td>
-                                    <td><strong>{{ number_format($stock->qty, 2) }}</strong> {{ $product->unit->short_name ?? 'PCS' }}</td>
-                                    <td>₹{{ number_format($stock->qty * $product->purchase_price, 2) }}</td>
+                                    <td><strong>{{ number_format($stock->total_qty, 2) }}</strong> {{ $product->unit->short_name ?? 'PCS' }}</td>
+                                    <td>₹{{ number_format($stock->total_qty * $product->purchase_price, 2) }}</td>
                                 </tr>
                                 @endforeach
                             </tbody>
@@ -412,7 +593,7 @@
                     <a href="{{ route('admin.inventory.reports.movement-history') }}?product_id={{ $product->id }}" style="font-size: 13px; color: var(--primary); text-decoration: none;">View All</a>
                 </div>
                 <div class="card-body" style="padding: 0;">
-                    @if(isset($movements) && count($movements) > 0)
+                    @if(isset($recentMovements) && count($recentMovements) > 0)
                         <table class="simple-table">
                             <thead>
                                 <tr>
@@ -424,7 +605,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach($movements as $movement)
+                                @foreach($recentMovements as $movement)
                                 <tr>
                                     <td>{{ $movement->created_at->format('d M Y, H:i') }}</td>
                                     <td>
@@ -443,6 +624,9 @@
                                         <strong style="color: {{ in_array($movement->movement_type, ['IN', 'RETURN']) ? '#059669' : '#dc2626' }}">
                                             {{ in_array($movement->movement_type, ['IN', 'RETURN']) ? '+' : '-' }}{{ number_format($movement->qty, 2) }}
                                         </strong>
+                                        @if($movement->variation)
+                                        <br><small style="color: var(--text-muted);">{{ $movement->variation->display_name }}</small>
+                                        @endif
                                     </td>
                                     <td>
                                         {{ $movement->warehouse->name ?? '-' }}
@@ -473,14 +657,13 @@
             <div class="card">
                 <div class="card-body stock-display">
                     @php
-                        $totalStock = isset($stockByWarehouse) ? $stockByWarehouse->sum('qty') : 0;
+                        $totalStock = isset($stockByWarehouse) ? $stockByWarehouse->sum('total_qty') : 0;
                         $unitName = $product->unit->short_name ?? 'PCS';
                         
-                        // Determine stock status
                         if ($totalStock <= $product->min_stock_level) {
                             $stockStatus = 'low';
                             $stockMessage = 'Low Stock!';
-                        } elseif ($totalStock >= $product->max_stock_level) {
+                        } elseif ($product->max_stock_level > 0 && $totalStock >= $product->max_stock_level) {
                             $stockStatus = 'high';
                             $stockMessage = 'Overstocked';
                         } else {

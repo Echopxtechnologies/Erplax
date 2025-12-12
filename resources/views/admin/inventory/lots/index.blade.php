@@ -53,7 +53,7 @@
     
     .stats-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
         gap: 16px;
         margin-bottom: 24px;
     }
@@ -75,6 +75,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
+        flex-shrink: 0;
     }
     
     .stat-icon svg {
@@ -85,11 +86,18 @@
     .stat-icon.blue { background: #dbeafe; color: #2563eb; }
     .stat-icon.green { background: #d1fae5; color: #059669; }
     .stat-icon.red { background: #fee2e2; color: #dc2626; }
+    .stat-icon.orange { background: #ffedd5; color: #ea580c; }
+    
+    .stat-content {
+        flex: 1;
+        min-width: 0;
+    }
     
     .stat-value {
         font-size: 28px;
         font-weight: 700;
         color: var(--text-primary);
+        line-height: 1;
     }
     
     .stat-label {
@@ -150,8 +158,120 @@
         padding: 0;
     }
 
+    /* Product Cell Styling */
+    .product-cell {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    
+    .product-image {
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        object-fit: cover;
+        border: 1px solid var(--card-border);
+        background: var(--body-bg);
+        flex-shrink: 0;
+    }
+    
+    .product-image-placeholder {
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        background: var(--body-bg);
+        border: 1px solid var(--card-border);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-muted);
+        flex-shrink: 0;
+    }
+    
+    .product-image-placeholder svg {
+        width: 20px;
+        height: 20px;
+    }
+    
+    .product-info {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+    }
+    
+    .product-name {
+        font-weight: 500;
+        color: var(--text-primary);
+        font-size: 14px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .product-sku {
+        font-size: 12px;
+        color: var(--text-muted);
+        font-family: monospace;
+    }
+
+    /* Lot number styling */
+    .lot-number {
+        font-family: monospace;
+        font-weight: 600;
+        color: var(--primary);
+    }
+    
+    .batch-no {
+        font-size: 11px;
+        color: var(--text-muted);
+        display: block;
+        margin-top: 2px;
+    }
+
+    /* Expiry styling */
+    .expiry-ok { color: var(--text-primary); }
+    .expiry-medium { color: #3b82f6; }
     .expiry-soon { color: #ea580c; font-weight: 600; }
     .expiry-expired { color: #dc2626; font-weight: 600; }
+    .expiry-none { color: var(--text-muted); font-style: italic; }
+    
+    .expiry-days {
+        font-size: 11px;
+        display: block;
+        margin-top: 2px;
+    }
+
+    /* Stock styling */
+    .stock-value {
+        font-weight: 600;
+    }
+    
+    .stock-unit {
+        font-size: 11px;
+        color: var(--text-muted);
+        margin-left: 4px;
+    }
+    
+    .stock-low { color: #dc2626; }
+    .stock-medium { color: #ea580c; }
+    .stock-ok { color: var(--text-primary); }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+        
+        .table-filters {
+            width: 100%;
+        }
+        
+        .table-filters select {
+            flex: 1;
+            min-width: 120px;
+        }
+    }
 </style>
 
 <div style="padding: 20px;">
@@ -191,8 +311,19 @@
                 </svg>
             </div>
             <div class="stat-content">
-                <div class="stat-value">{{ $stats['available'] }}</div>
-                <div class="stat-label">Available</div>
+                <div class="stat-value">{{ $stats['active'] }}</div>
+                <div class="stat-label">Active</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon orange">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                </svg>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">{{ $stats['expiring_soon'] ?? 0 }}</div>
+                <div class="stat-label">Expiring Soon</div>
             </div>
         </div>
         <div class="stat-card">
@@ -218,36 +349,35 @@
                 Lot List
             </div>
             <div class="table-filters">
-                <select data-dt-filter="product_id">
+                <select data-dt-filter="product_id" data-dt-table="lotsTable">
                     <option value="">All Products</option>
                     @foreach($products as $product)
-                        <option value="{{ $product->id }}">{{ $product->name }}</option>
+                        <option value="{{ $product->id }}">{{ $product->name }} ({{ $product->sku }})</option>
                     @endforeach
                 </select>
-                <select data-dt-filter="status">
+                <select data-dt-filter="status" data-dt-table="lotsTable">
                     <option value="">All Status</option>
-                    <option value="AVAILABLE">Available</option>
-                    <option value="RESERVED">Reserved</option>
+                    <option value="ACTIVE">Active</option>
+                    <option value="RECALLED">Recalled</option>
                     <option value="EXPIRED">Expired</option>
                     <option value="CONSUMED">Consumed</option>
                 </select>
             </div>
         </div>
         <div class="table-card-body">
-            <table class="dt-table dt-search dt-export dt-perpage" 
+            <table class="dt-table dt-search dt-export dt-perpage dt-checkbox" 
                    id="lotsTable"
                    data-route="{{ route('admin.inventory.lots.data') }}">
                 <thead>
                     <tr>
-                        <th class="dt-sort" data-col="id">ID</th>
-                        <th class="dt-sort" data-col="lot_no">Lot No</th>
-                        <th class="dt-sort" data-col="product_name">Product</th>
-                        <th class="dt-sort" data-col="initial_qty">Initial Qty</th>
-                        <th class="dt-sort" data-col="purchase_price">Purchase Price</th>
-                        <th class="dt-sort" data-col="manufacturing_date">Mfg Date</th>
-                        <th class="dt-sort" data-col="expiry_date" data-render="expiry">Expiry Date</th>
-                        <th data-col="status" data-render="status">Status</th>
-                        <th data-render="actions">Actions</th>
+                        <th data-col="id" class="dt-sort" style="width: 60px;">ID</th>
+                        <th data-col="lot_no" class="dt-sort" data-render="lot">Lot No</th>
+                        <th data-col="product_name" data-render="product">Product</th>
+                        <th data-col="initial_qty" class="dt-sort" style="text-align: right;">Initial Qty</th>
+                        <th data-col="current_stock" class="dt-sort" data-render="stock" style="text-align: right;">Current Stock</th>
+                        <th data-col="expiry_date" class="dt-sort" data-render="expiry">Expiry</th>
+                        <th data-col="status" data-render="badge">Status</th>
+                        <th data-render="actions" style="width: 120px;">Actions</th>
                     </tr>
                 </thead>
                 <tbody></tbody>
@@ -256,41 +386,112 @@
     </div>
 </div>
 
+{{-- Custom Renderers for DataTable --}}
 <script>
 window.dtRenders = window.dtRenders || {};
 
-window.dtRenders.status = function(data, row) {
-    const statusMap = {
-        'AVAILABLE': 'success',
-        'RESERVED': 'info',
-        'EXPIRED': 'danger',
-        'CONSUMED': 'warning'
-    };
-    return '<span class="dt-badge dt-badge-' + (statusMap[row.status] || 'info') + '">' + row.status + '</span>';
-};
-
-window.dtRenders.expiry = function(data, row) {
-    if (!row.expiry_date || row.expiry_date === '-') return '-';
-    
-    let expiryDate = new Date(row.expiry_date);
-    let today = new Date();
-    let diffDays = Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24));
-    
-    if (diffDays < 0) {
-        return '<span class="expiry-expired">' + row.expiry_date + ' (Expired)</span>';
-    } else if (diffDays <= 30) {
-        return '<span class="expiry-soon">' + row.expiry_date + ' (' + diffDays + ' days)</span>';
+// ─────────────────────────────────────────────────────────────────────────────
+// LOT NUMBER RENDERER
+// ─────────────────────────────────────────────────────────────────────────────
+window.dtRenders.lot = function(value, row) {
+    var html = '<span class="lot-number">' + (row.lot_no || '-') + '</span>';
+    if (row.batch_no && row.batch_no !== '-') {
+        html += '<span class="batch-no">Batch: ' + row.batch_no + '</span>';
     }
-    return row.expiry_date;
+    return html;
 };
 
-window.dtRenders.actions = function(data, row) {
+// ─────────────────────────────────────────────────────────────────────────────
+// PRODUCT CELL RENDERER (with image)
+// ─────────────────────────────────────────────────────────────────────────────
+window.dtRenders.product = function(value, row) {
+    var imageHtml = '';
+    
+    if (row.product_image) {
+        imageHtml = '<img src="' + row.product_image + '" class="product-image" alt="' + (row.product_name || 'Product') + '" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\';">' +
+                    '<div class="product-image-placeholder" style="display:none;"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg></div>';
+    } else {
+        imageHtml = '<div class="product-image-placeholder"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg></div>';
+    }
+    
+    return '<div class="product-cell">' +
+        imageHtml +
+        '<div class="product-info">' +
+            '<div class="product-name">' + (row.product_name || '-') + '</div>' +
+            '<div class="product-sku">' + (row.product_sku || '') + '</div>' +
+        '</div>' +
+    '</div>';
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STOCK RENDERER (with unit and color)
+// ─────────────────────────────────────────────────────────────────────────────
+window.dtRenders.stock = function(value, row) {
+    var stockVal = parseFloat(row.current_stock_raw || 0);
+    var colorClass = 'stock-ok';
+    
+    if (stockVal <= 0) {
+        colorClass = 'stock-low';
+    } else if (stockVal < 10) {
+        colorClass = 'stock-medium';
+    }
+    
+    return '<span class="stock-value ' + colorClass + '">' + 
+           (row.current_stock || '0.00') + 
+           '<span class="stock-unit">' + (row.unit_name || 'PCS') + '</span></span>';
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EXPIRY DATE RENDERER (with days and color)
+// ─────────────────────────────────────────────────────────────────────────────
+window.dtRenders.expiry = function(value, row) {
+    if (!row.expiry_date || row.expiry_date === '-') {
+        return '<span class="expiry-none">No Expiry</span>';
+    }
+    
+    var days = row.days_to_expiry;
+    var colorClass = 'expiry-ok';
+    var daysText = '';
+    
+    if (row.is_expired || days < 0) {
+        colorClass = 'expiry-expired';
+        daysText = '<span class="expiry-days">Expired ' + Math.abs(days) + ' days ago</span>';
+    } else if (days <= 30) {
+        colorClass = 'expiry-soon';
+        daysText = '<span class="expiry-days">' + days + ' days left</span>';
+    } else if (days <= 90) {
+        colorClass = 'expiry-medium';
+        daysText = '<span class="expiry-days">' + days + ' days</span>';
+    }
+    
+    return '<span class="' + colorClass + '">' + row.expiry_date + daysText + '</span>';
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STATUS BADGE RENDERER
+// ─────────────────────────────────────────────────────────────────────────────
+window.dtRenders.badge = function(value, row) {
+    var statusMap = {
+        'ACTIVE': 'active',
+        'RECALLED': 'warning',
+        'EXPIRED': 'danger',
+        'CONSUMED': 'secondary'
+    };
+    var badgeClass = statusMap[row.status] || 'secondary';
+    return '<span class="dt-badge dt-badge-' + badgeClass + '">' + (row.status || '-') + '</span>';
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ACTIONS RENDERER
+// ─────────────────────────────────────────────────────────────────────────────
+window.dtRenders.actions = function(value, row) {
     return '<div class="dt-actions">' +
         '<a href="' + row._edit_url + '" class="dt-btn dt-btn-edit" title="Edit">Edit</a>' +
-        '<button type="button" class="dt-btn dt-btn-delete" onclick="dtDelete(\'' + row._delete_url + '\', \'lotsTable\')" title="Delete">Delete</button>' +
+        '<button type="button" class="dt-btn dt-btn-delete" data-id="' + row.id + '" data-url="' + row._delete_url + '" title="Delete">Delete</button>' +
     '</div>';
 };
 </script>
 
+{{-- Include DataTable Component --}}
 @include('components.datatable')
 </x-layouts.app>

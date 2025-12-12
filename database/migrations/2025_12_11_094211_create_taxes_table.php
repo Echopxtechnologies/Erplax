@@ -11,8 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('customers', function (Blueprint $table) {
+        Schema::create('taxes', function (Blueprint $table) {
             $table->id();
+            $table->string('name', 100);
+            $table->decimal('rate', 5, 2)->comment('Tax rate in percentage');
+            $table->boolean('is_active')->default(true);
             $table->timestamps();
         });
     }
@@ -22,6 +25,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('customers');
+        Schema::dropIfExists('taxes');
     }
 };

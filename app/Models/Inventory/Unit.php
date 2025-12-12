@@ -36,6 +36,11 @@ class Unit extends Model
         return $this->hasMany(Product::class);
     }
 
+    public function productUnits(): HasMany
+    {
+        return $this->hasMany(ProductUnit::class);
+    }
+
     /**
      * Convert quantity to base unit
      */
@@ -66,5 +71,21 @@ class Unit extends Model
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
+    }
+
+    /**
+     * Check if this is a base unit
+     */
+    public function getIsBaseUnitAttribute(): bool
+    {
+        return is_null($this->base_unit_id);
+    }
+
+    /**
+     * Get all base units
+     */
+    public static function getBaseUnits()
+    {
+        return self::whereNull('base_unit_id')->active()->get();
     }
 }

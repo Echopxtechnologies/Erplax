@@ -9,20 +9,41 @@ use App\Models\Inventory\Brand;
 use App\Models\Inventory\Warehouse;
 use App\Models\Inventory\Rack;
 use App\Models\Inventory\Unit;
+use App\Models\Inventory\Tax;
+use App\Models\Inventory\Tag;
+use App\Models\Inventory\ProductImage;
+use App\Models\Inventory\ProductUnit;
+use App\Models\Inventory\ProductAttribute;
+use App\Models\Inventory\AttributeValue;
+use App\Models\Inventory\ProductVariation;
 use App\Models\Inventory\StockLevel;
 use App\Models\Inventory\StockMovement;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Validator;
-use PhpOffice\PhpSpreadsheet\Spreadsheet;
-use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
-use PhpOffice\PhpSpreadsheet\IOFactory;
-use PhpOffice\PhpSpreadsheet\Style\Fill;
-use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
+use App\Traits\DataTable;
 
 class ProductController extends BaseController
 {
-    // ==================== IMPORT VALIDATION RULES ====================
-    protected $productImportable = [
+    use DataTable;
+
+    // ==================== DATATABLE CONFIGURATION ====================
+    protected $model = Product::class;
+    
+    protected $with = ['category', 'brand', 'unit', 'images', 'tax1', 'tax2'];
+    
+    protected $searchable = ['name', 'sku', 'barcode', 'category.name', 'brand.name'];
+    
+    protected $sortable = ['id', 'name', 'sku', 'purchase_price', 'sale_price', 'created_at'];
+    
+    protected $filterable = ['category_id', 'brand_id', 'is_active', 'has_variants'];
+    
+    protected $uniqueField = 'sku';
+    
+    protected $exportTitle = 'Products Export';
+
+    // Import validation rules
+    protected $importable = [
         'name'           => 'required|string|max:191',
         'sku'            => 'required|string|max:50',
         'barcode'        => 'nullable|string|max:50',
@@ -31,10 +52,182 @@ class ProductController extends BaseController
         'unit_id'        => 'nullable|exists:units,id',
         'purchase_price' => 'required|numeric|min:0',
         'sale_price'     => 'required|numeric|min:0',
+        'mrp'            => 'nullable|numeric|min:0',
+        'default_profit_rate' => 'nullable|numeric|min:0|max:100',
+        'tax_1_id'       => 'nullable|exists:taxes,id',
+        'tax_2_id'       => 'nullable|exists:taxes,id',
         'hsn_code'       => 'nullable|string|max:20',
         'min_stock_level'=> 'nullable|numeric|min:0',
         'max_stock_level'=> 'nullable|numeric|min:0',
     ];
+
+    // ==================== HELPER: CLEAN ATTRIBUTE IDs ====================
+    /**
+     * Sanitize attribute IDs to prevent SQL errors
+     * Filters out invalid values and ensures only valid integer IDs are returned
+     */
+    private function cleanAttributeIds($attributes): array
+    {
+        if (empty($attributes)) {
+            return [];
+        }
+        
+        // Handle if it's not an array
+        if (!is_array($attributes)) {
+            return [];
+        }
+        
+        return collect($attributes)
+            ->filter(function ($value) {
+                // Only keep numeric values that are positive integers
+                return is_numeric($value) && (int)$value > 0;
+            })
+            ->map(function ($value) {
+                return (int) $value;
+            })
+            ->unique()
+            ->values()
+            ->toArray();
+    }
+
+    // ==================== CUSTOM ROW MAPPING FOR LIST ====================
+    protected function mapRow($item)
+    {
+        $currentStock = $this->getProductStock($item->id);
+        $primaryImage = $item->images->where('is_primary', true)->first() ?? $item->images->first();
+        
+        return [
+            'id' => $item->id,
+            'sku' => $item->sku,
+            'name' => $item->name,
+            'image' => $primaryImage ? asset('storage/' . $primaryImage->image_path) : null,
+            'category_name' => $item->category?->name ?? '-',
+            'brand_name' => $item->brand?->name ?? '-',
+            'unit' => $item->unit?->short_name ?? 'PCS',
+            'purchase_price' => number_format($item->purchase_price, 2),
+            'sale_price' => number_format($item->sale_price, 2),
+            'mrp' => $item->mrp ? number_format($item->mrp, 2) : '-',
+            'current_stock' => $currentStock,
+            'min_stock_level' => $item->min_stock_level,
+            'is_low_stock' => $item->min_stock_level > 0 && $currentStock < $item->min_stock_level,
+            'has_variants' => $item->has_variants,
+            'variant_count' => $item->has_variants ? $item->variations()->count() : 0,
+            'is_active' => $item->is_active,
+            'status' => $item->is_active ? 'Active' : 'Inactive',
+            '_edit_url' => route('admin.inventory.products.edit', $item->id),
+            '_show_url' => route('admin.inventory.products.show', $item->id),
+            '_delete_url' => route('admin.inventory.products.destroy', $item->id),
+        ];
+    }
+
+    // ==================== CUSTOM EXPORT ROW MAPPING ====================
+    protected function mapExportRow($item)
+    {
+        $currentStock = $this->getProductStock($item->id);
+        
+        return [
+            'ID' => $item->id,
+            'SKU' => $item->sku,
+            'Barcode' => $item->barcode ?? '',
+            'Name' => $item->name,
+            'Category' => $item->category?->name ?? '',
+            'Brand' => $item->brand?->name ?? '',
+            'Unit' => $item->unit?->short_name ?? 'PCS',
+            'Purchase Price' => $item->purchase_price,
+            'Sale Price' => $item->sale_price,
+            'MRP' => $item->mrp ?? '',
+            'Tax 1' => $item->tax1?->name ?? '',
+            'Tax 1 %' => $item->tax1?->rate ?? '',
+            'Tax 2' => $item->tax2?->name ?? '',
+            'Tax 2 %' => $item->tax2?->rate ?? '',
+            'HSN Code' => $item->hsn_code ?? '',
+            'Current Stock' => $currentStock,
+            'Min Stock' => $item->min_stock_level ?? 0,
+            'Max Stock' => $item->max_stock_level ?? 0,
+            'Can Sell' => $item->can_be_sold ? 'Yes' : 'No',
+            'Can Purchase' => $item->can_be_purchased ? 'Yes' : 'No',
+            'Track Stock' => $item->track_inventory ? 'Yes' : 'No',
+            'Has Variants' => $item->has_variants ? 'Yes' : 'No',
+            'Status' => $item->is_active ? 'Active' : 'Inactive',
+        ];
+    }
+
+    // ==================== CUSTOM IMPORT ROW HANDLER ====================
+    protected function importRow($data, $row)
+    {
+        $data['is_active'] = true;
+        $data['can_be_sold'] = true;
+        $data['can_be_purchased'] = true;
+        $data['track_inventory'] = true;
+        
+        if (empty($data['unit_id'])) {
+            $defaultUnit = Unit::where('short_name', 'PCS')->first();
+            $data['unit_id'] = $defaultUnit?->id;
+        }
+        
+        $existing = Product::where('sku', $data['sku'])->first();
+        
+        if ($existing) {
+            $existing->update($data);
+            return $existing;
+        }
+        
+        return Product::create($data);
+    }
+
+    // ==================== DATA ENDPOINT ====================
+    public function data(Request $request)
+    {
+        return $this->handleData($request);
+    }
+
+    // ==================== BULK DELETE ====================
+    public function bulkDestroy(Request $request)
+    {
+        $ids = $request->input('ids', []);
+        
+        if (empty($ids)) {
+            return response()->json(['success' => false, 'message' => 'No items selected'], 400);
+        }
+
+        $hasStock = StockLevel::whereIn('product_id', $ids)->where('qty', '>', 0)->exists();
+        if ($hasStock) {
+            return response()->json([
+                'success' => false, 
+                'message' => 'Cannot delete products with existing stock.'
+            ], 422);
+        }
+
+        DB::beginTransaction();
+        
+        try {
+            foreach ($ids as $id) {
+                $product = Product::find($id);
+                if (!$product) continue;
+                
+                foreach ($product->images as $image) {
+                    $image->deleteWithFile();
+                }
+                
+                $product->productUnits()->delete();
+                $product->tags()->detach();
+                $product->attributes()->detach();
+                $product->variations()->delete();
+                $product->delete();
+            }
+            
+            DB::commit();
+            
+            return response()->json([
+                'success' => true, 
+                'message' => count($ids) . ' products deleted'
+            ]);
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
 
     // ==================== DASHBOARD ====================
     public function dashboard()
@@ -64,7 +257,7 @@ class ProductController extends BaseController
         return view('admin.inventory.dashboard', compact('stats', 'lowStockProducts', 'recentMovements'));
     }
 
-    // ==================== PRODUCTS INDEX ====================
+    // ==================== INDEX ====================
     public function index()
     {
         $stats = [
@@ -79,482 +272,541 @@ class ProductController extends BaseController
         return view('admin.inventory.products.index', compact('stats', 'categories', 'brands'));
     }
 
-    // ==================== PRODUCTS DATA (DataTable) ====================
-    public function data(Request $request)
-    {
-        // =====================
-        // IMPORT (POST with file)
-        // =====================
-        if ($request->isMethod('post') && $request->hasFile('file')) {
-            return $this->handleProductImport($request);
-        }
-
-        // =====================
-        // TEMPLATE DOWNLOAD
-        // =====================
-        if ($request->has('template')) {
-            return $this->downloadProductTemplate();
-        }
-
-        // =====================
-        // EXPORT
-        // =====================
-        if ($request->has('export')) {
-            return $this->exportProducts($request);
-        }
-
-        // =====================
-        // BUILD QUERY
-        // =====================
-        $query = Product::with(['category', 'brand', 'unit'])->select('products.*');
-
-        // Search
-        if ($search = $request->get('search')) {
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('sku', 'like', "%{$search}%")
-                    ->orWhere('barcode', 'like', "%{$search}%");
-            });
-        }
-
-        // Filters
-        if ($request->filled('category_id')) {
-            $query->where('category_id', $request->category_id);
-        }
-        if ($request->filled('brand_id')) {
-            $query->where('brand_id', $request->brand_id);
-        }
-        if ($request->filled('is_active')) {
-            $query->where('is_active', $request->is_active);
-        }
-
-        // Sorting
-        $sortField = $request->get('sort', 'id');
-        $sortDir = $request->get('dir', 'desc');
-        $query->orderBy($sortField, $sortDir);
-
-        // =====================
-        // PAGINATE & RETURN
-        // =====================
-        $perPage = $request->get('per_page', 25);
-        $data = $query->paginate($perPage);
-
-        $items = collect($data->items())->map(function ($item) {
-            $currentStock = $this->getProductStock($item->id);
-            return [
-                'id' => $item->id,
-                'sku' => $item->sku,
-                'name' => $item->name,
-                'category_name' => $item->category?->name ?? '-',
-                'brand_name' => $item->brand?->name ?? '-',
-                'unit' => $item->unit?->short_name ?? 'PCS',
-                'purchase_price' => number_format($item->purchase_price, 2),
-                'sale_price' => number_format($item->sale_price, 2),
-                'current_stock' => $currentStock,
-                'min_stock_level' => $item->min_stock_level,
-                'is_low_stock' => $item->min_stock_level > 0 && $currentStock < $item->min_stock_level,
-                'is_active' => $item->is_active,
-                'status' => $item->is_active ? 'Active' : 'Inactive',
-                '_edit_url' => route('admin.inventory.products.edit', $item->id),
-                '_show_url' => route('admin.inventory.products.show', $item->id),
-                '_delete_url' => route('admin.inventory.products.destroy', $item->id),
-            ];
-        });
-
-        return response()->json([
-            'data' => $items,
-            'total' => $data->total(),
-            'current_page' => $data->currentPage(),
-            'last_page' => $data->lastPage(),
-        ]);
-    }
-
     // ==================== CREATE ====================
     public function create()
     {
         $categories = ProductCategory::where('is_active', true)->orderBy('name')->get();
         $brands = Brand::where('is_active', true)->orderBy('name')->get();
         $units = Unit::where('is_active', true)->orderBy('name')->get();
-        return view('admin.inventory.products.create', compact('categories', 'brands', 'units'));
+        $taxes = Tax::where('is_active', true)->orderBy('name')->get();
+        $attributes = ProductAttribute::with('values')->where('is_active', true)->orderBy('sort_order')->get();
+        
+        return view('admin.inventory.products.create', compact('categories', 'brands', 'units', 'taxes', 'attributes'));
     }
 
-    // ==================== STORE ====================
+    // ==================== STORE - FIXED ATTRIBUTE HANDLING ====================
     public function store(Request $request)
     {
+        Log::info('ProductController::store - Request received', [
+            'has_images' => $request->hasFile('images'),
+            'files_count' => $request->hasFile('images') ? count($request->file('images')) : 0,
+            'attributes' => $request->input('attributes'),
+        ]);
+
         $validated = $request->validate([
             'name' => 'required|string|max:191',
-            'sku' => 'required|string|max:50|unique:products,sku',
-            'barcode' => 'nullable|string|max:50',
+            'sku' => 'required|string|max:100|unique:products,sku',
+            'barcode' => 'nullable|string|max:100',
+            'description' => 'nullable|string',
+            'short_description' => 'nullable|string|max:500',
             'category_id' => 'nullable|exists:product_categories,id',
             'brand_id' => 'nullable|exists:brands,id',
             'unit_id' => 'nullable|exists:units,id',
             'purchase_price' => 'required|numeric|min:0',
             'sale_price' => 'required|numeric|min:0',
-            'hsn_code' => 'nullable|string|max:20',
+            'mrp' => 'nullable|numeric|min:0',
+            'default_profit_rate' => 'nullable|numeric',
+            'tax_1_id' => 'nullable|exists:taxes,id',
+            'tax_2_id' => 'nullable|exists:taxes,id',
+            'hsn_code' => 'nullable|string|max:50',
             'min_stock_level' => 'nullable|numeric|min:0',
             'max_stock_level' => 'nullable|numeric|min:0',
-            'is_batch_managed' => 'boolean',
+            'tags' => 'nullable|string',
+            'images' => 'nullable|array',
+            'images.*' => 'nullable|image|mimes:jpg,jpeg,png,gif,webp|max:2048',
+            'primary_image' => 'nullable|integer',
+            'product_units' => 'nullable|array',
+            'attributes' => 'nullable|array',
+            'attributes.*' => 'nullable',
         ]);
         
-        // Default to PCS unit if not specified
         if (empty($validated['unit_id'])) {
             $defaultUnit = Unit::where('short_name', 'PCS')->first();
             $validated['unit_id'] = $defaultUnit?->id;
         }
+
+        $productData = [
+            'name' => $validated['name'],
+            'sku' => $validated['sku'],
+            'barcode' => $validated['barcode'] ?? null,
+            'description' => $validated['description'] ?? null,
+            'short_description' => $validated['short_description'] ?? null,
+            'category_id' => $validated['category_id'] ?: null,
+            'brand_id' => $validated['brand_id'] ?: null,
+            'unit_id' => $validated['unit_id'],
+            'purchase_price' => $validated['purchase_price'],
+            'sale_price' => $validated['sale_price'],
+            'mrp' => $validated['mrp'] ?? null,
+            'default_profit_rate' => $validated['default_profit_rate'] ?? 0,
+            'tax_1_id' => $validated['tax_1_id'] ?? null,
+            'tax_2_id' => $validated['tax_2_id'] ?? null,
+            'hsn_code' => $validated['hsn_code'] ?? null,
+            'min_stock_level' => $validated['min_stock_level'] ?? 0,
+            'max_stock_level' => $validated['max_stock_level'] ?? 0,
+            'can_be_sold' => $request->has('can_be_sold') ? 1 : 0,
+            'can_be_purchased' => $request->has('can_be_purchased') ? 1 : 0,
+            'track_inventory' => $request->has('track_inventory') ? 1 : 0,
+            'has_variants' => $request->has('has_variants') ? 1 : 0,
+            'is_batch_managed' => $request->has('is_batch_managed') ? 1 : 0,
+            'is_active' => 1,
+        ];
+
+        DB::beginTransaction();
         
-        $validated['is_active'] = true;
-        $validated['is_batch_managed'] = $request->has('is_batch_managed');
-        
-        Product::create($validated);
-        
-        return redirect()->route('admin.inventory.products.index')
-            ->with('success', 'Product created successfully!');
+        try {
+            $product = Product::create($productData);
+            
+            Log::info('ProductController::store - Product created', ['product_id' => $product->id]);
+            
+            // Handle tags
+            if (!empty($validated['tags'])) {
+                Tag::syncProductTags($product, $validated['tags']);
+            }
+            
+            // Handle images
+            if ($request->hasFile('images')) {
+                $files = $request->file('images');
+                $primaryIndex = (int) $request->input('primary_image', 0);
+                
+                Log::info('ProductController::store - Processing images', [
+                    'product_id' => $product->id,
+                    'files_count' => count($files),
+                    'primary_index' => $primaryIndex,
+                ]);
+                
+                $uploadedCount = 0;
+                
+                foreach ($files as $index => $file) {
+                    if (!$file || !$file->isValid()) continue;
+                    
+                    $isPrimary = ($index === $primaryIndex);
+                    $image = ProductImage::uploadForProduct($product, $file, $isPrimary);
+                    
+                    if ($image) {
+                        $uploadedCount++;
+                        Log::info('ProductController::store - Image uploaded', [
+                            'image_id' => $image->id,
+                            'is_primary' => $image->is_primary,
+                        ]);
+                    }
+                }
+                
+                $product->ensurePrimaryImage();
+            }
+            
+            // Handle product units
+            if (!empty($request->product_units)) {
+                foreach ($request->product_units as $unitData) {
+                    if (empty($unitData['unit_id'])) continue;
+                    
+                    $product->productUnits()->create([
+                        'unit_id' => $unitData['unit_id'],
+                        'unit_name' => $unitData['unit_name'] ?? null,
+                        'conversion_factor' => $unitData['conversion_factor'] ?? 1,
+                        'purchase_price' => $unitData['purchase_price'] ?? null,
+                        'sale_price' => $unitData['sale_price'] ?? null,
+                        'barcode' => $unitData['barcode'] ?? null,
+                        'is_purchase_unit' => !empty($unitData['is_purchase_unit']),
+                        'is_sale_unit' => !empty($unitData['is_sale_unit']),
+                    ]);
+                }
+            }
+            
+            // ========================================
+            // FIXED: Handle variations with clean attribute IDs
+            // ========================================
+            if ($productData['has_variants']) {
+                $attributeIds = $this->cleanAttributeIds($request->input('attributes'));
+                
+                Log::info('ProductController::store - Processing attributes', [
+                    'raw_attributes' => $request->input('attributes'),
+                    'cleaned_attributes' => $attributeIds,
+                ]);
+                
+                if (!empty($attributeIds)) {
+                    $product->attributes()->sync($attributeIds);
+                    
+                    if ($request->boolean('generate_variations')) {
+                        $product->createVariationsFromCombinations();
+                    }
+                }
+            }
+            
+            DB::commit();
+            
+            Log::info('ProductController::store - Product creation complete', ['product_id' => $product->id]);
+            
+            return redirect()
+                ->route('admin.inventory.products.index')
+                ->with('success', 'Product created successfully!');
+                
+        } catch (\Exception $e) {
+            DB::rollBack();
+            
+            Log::error('ProductController::store - Exception', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            
+            return back()->withInput()->with('error', 'Error: ' . $e->getMessage());
+        }
     }
 
     // ==================== SHOW ====================
     public function show($id)
     {
-        $product = Product::with(['category', 'brand', 'unit'])->findOrFail($id);
+        $product = Product::with([
+            'category', 'brand', 'unit', 'images', 'tags',
+            'productUnits.unit', 'attributes.values',
+            'variations.attributeValues.attribute',
+            'stockLevels.warehouse', 'stockLevels.rack',
+        ])->findOrFail($id);
         
-        // Get stock by warehouse/rack from stock_levels table
-        $stockByWarehouse = StockLevel::with(['warehouse', 'rack'])
-            ->where('product_id', $id)
-            ->where('qty', '>', 0)
+        $warehouses = Warehouse::where('is_active', true)->get();
+        
+        $stockByWarehouse = $product->stockLevels()
+            ->select('warehouse_id', DB::raw('SUM(qty) as total_qty'))
+            ->groupBy('warehouse_id')
+            ->with('warehouse')
             ->get();
         
-        // Get recent movements
-        $movements = StockMovement::with(['warehouse', 'rack'])
-            ->where('product_id', $id)
+        $recentMovements = StockMovement::where('product_id', $id)
+            ->with(['warehouse', 'unit', 'variation'])
             ->orderBy('created_at', 'desc')
-            ->limit(10)
+            ->limit(20)
             ->get();
         
-        return view('admin.inventory.products.show', compact('product', 'stockByWarehouse', 'movements'));
+        return view('admin.inventory.products.show', compact(
+            'product', 'warehouses', 'stockByWarehouse', 'recentMovements'
+        ));
     }
 
     // ==================== EDIT ====================
     public function edit($id)
     {
-        $product = Product::findOrFail($id);
+        $product = Product::with([
+            'images', 'tags', 'productUnits.unit', 'attributes',
+            'variations.attributeValues', 'tax1', 'tax2',
+        ])->findOrFail($id);
+        
         $categories = ProductCategory::where('is_active', true)->orderBy('name')->get();
         $brands = Brand::where('is_active', true)->orderBy('name')->get();
         $units = Unit::where('is_active', true)->orderBy('name')->get();
+        $taxes = Tax::where('is_active', true)->orderBy('name')->get();
+        $attributes = ProductAttribute::with('values')->where('is_active', true)->orderBy('sort_order')->get();
         
-        return view('admin.inventory.products.edit', compact('product', 'categories', 'brands', 'units'));
+        return view('admin.inventory.products.edit', compact(
+            'product', 'categories', 'brands', 'units', 'taxes', 'attributes'
+        ));
     }
 
-    // ==================== UPDATE ====================
+    // ==================== UPDATE - FIXED ATTRIBUTE HANDLING ====================
     public function update(Request $request, $id)
     {
         $product = Product::findOrFail($id);
         
+        Log::info('ProductController::update - Request received', [
+            'product_id' => $id,
+            'has_images' => $request->hasFile('images'),
+            'attributes' => $request->input('attributes'),
+        ]);
+        
         $validated = $request->validate([
             'name' => 'required|string|max:191',
-            'sku' => 'required|string|max:50|unique:products,sku,' . $id,
-            'barcode' => 'nullable|string|max:50',
+            'sku' => 'required|string|max:100|unique:products,sku,' . $id,
+            'barcode' => 'nullable|string|max:100',
+            'description' => 'nullable|string',
+            'short_description' => 'nullable|string|max:500',
             'category_id' => 'nullable|exists:product_categories,id',
             'brand_id' => 'nullable|exists:brands,id',
             'unit_id' => 'nullable|exists:units,id',
             'purchase_price' => 'required|numeric|min:0',
             'sale_price' => 'required|numeric|min:0',
-            'hsn_code' => 'nullable|string|max:20',
+            'mrp' => 'nullable|numeric|min:0',
+            'default_profit_rate' => 'nullable|numeric',
+            'tax_1_id' => 'nullable|exists:taxes,id',
+            'tax_2_id' => 'nullable|exists:taxes,id', 
+            'hsn_code' => 'nullable|string|max:50',
             'min_stock_level' => 'nullable|numeric|min:0',
             'max_stock_level' => 'nullable|numeric|min:0',
-            'is_batch_managed' => 'boolean',
-            'is_active' => 'boolean',
+            'tags' => 'nullable|string',
+            'images' => 'nullable|array',
+            'images.*' => 'nullable|image|mimes:jpg,jpeg,png,gif,webp|max:2048',
+            'delete_images' => 'nullable|array',
+            'primary_image_id' => 'nullable|integer',
+            'product_units' => 'nullable|array',
+            'delete_units' => 'nullable|array',
+            'attributes' => 'nullable|array',
+            'attributes.*' => 'nullable',
         ]);
         
+        $validated['can_be_sold'] = $request->has('can_be_sold');
+        $validated['can_be_purchased'] = $request->has('can_be_purchased');
+        $validated['track_inventory'] = $request->has('track_inventory');
+        $validated['has_variants'] = $request->has('has_variants');
         $validated['is_batch_managed'] = $request->has('is_batch_managed');
         $validated['is_active'] = $request->has('is_active');
+
+        DB::beginTransaction();
         
-        $product->update($validated);
-        
-        return redirect()->route('admin.inventory.products.index')
-            ->with('success', 'Product updated successfully!');
+        try {
+            $product->update($validated);
+            
+            // Handle tags
+            if ($request->has('tags')) {
+                Tag::syncProductTags($product, $request->tags ?? '');
+            }
+            
+            // Delete selected images
+            if (!empty($request->delete_images)) {
+                foreach ($request->delete_images as $imageId) {
+                    $image = ProductImage::find($imageId);
+                    if ($image && $image->product_id == $product->id) {
+                        $image->deleteWithFile();
+                        Log::info('ProductController::update - Image deleted', ['image_id' => $imageId]);
+                    }
+                }
+            }
+            
+            // Upload new images
+            if ($request->hasFile('images')) {
+                $files = $request->file('images');
+                
+                foreach ($files as $index => $file) {
+                    if ($file && $file->isValid()) {
+                        ProductImage::uploadForProduct($product, $file, false);
+                    }
+                }
+            }
+            
+            // Set primary image
+            if ($request->filled('primary_image_id')) {
+                $primaryImage = ProductImage::find($request->primary_image_id);
+                if ($primaryImage && $primaryImage->product_id == $product->id) {
+                    $primaryImage->setAsPrimary();
+                    Log::info('ProductController::update - Primary image set', ['image_id' => $request->primary_image_id]);
+                }
+            }
+            
+            $product->ensurePrimaryImage();
+            
+            // Delete selected units
+            if (!empty($request->delete_units)) {
+                ProductUnit::whereIn('id', $request->delete_units)
+                    ->where('product_id', $product->id)
+                    ->delete();
+            }
+            
+            // Update/create product units
+            if (!empty($request->product_units)) {
+                foreach ($request->product_units as $unitData) {
+                    if (empty($unitData['unit_id'])) continue;
+                    
+                    $data = [
+                        'unit_id' => $unitData['unit_id'],
+                        'unit_name' => $unitData['unit_name'] ?? null,
+                        'conversion_factor' => $unitData['conversion_factor'] ?? 1,
+                        'purchase_price' => $unitData['purchase_price'] ?? null,
+                        'sale_price' => $unitData['sale_price'] ?? null,
+                        'barcode' => $unitData['barcode'] ?? null,
+                        'is_purchase_unit' => !empty($unitData['is_purchase_unit']),
+                        'is_sale_unit' => !empty($unitData['is_sale_unit']),
+                    ];
+                    
+                    if (!empty($unitData['id'])) {
+                        ProductUnit::where('id', $unitData['id'])
+                            ->where('product_id', $product->id)
+                            ->update($data);
+                    } else {
+                        $product->productUnits()->create($data);
+                    }
+                }
+            }
+            
+            // ========================================
+            // FIXED: Handle variations with clean attribute IDs
+            // ========================================
+            if ($validated['has_variants']) {
+                $attributeIds = $this->cleanAttributeIds($request->input('attributes'));
+                
+                Log::info('ProductController::update - Processing attributes', [
+                    'raw_attributes' => $request->input('attributes'),
+                    'cleaned_attributes' => $attributeIds,
+                ]);
+                
+                $product->attributes()->sync($attributeIds);
+                
+                if ($request->boolean('generate_variations')) {
+                    $product->createVariationsFromCombinations();
+                }
+            } else {
+                $product->attributes()->detach();
+                $product->variations()->update(['is_active' => false]);
+            }
+            
+            DB::commit();
+            
+            Log::info('ProductController::update - Update complete', ['product_id' => $product->id]);
+            
+            return redirect()
+                ->route('admin.inventory.products.index')
+                ->with('success', 'Product updated successfully!');
+                
+        } catch (\Exception $e) {
+            DB::rollBack();
+            
+            Log::error('ProductController::update - Exception', [
+                'product_id' => $id,
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            
+            return back()->withInput()->with('error', 'Error: ' . $e->getMessage());
+        }
     }
 
-    // ==================== DEACTIVATE ====================
-    public function deactivate($id)
-    {
-        Product::where('id', $id)->update(['is_active' => false]);
-        return response()->json(['success' => true, 'message' => 'Product deactivated']);
-    }
-
-    // ==================== DESTROY ====================
+    // ==================== DESTROY (Returns JSON for AJAX) ====================
     public function destroy($id)
     {
         $product = Product::findOrFail($id);
         
-        if (StockMovement::where('product_id', $id)->exists()) {
-            return response()->json(['success' => false, 'message' => 'Cannot delete product with stock movements'], 422);
-        }
-        
-        $product->delete();
-        return response()->json(['success' => true, 'message' => 'Product deleted successfully']);
-    }
-
-    // ==================== EXPORT PRODUCTS ====================
-    protected function exportProducts($request)
-    {
-        $query = Product::with(['category', 'brand', 'unit'])->select('products.*');
-
-        // Apply same filters as list
-        if ($search = $request->get('search')) {
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('sku', 'like', "%{$search}%")
-                    ->orWhere('barcode', 'like', "%{$search}%");
-            });
-        }
-        if ($request->filled('category_id')) {
-            $query->where('category_id', $request->category_id);
-        }
-        if ($request->filled('brand_id')) {
-            $query->where('brand_id', $request->brand_id);
-        }
-
-        $data = $query->get();
-        $filename = 'products_' . date('Y-m-d') . '.csv';
-
-        $callback = function () use ($data) {
-            $file = fopen('php://output', 'w');
-            fputcsv($file, ['ID', 'SKU', 'Name', 'Category', 'Brand', 'Unit', 'Purchase Price', 'Sale Price', 'HSN Code', 'Min Stock', 'Max Stock', 'Status']);
-            
-            foreach ($data as $row) {
-                fputcsv($file, [
-                    $row->id,
-                    $row->sku,
-                    $row->name,
-                    $row->category?->name ?? '',
-                    $row->brand?->name ?? '',
-                    $row->unit?->short_name ?? 'PCS',
-                    $row->purchase_price,
-                    $row->sale_price,
-                    $row->hsn_code ?? '',
-                    $row->min_stock_level ?? 0,
-                    $row->max_stock_level ?? 0,
-                    $row->is_active ? 'Active' : 'Inactive',
-                ]);
-            }
-            fclose($file);
-        };
-
-        return response()->stream($callback, 200, [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => "attachment; filename={$filename}",
-        ]);
-    }
-
-    // ==================== DOWNLOAD TEMPLATE ====================
-    protected function downloadProductTemplate()
-    {
-        $spreadsheet = new Spreadsheet();
-        $sheet = $spreadsheet->getActiveSheet();
-        $sheet->setTitle('Products');
-
-        $columns = $this->productImportable;
-        $headers = array_keys($columns);
-
-        // Header row
-        foreach ($headers as $index => $header) {
-            $colLetter = Coordinate::stringFromColumnIndex($index + 1);
-            $cell = $sheet->getCell($colLetter . '1');
-            $cell->setValue($header);
-            $cell->getStyle()->getFont()->setBold(true)->getColor()->setRGB('FFFFFF');
-            $cell->getStyle()->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('4F46E5');
-            $sheet->getColumnDimension($colLetter)->setAutoSize(true);
-        }
-
-        // Hints row
-        $colIndex = 0;
-        foreach ($columns as $colName => $rules) {
-            $colLetter = Coordinate::stringFromColumnIndex($colIndex + 1);
-            $hint = $this->buildImportHint($rules);
-            $cell = $sheet->getCell($colLetter . '2');
-            $cell->setValue($hint);
-            $cell->getStyle()->getFont()->setItalic(true)->getColor()->setRGB('9CA3AF');
-            $colIndex++;
-        }
-
-        // Instructions sheet with reference data
-        $infoSheet = $spreadsheet->createSheet();
-        $infoSheet->setTitle('Reference Data');
-        $infoSheet->setCellValue('A1', 'REFERENCE DATA FOR IMPORT');
-        $infoSheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
-        
-        $row = 3;
-        
-        // Categories
-        $infoSheet->setCellValue('A' . $row, 'CATEGORIES (use ID):');
-        $infoSheet->getStyle('A' . $row)->getFont()->setBold(true);
-        $row++;
-        foreach (ProductCategory::where('is_active', true)->get() as $cat) {
-            $infoSheet->setCellValue('A' . $row, $cat->id);
-            $infoSheet->setCellValue('B' . $row, $cat->name);
-            $row++;
-        }
-        
-        $row++;
-        // Brands
-        $infoSheet->setCellValue('A' . $row, 'BRANDS (use ID):');
-        $infoSheet->getStyle('A' . $row)->getFont()->setBold(true);
-        $row++;
-        foreach (Brand::where('is_active', true)->get() as $brand) {
-            $infoSheet->setCellValue('A' . $row, $brand->id);
-            $infoSheet->setCellValue('B' . $row, $brand->name);
-            $row++;
-        }
-        
-        $row++;
-        // Units
-        $infoSheet->setCellValue('A' . $row, 'UNITS (use ID):');
-        $infoSheet->getStyle('A' . $row)->getFont()->setBold(true);
-        $row++;
-        foreach (Unit::where('is_active', true)->get() as $unit) {
-            $infoSheet->setCellValue('A' . $row, $unit->id);
-            $infoSheet->setCellValue('B' . $row, $unit->name . ' (' . $unit->short_name . ')');
-            $row++;
-        }
-
-        $infoSheet->getColumnDimension('A')->setAutoSize(true);
-        $infoSheet->getColumnDimension('B')->setAutoSize(true);
-        $spreadsheet->setActiveSheetIndex(0);
-
-        $writer = new Xlsx($spreadsheet);
-        
-        return response()->streamDownload(function () use ($writer) {
-            $writer->save('php://output');
-        }, 'products_import_template.xlsx', [
-            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        ]);
-    }
-
-    // ==================== HANDLE IMPORT ====================
-    protected function handleProductImport(Request $request)
-    {
-        $request->validate([
-            'file' => 'required|file|mimes:xlsx,xls,csv|max:10240',
-        ]);
-
-        $file = $request->file('file');
-        $ext = strtolower($file->getClientOriginalExtension());
-        
-        try {
-            // Parse file
-            if ($ext === 'csv') {
-                $rows = $this->parseCsv($file);
-            } else {
-                $spreadsheet = IOFactory::load($file->getPathname());
-                $sheet = $spreadsheet->getActiveSheet();
-                $rows = [];
-                $headers = [];
-                
-                foreach ($sheet->getRowIterator() as $rowIndex => $row) {
-                    $cellIterator = $row->getCellIterator();
-                    $cellIterator->setIterateOnlyExistingCells(false);
-                    
-                    $rowData = [];
-                    foreach ($cellIterator as $cell) {
-                        $rowData[] = trim($cell->getValue() ?? '');
-                    }
-                    
-                    if ($rowIndex === 1) {
-                        $headers = $rowData;
-                        continue;
-                    }
-                    
-                    $rowAssoc = [];
-                    foreach ($headers as $i => $h) {
-                        if (!empty($h)) {
-                            $rowAssoc[$h] = $rowData[$i] ?? '';
-                        }
-                    }
-                    $rows[] = $rowAssoc;
-                }
-            }
-
-            if (empty($rows)) {
-                return response()->json(['success' => false, 'message' => 'No data found'], 400);
-            }
-
-            $results = ['total' => 0, 'success' => 0, 'failed' => 0, 'errors' => []];
-
-            DB::beginTransaction();
-
-            foreach ($rows as $index => $row) {
-                $rowNum = $index + 3;
-                
-                // Skip empty rows
-                $isEmpty = true;
-                foreach ($row as $v) {
-                    if (!empty(trim($v))) { $isEmpty = false; break; }
-                }
-                if ($isEmpty) continue;
-                
-                // Skip hint row
-                $first = reset($row);
-                if (str_contains(strtolower($first), 'required') || str_contains(strtolower($first), 'optional')) continue;
-
-                $results['total']++;
-
-                // Check if SKU exists (for update)
-                $rules = $this->productImportable;
-                $existingProduct = Product::where('sku', $row['sku'] ?? '')->first();
-                if ($existingProduct) {
-                    $rules['sku'] = 'required|string|max:50|unique:products,sku,' . $existingProduct->id;
-                }
-
-                $validator = Validator::make($row, $rules);
-                
-                if ($validator->fails()) {
-                    $results['failed']++;
-                    $results['errors'][] = "Row {$rowNum}: " . $validator->errors()->first();
-                    continue;
-                }
-
-                try {
-                    $data = array_filter($row, fn($v) => $v !== '' && $v !== null);
-                    $data['is_active'] = true;
-                    
-                    // Default unit
-                    if (empty($data['unit_id'])) {
-                        $defaultUnit = Unit::where('short_name', 'PCS')->first();
-                        $data['unit_id'] = $defaultUnit?->id;
-                    }
-                    
-                    if ($existingProduct) {
-                        $existingProduct->update($data);
-                    } else {
-                        Product::create($data);
-                    }
-                    
-                    $results['success']++;
-                } catch (\Exception $e) {
-                    $results['failed']++;
-                    $results['errors'][] = "Row {$rowNum}: " . $e->getMessage();
-                }
-            }
-
-            if ($results['success'] === 0 && $results['failed'] > 0) {
-                DB::rollBack();
+        $hasStock = StockLevel::where('product_id', $id)->where('qty', '>', 0)->exists();
+        if ($hasStock) {
+            if (request()->ajax() || request()->wantsJson()) {
                 return response()->json([
-                    'success' => false,
-                    'message' => 'Import failed',
-                    'results' => $results
+                    'success' => false, 
+                    'message' => 'Cannot delete product with existing stock.'
                 ], 422);
             }
-
+            return back()->with('error', 'Cannot delete product with existing stock.');
+        }
+        
+        DB::beginTransaction();
+        
+        try {
+            foreach ($product->images as $image) {
+                $image->deleteWithFile();
+            }
+            
+            $product->productUnits()->delete();
+            $product->tags()->detach();
+            $product->attributes()->detach();
+            $product->variations()->delete();
+            $product->delete();
+            
             DB::commit();
-
-            return response()->json([
-                'success' => true,
-                'message' => "{$results['success']} of {$results['total']} products imported",
-                'results' => $results
-            ]);
-
+            
+            if (request()->ajax() || request()->wantsJson()) {
+                return response()->json(['success' => true, 'message' => 'Product deleted!']);
+            }
+            
+            return redirect()
+                ->route('admin.inventory.products.index')
+                ->with('success', 'Product deleted successfully!');
+                
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+            
+            Log::error('ProductController::destroy - Exception', [
+                'product_id' => $id,
+                'message' => $e->getMessage(),
+            ]);
+            
+            if (request()->ajax() || request()->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+            }
+            
+            return back()->with('error', 'Error: ' . $e->getMessage());
         }
+    }
+
+    // ==================== AJAX METHODS ====================
+    public function getProductUnits($productId)
+    {
+        $product = Product::with(['unit', 'productUnits.unit'])->findOrFail($productId);
+        return response()->json([
+            'success' => true,
+            'units' => $product->getAvailableUnits(),
+            'base_unit' => [
+                'id' => $product->unit_id,
+                'name' => $product->unit?->name,
+                'short_name' => $product->unit?->short_name,
+            ],
+        ]);
+    }
+
+    public function searchTags(Request $request)
+    {
+        $tags = Tag::where('name', 'like', "%{$request->get('q', '')}%")
+            ->orderBy('name')->limit(20)->get(['id', 'name', 'color']);
+        return response()->json($tags);
+    }
+
+    public function getAttributes()
+    {
+        $attributes = ProductAttribute::with('values')
+            ->where('is_active', true)->orderBy('sort_order')->get();
+        return response()->json(['success' => true, 'attributes' => $attributes]);
+    }
+
+    public function getVariations($productId)
+    {
+        $product = Product::with(['variations.attributeValues.attribute'])->findOrFail($productId);
+        $variations = $product->variations->map(fn($var) => [
+            'id' => $var->id,
+            'sku' => $var->sku,
+            'barcode' => $var->barcode,
+            'variation_name' => $var->display_name,
+            'purchase_price' => $var->effective_purchase_price,
+            'sale_price' => $var->effective_sale_price,
+            'stock_qty' => $var->current_stock,
+            'is_active' => $var->is_active,
+            'attributes' => $var->attributeValues->map(fn($av) => [
+                'attribute' => $av->attribute->name,
+                'value' => $av->value,
+                'color_code' => $av->color_code,
+            ]),
+        ]);
+        return response()->json(['success' => true, 'variations' => $variations]);
+    }
+
+    public function updateVariation(Request $request, $variationId)
+    {
+        $variation = ProductVariation::findOrFail($variationId);
+        $validated = $request->validate([
+            'sku' => 'required|string|max:100|unique:product_variations,sku,' . $variationId,
+            'barcode' => 'nullable|string|max:100',
+            'purchase_price' => 'nullable|numeric|min:0',
+            'sale_price' => 'nullable|numeric|min:0',
+            'mrp' => 'nullable|numeric|min:0',
+            'is_active' => 'boolean',
+        ]);
+        $variation->update($validated);
+        return response()->json(['success' => true, 'message' => 'Variation updated', 'variation' => $variation]);
+    }
+
+    public function deleteVariation($variationId)
+    {
+        $variation = ProductVariation::findOrFail($variationId);
+        if (StockLevel::where('variation_id', $variationId)->where('qty', '>', 0)->exists()) {
+            return response()->json(['success' => false, 'message' => 'Cannot delete variation with stock.'], 422);
+        }
+        $variation->delete();
+        return response()->json(['success' => true, 'message' => 'Variation deleted']);
+    }
+
+    public function generateVariations($productId)
+    {
+        $product = Product::findOrFail($productId);
+        if (!$product->has_variants) {
+            return response()->json(['success' => false, 'message' => 'Product does not have variants enabled'], 422);
+        }
+        $created = $product->createVariationsFromCombinations();
+        return response()->json(['success' => true, 'message' => count($created) . ' variations created', 'count' => count($created)]);
+    }
+
+    protected function getProductStock($productId, $warehouseId = null, $rackId = null, $lotId = null)
+    {
+        return StockLevel::where('product_id', $productId)->sum('qty');
     }
 }

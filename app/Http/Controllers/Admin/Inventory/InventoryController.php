@@ -89,6 +89,42 @@ class InventoryController extends BaseController
         return $this->products->destroy($id);
     }
 
+    // ==================== PRODUCTS AJAX ====================
+    public function productsGetUnits($productId)
+    {
+        return $this->products->getProductUnits($productId);
+    }
+
+    public function tagsSearch(Request $request)
+    {
+        return $this->products->searchTags($request);
+    }
+
+    public function getAttributes()
+    {
+        return $this->products->getAttributes();
+    }
+
+    public function getVariations($productId)
+    {
+        return $this->products->getVariations($productId);
+    }
+
+    public function generateVariations($productId)
+    {
+        return $this->products->generateVariations($productId);
+    }
+
+    public function updateVariation(Request $request, $variationId)
+    {
+        return $this->products->updateVariation($request, $variationId);
+    }
+
+    public function deleteVariation($variationId)
+    {
+        return $this->products->deleteVariation($variationId);
+    }
+
     // ==================== WAREHOUSES ====================
     public function warehousesIndex()
     {
@@ -181,7 +217,7 @@ class InventoryController extends BaseController
         return $this->warehouses->racksByWarehouse($warehouseId);
     }
 
-    // ==================== LOTS ====================
+    // ==================== LOTS (Complete) ====================
     public function lotsIndex()
     {
         return $this->lots->index();
@@ -207,6 +243,11 @@ class InventoryController extends BaseController
         return $this->lots->store($request);
     }
 
+    public function lotsShow($id)
+    {
+        return $this->lots->show($id);
+    }
+
     public function lotsEdit($id)
     {
         return $this->lots->edit($id);
@@ -222,6 +263,16 @@ class InventoryController extends BaseController
         return $this->lots->deactivate($id);
     }
 
+    public function lotsMarkExpired($id)
+    {
+        return $this->lots->markExpired($id);
+    }
+
+    public function lotsMarkRecalled(Request $request, $id)
+    {
+        return $this->lots->markRecalled($request, $id);
+    }
+
     public function lotsDestroy($id)
     {
         return $this->lots->destroy($id);
@@ -230,6 +281,31 @@ class InventoryController extends BaseController
     public function lotsByProduct($productId)
     {
         return $this->lots->byProduct($productId);
+    }
+
+    public function lotsWithStockByProduct($productId, Request $request)
+    {
+        return $this->lots->withStockByProduct($productId, $request);
+    }
+
+    public function lotsGenerateLotNo(Request $request)
+    {
+        return $this->lots->generateLotNo($request);
+    }
+
+    public function lotsGetProductInfo($productId)
+    {
+        return $this->lots->getProductInfo($productId);
+    }
+
+    public function lotsExpiringSoon(Request $request)
+    {
+        return $this->lots->expiringSoon($request);
+    }
+
+    public function lotsUpdateStatuses()
+    {
+        return $this->lots->updateStatuses();
     }
 
     // ==================== STOCK MOVEMENTS ====================
@@ -296,6 +372,16 @@ class InventoryController extends BaseController
     public function stockCheck(Request $request)
     {
         return $this->stock->check($request);
+    }
+
+    public function stockProductUnits(Request $request)
+    {
+        return $this->stock->getProductUnits($request);
+    }
+
+    public function stockProductLots(Request $request)
+    {
+        return $this->stock->getProductLots($request);
     }
 
     // ==================== REPORTS ====================

@@ -1,732 +1,343 @@
 <x-layouts.app>
+<link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css" rel="stylesheet">
 <style>
-    .page-header {
-        display: flex;
-        align-items: center;
-        gap: 16px;
-        margin-bottom: 24px;
-    }
+    .stock-page { padding: 24px; max-width: 900px; }
+    .stock-header { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
+    .stock-header h1 { font-size: 24px; font-weight: 700; color: var(--text-primary); margin: 0; }
+    .stock-header .icon { font-size: 28px; }
+    .back-link { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: var(--card-bg); border: 1px solid var(--card-border); color: var(--text-muted); text-decoration: none; font-size: 18px; }
+    .back-link:hover { background: #f1f5f9; }
     
-    .back-btn {
-        width: 40px;
-        height: 40px;
-        border-radius: 10px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: var(--card-bg);
-        border: 1px solid var(--card-border);
-        color: var(--text-muted);
-        text-decoration: none;
-        transition: all 0.2s;
-    }
+    .stock-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 16px; overflow: hidden; }
+    .stock-card-header { padding: 18px 24px; background: linear-gradient(135deg, #ede9fe, #ddd6fe); border-bottom: 1px solid #c4b5fd; }
+    .stock-card-header h3 { margin: 0; font-size: 16px; font-weight: 600; color: #5b21b6; }
+    .stock-card-body { padding: 28px; }
     
-    .back-btn:hover {
-        background: var(--body-bg);
-        color: var(--text-primary);
-    }
+    .form-section { margin-bottom: 28px; padding-bottom: 24px; border-bottom: 1px solid #e2e8f0; }
+    .form-section:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+    .section-title { font-size: 13px; font-weight: 700; color: #7c3aed; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px; }
     
-    .back-btn svg {
-        width: 20px;
-        height: 20px;
-    }
-    
-    .page-header h1 {
-        font-size: 24px;
-        font-weight: 700;
-        color: var(--text-primary);
-        margin: 0;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-    
-    .page-header h1 svg {
-        width: 28px;
-        height: 28px;
-        color: #7c3aed;
-    }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 640px) { .form-row { grid-template-columns: 1fr; } }
+    .form-group { margin-bottom: 18px; }
+    .form-label { display: block; font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px; }
+    .form-label .req { color: #ef4444; }
+    .form-control { width: 100%; padding: 12px 14px; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 14px; background: #fff; box-sizing: border-box; }
+    .form-control:focus { outline: none; border-color: #7c3aed; box-shadow: 0 0 0 3px rgba(124,58,237,0.12); }
+    textarea.form-control { min-height: 80px; resize: vertical; }
+    .form-hint { font-size: 12px; color: #64748b; margin-top: 6px; }
 
-    .form-card {
-        background: var(--card-bg);
-        border: 1px solid var(--card-border);
-        border-radius: 12px;
-        max-width: 800px;
-    }
-    
-    .form-card-header {
-        padding: 20px 24px;
-        border-bottom: 1px solid var(--card-border);
-        background: linear-gradient(135deg, #ede9fe, #ddd6fe);
-        border-radius: 12px 12px 0 0;
-    }
-    
-    .form-card-title {
-        font-size: 16px;
-        font-weight: 600;
-        color: #5b21b6;
-        margin: 0;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-    
-    .form-card-title svg {
-        width: 20px;
-        height: 20px;
-    }
-    
-    .form-card-body {
-        padding: 24px;
-    }
+    .ts-wrapper { width: 100%; }
+    .ts-control { padding: 10px 14px !important; border-radius: 10px !important; border: 1px solid #e2e8f0 !important; min-height: 46px !important; }
+    .ts-wrapper.focus .ts-control { border-color: #7c3aed !important; box-shadow: 0 0 0 3px rgba(124,58,237,0.12) !important; }
+    .ts-dropdown { border-radius: 10px !important; box-shadow: 0 10px 40px rgba(0,0,0,0.12) !important; margin-top: 4px !important; }
+    .ts-dropdown .option { padding: 10px 14px !important; }
+    .ts-dropdown .option:hover, .ts-dropdown .option.active { background: #ede9fe !important; }
+    .ts-dropdown .dropdown-input-wrap { padding: 10px !important; border-bottom: 1px solid #e2e8f0 !important; }
+    .ts-dropdown .dropdown-input { width: 100% !important; padding: 10px !important; border: 1px solid #e2e8f0 !important; border-radius: 8px !important; }
 
-    .form-section {
-        margin-bottom: 24px;
-        padding-bottom: 24px;
-        border-bottom: 1px solid var(--card-border);
-    }
-    
-    .form-section:last-child {
-        margin-bottom: 0;
-        padding-bottom: 0;
-        border-bottom: none;
-    }
-    
-    .form-section-title {
-        font-size: 13px;
-        font-weight: 600;
-        color: var(--text-muted);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin-bottom: 16px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-    
-    .form-section-title svg {
-        width: 16px;
-        height: 16px;
-    }
-    
-    .form-section-title.from {
-        color: #dc2626;
-    }
-    
-    .form-section-title.to {
-        color: #059669;
-    }
+    .info-panel { background: linear-gradient(135deg, #f5f3ff, #ede9fe); border: 1px solid #c4b5fd; border-radius: 12px; padding: 20px; margin-bottom: 20px; display: none; }
+    .info-panel.show { display: block; }
+    .info-header { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px solid #c4b5fd; }
+    .info-icon { width: 50px; height: 50px; border-radius: 10px; background: linear-gradient(135deg, #7c3aed, #6d28d9); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 18px; }
+    .info-name { font-size: 17px; font-weight: 700; color: #5b21b6; }
+    .info-sku { font-size: 12px; color: #7c3aed; margin-top: 2px; }
+    .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; }
+    .info-item { background: #fff; border-radius: 8px; padding: 10px 12px; }
+    .info-item-label { font-size: 10px; color: #7c3aed; text-transform: uppercase; margin-bottom: 3px; }
+    .info-item-value { font-size: 14px; font-weight: 700; color: #5b21b6; }
+    .info-badge { display: inline-block; padding: 5px 10px; border-radius: 16px; font-size: 11px; font-weight: 600; margin-top: 8px; }
+    .info-badge.ok { background: #d1fae5; color: #065f46; }
 
-    .form-row {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 20px;
-    }
+    .location-box { border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+    .location-box.from { background: #fef2f2; border: 1px solid #fecaca; }
+    .location-box.to { background: #ecfdf5; border: 1px solid #a7f3d0; }
+    .location-box-title { font-size: 13px; font-weight: 700; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+    .location-box.from .location-box-title { color: #991b1b; }
+    .location-box.to .location-box-title { color: #065f46; }
     
-    @media (max-width: 640px) {
-        .form-row {
-            grid-template-columns: 1fr;
-        }
-    }
+    .transfer-arrow { text-align: center; padding: 10px 0; font-size: 24px; color: #7c3aed; }
+    
+    .stock-display { background: #f5f3ff; border: 1px solid #c4b5fd; border-radius: 10px; padding: 14px 18px; margin-bottom: 18px; display: none; }
+    .stock-display.show { display: flex; align-items: center; gap: 20px; }
+    .stock-label { font-size: 12px; color: #5b21b6; }
+    .stock-value { font-size: 22px; font-weight: 700; color: #7c3aed; }
+    
+    .unit-hint { background: #ede9fe; border: 1px solid #c4b5fd; border-radius: 8px; padding: 10px 14px; margin-top: 8px; font-size: 13px; color: #5b21b6; display: none; }
+    .unit-hint.show { display: block; }
 
-    .form-group {
-        margin-bottom: 20px;
-    }
-    
-    .form-group:last-child {
-        margin-bottom: 0;
-    }
-    
-    .form-label {
-        display: block;
-        font-size: 13px;
-        font-weight: 500;
-        color: var(--text-primary);
-        margin-bottom: 8px;
-    }
-    
-    .form-label .required {
-        color: #ef4444;
-    }
-    
-    .form-control {
-        width: 100%;
-        padding: 10px 14px;
-        border: 1px solid var(--card-border);
-        border-radius: 8px;
-        font-size: 14px;
-        background: var(--card-bg);
-        color: var(--text-primary);
-        transition: border-color 0.2s, box-shadow 0.2s;
-        box-sizing: border-box;
-    }
-    
-    .form-control:focus {
-        outline: none;
-        border-color: var(--primary);
-        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-    }
-    
-    .form-control::placeholder {
-        color: var(--text-muted);
-    }
-    
-    textarea.form-control {
-        min-height: 80px;
-        resize: vertical;
-    }
+    .lot-box { background: #fffbeb; border: 1px solid #fcd34d; border-radius: 12px; padding: 18px; margin-bottom: 20px; display: none; }
+    .lot-box.show { display: block; }
+    .lot-box-title { font-size: 14px; font-weight: 600; color: #92400e; margin-bottom: 14px; }
 
-    .form-help {
-        font-size: 12px;
-        color: var(--text-muted);
-        margin-top: 6px;
-    }
+    .warning-box { background: #fef3c7; border: 1px solid #fbbf24; border-radius: 10px; padding: 14px 18px; margin-bottom: 20px; color: #92400e; font-weight: 500; display: none; }
+    .warning-box.show { display: block; }
 
-    .stock-info {
-        background: #fef3c7;
-        border: 1px solid #fcd34d;
-        border-radius: 8px;
-        padding: 12px 16px;
-        margin-bottom: 20px;
-        display: none;
-    }
+    .form-actions { display: flex; gap: 12px; padding-top: 20px; border-top: 1px solid #e2e8f0; margin-top: 20px; }
+    .btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 24px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; text-decoration: none; }
+    .btn-primary { background: linear-gradient(135deg, #7c3aed, #6d28d9); color: #fff; }
+    .btn-primary:hover { opacity: 0.9; }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-secondary { background: #f1f5f9; color: #334155; }
     
-    .stock-info.show {
-        display: flex;
-        align-items: center;
-        gap: 20px;
-    }
-    
-    .stock-info-item {
-        flex: 1;
-    }
-    
-    .stock-info-label {
-        font-size: 12px;
-        color: #92400e;
-        margin-bottom: 4px;
-    }
-    
-    .stock-info-value {
-        font-size: 20px;
-        font-weight: 700;
-        color: #d97706;
-    }
-    
-    .stock-info-value.low {
-        color: #dc2626;
-    }
-
-    .transfer-arrow {
-        display: flex;
-        justify-content: center;
-        padding: 16px 0;
-    }
-    
-    .transfer-arrow svg {
-        width: 32px;
-        height: 32px;
-        color: #7c3aed;
-    }
-
-    .form-actions {
-        display: flex;
-        gap: 12px;
-        padding-top: 24px;
-        border-top: 1px solid var(--card-border);
-        margin-top: 24px;
-    }
-
-    .btn {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        padding: 12px 24px;
-        border-radius: 8px;
-        font-size: 14px;
-        font-weight: 600;
-        cursor: pointer;
-        border: none;
-        text-decoration: none;
-        transition: all 0.2s;
-    }
-    
-    .btn svg {
-        width: 18px;
-        height: 18px;
-    }
-    
-    .btn-purple {
-        background: linear-gradient(135deg, #7c3aed, #6d28d9);
-        color: #fff;
-    }
-    
-    .btn-purple:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
-    }
-    
-    .btn-purple:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-        transform: none;
-        box-shadow: none;
-    }
-    
-    .btn-secondary {
-        background: var(--body-bg);
-        color: var(--text-primary);
-        border: 1px solid var(--card-border);
-    }
-    
-    .btn-secondary:hover {
-        background: var(--card-border);
-    }
-
-    .alert {
-        padding: 12px 16px;
-        border-radius: 8px;
-        margin-bottom: 20px;
-        font-size: 14px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-    
-    .alert svg {
-        width: 20px;
-        height: 20px;
-        flex-shrink: 0;
-    }
-    
-    .alert-success {
-        background: #d1fae5;
-        color: #065f46;
-        border: 1px solid #a7f3d0;
-    }
-    
-    .alert-error {
-        background: #fee2e2;
-        color: #991b1b;
-        border: 1px solid #fecaca;
-    }
-    
-    .alert-warning {
-        background: #fef3c7;
-        color: #92400e;
-        border: 1px solid #fde68a;
-    }
-    
-    .location-warning {
-        display: none;
-        margin-top: 16px;
-    }
-    
-    .location-warning.show {
-        display: flex;
-    }
+    .alert { padding: 14px 18px; border-radius: 10px; margin-bottom: 20px; }
+    .alert-success { background: #d1fae5; color: #065f46; }
+    .alert-error { background: #fee2e2; color: #991b1b; }
 </style>
 
-<div style="padding: 20px;">
-    <!-- Header -->
-    <div class="page-header">
-        <a href="{{ route('admin.inventory.dashboard') }}" class="back-btn">
-            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
-            </svg>
-        </a>
-        <h1>
-            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
-            </svg>
-            Stock Transfer
-        </h1>
+<div class="stock-page">
+    <div class="stock-header">
+        <a href="{{ route('admin.inventory.stock.movements') }}" class="back-link">←</a>
+        <span class="icon">🔄</span>
+        <h1>Transfer Stock</h1>
     </div>
 
-    @if(session('success'))
-        <div class="alert alert-success">
-            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-            </svg>
-            {{ session('success') }}
-        </div>
-    @endif
-    
-    @if(session('error'))
-        <div class="alert alert-error">
-            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-            </svg>
-            {{ session('error') }}
-        </div>
-    @endif
+    @if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
+    @if(session('error'))<div class="alert alert-error">{{ session('error') }}</div>@endif
 
-    <!-- Form Card -->
-    <div class="form-card">
-        <div class="form-card-header">
-            <h3 class="form-card-title">
-                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
-                </svg>
-                Transfer Stock Between Locations
-            </h3>
+    <div class="stock-card">
+        <div class="stock-card-header">
+            <h3>🔄 Transfer Stock Between Locations</h3>
         </div>
-        <div class="form-card-body">
-            <form action="{{ route('admin.inventory.stock.transfer.store') }}" method="POST" id="transferForm">
+        <div class="stock-card-body">
+            <form action="{{ route('admin.inventory.stock.transfer.store') }}" method="POST" id="mainForm">
                 @csrf
+                <input type="hidden" name="lot_id" id="lot_id" value="">
 
-                <!-- Product Selection -->
                 <div class="form-section">
+                    <div class="section-title">📦 Product Selection</div>
                     <div class="form-group">
-                        <label class="form-label">Product <span class="required">*</span></label>
-                        <select name="product_id" id="product_id" class="form-control" required onchange="onProductChange()">
-                            <option value="">-- Select Product --</option>
+                        <label class="form-label">Product <span class="req">*</span></label>
+                        <select name="product_id" id="product_id" required>
+                            <option value="">Select product...</option>
                             @foreach($products as $product)
-                                <option value="{{ $product->id }}" 
-                                    data-batch="{{ $product->is_batch_managed ? '1' : '0' }}"
-                                    data-unit="{{ $product->unit_id }}"
-                                    {{ old('product_id') == $product->id ? 'selected' : '' }}>
-                                    {{ $product->name }} ({{ $product->sku }})
-                                </option>
+                                <option value="{{ $product->id }}" data-batch="{{ $product->is_batch_managed ? '1' : '0' }}" data-unit="{{ $product->unit->short_name ?? 'PCS' }}" data-name="{{ $product->name }}" data-sku="{{ $product->sku }}">{{ $product->name }} ({{ $product->sku }})</option>
                             @endforeach
                         </select>
-                        @error('product_id')<div class="form-help" style="color: #ef4444;">{{ $message }}</div>@enderror
                     </div>
 
-                    <div class="form-group" id="lotGroup" style="display: none;">
-                        <label class="form-label">Lot / Batch</label>
-                        <select name="lot_id" id="lot_id" class="form-control" onchange="checkStock()">
-                            <option value="">-- Select Lot (Optional) --</option>
-                        </select>
-                        <div class="form-help">Transfer specific lot/batch</div>
-                    </div>
-                </div>
-
-                <!-- Source Location -->
-                <div class="form-section">
-                    <div class="form-section-title from">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
-                        </svg>
-                        From (Source)
-                    </div>
-                    
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label">Source Warehouse <span class="required">*</span></label>
-                            <select name="from_warehouse_id" id="from_warehouse_id" class="form-control" required onchange="onFromWarehouseChange()">
-                                <option value="">-- Select Source --</option>
-                                @foreach($warehouses as $warehouse)
-                                    <option value="{{ $warehouse->id }}" {{ old('from_warehouse_id') == $warehouse->id ? 'selected' : '' }}>
-                                        {{ $warehouse->name }}
-                                    </option>
-                                @endforeach
-                            </select>
-                            @error('from_warehouse_id')<div class="form-help" style="color: #ef4444;">{{ $message }}</div>@enderror
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Source Rack</label>
-                            <select name="from_rack_id" id="from_rack_id" class="form-control" onchange="checkStock(); validateLocation();">
-                                <option value="">-- Select Rack (Optional) --</option>
-                            </select>
-                            <div class="form-help">Pick from specific rack</div>
-                        </div>
-                    </div>
-
-                    <div class="stock-info" id="stockInfo">
-                        <div class="stock-info-item">
-                            <div class="stock-info-label">Available at Source</div>
-                            <div class="stock-info-value" id="currentStockWrapper">
-                                <span id="currentStock">0</span> <small id="stockUnit">PCS</small>
+                    <div class="info-panel" id="infoPanel">
+                        <div class="info-header">
+                            <div class="info-icon" id="pIcon">P</div>
+                            <div>
+                                <div class="info-name" id="pName">-</div>
+                                <div class="info-sku" id="pSku">-</div>
+                                <div id="lotBadge"></div>
                             </div>
                         </div>
+                        <div class="info-grid">
+                            <div class="info-item"><div class="info-item-label">Stock at Source</div><div class="info-item-value" id="pStock">0</div></div>
+                            <div class="info-item"><div class="info-item-label">Unit</div><div class="info-item-value" id="pUnit">PCS</div></div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Transfer Arrow -->
-                <div class="transfer-arrow">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3"/>
-                    </svg>
-                </div>
-
-                <!-- Destination Location -->
-                <div class="form-section">
-                    <div class="form-section-title to">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
-                        </svg>
-                        To (Destination)
-                    </div>
-                    
+                <div class="location-box from">
+                    <div class="location-box-title">📤 FROM (Source)</div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label class="form-label">Destination Warehouse <span class="required">*</span></label>
-                            <select name="to_warehouse_id" id="to_warehouse_id" class="form-control" required onchange="onToWarehouseChange()">
-                                <option value="">-- Select Destination --</option>
-                                @foreach($warehouses as $warehouse)
-                                    <option value="{{ $warehouse->id }}" {{ old('to_warehouse_id') == $warehouse->id ? 'selected' : '' }}>
-                                        {{ $warehouse->name }}
-                                    </option>
+                            <label class="form-label">Warehouse <span class="req">*</span></label>
+                            <select name="from_warehouse_id" id="from_warehouse_id" required>
+                                <option value="">Select warehouse...</option>
+                                @foreach($warehouses as $wh)
+                                    <option value="{{ $wh->id }}" {{ $wh->is_default ? 'selected' : '' }}>{{ $wh->name }}</option>
                                 @endforeach
                             </select>
-                            <div class="form-help">Can be same warehouse for rack-to-rack transfer</div>
-                            @error('to_warehouse_id')<div class="form-help" style="color: #ef4444;">{{ $message }}</div>@enderror
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Destination Rack</label>
-                            <select name="to_rack_id" id="to_rack_id" class="form-control" onchange="validateLocation()">
-                                <option value="">-- Select Rack (Optional) --</option>
-                            </select>
-                            <div class="form-help">Place in specific rack</div>
+                            <label class="form-label">Rack</label>
+                            <select name="from_rack_id" id="from_rack_id"><option value="">Select rack...</option></select>
                         </div>
-                    </div>
-                    
-                    <!-- Location Validation Warning -->
-                    <div class="alert alert-warning location-warning" id="locationWarning">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-                        </svg>
-                        <span>Source and destination are the same. Choose a different warehouse or rack.</span>
                     </div>
                 </div>
 
-                <!-- Quantity & Details -->
-                <div class="form-section">
+                <div class="transfer-arrow">⬇️</div>
+
+                <div class="location-box to">
+                    <div class="location-box-title">📥 TO (Destination)</div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label class="form-label">Quantity <span class="required">*</span></label>
-                            <input type="number" name="qty" id="qty" class="form-control" step="any" min="0.001" placeholder="Enter quantity" value="{{ old('qty') }}" required>
-                            <div class="form-help" id="qtyHelp">Enter quantity to transfer</div>
-                            @error('qty')<div class="form-help" style="color: #ef4444;">{{ $message }}</div>@enderror
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Unit <span class="required">*</span></label>
-                            <select name="unit_id" id="unit_id" class="form-control" required>
-                                <option value="">-- Select Unit --</option>
-                                @foreach($units as $unit)
-                                    <option value="{{ $unit->id }}" {{ old('unit_id') == $unit->id ? 'selected' : '' }}>
-                                        {{ $unit->name }} ({{ $unit->short_name }})
-                                    </option>
+                            <label class="form-label">Warehouse <span class="req">*</span></label>
+                            <select name="to_warehouse_id" id="to_warehouse_id" required>
+                                <option value="">Select warehouse...</option>
+                                @foreach($warehouses as $wh)
+                                    <option value="{{ $wh->id }}">{{ $wh->name }}</option>
                                 @endforeach
                             </select>
-                            @error('unit_id')<div class="form-help" style="color: #ef4444;">{{ $message }}</div>@enderror
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Rack</label>
+                            <select name="to_rack_id" id="to_rack_id"><option value="">Select rack...</option></select>
                         </div>
                     </div>
+                </div>
 
+                <div class="warning-box" id="sameLocationWarning">⚠️ Source and destination cannot be the same!</div>
+
+                <div class="stock-display" id="stockDisplay">
+                    <div><div class="stock-label">Available at Source</div><div class="stock-value" id="availStock">0 PCS</div></div>
+                </div>
+
+                <div class="lot-box" id="lotBox">
+                    <div class="lot-box-title">📦 Select Lot</div>
+                    <div class="form-group" style="margin:0;">
+                        <select name="lot_select" id="lot_select"><option value="">Select lot...</option></select>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <div class="section-title">🔢 Quantity</div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Quantity <span class="req">*</span></label>
+                            <input type="number" name="qty" id="qty" class="form-control" step="any" min="0.001" required>
+                            <div class="form-hint" id="qtyHint">Max: 0</div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Unit <span class="req">*</span></label>
+                            <select name="unit_id" id="unit_id" required><option value="">Select unit...</option>@foreach($units as $u)<option value="{{ $u->id }}">{{ $u->name }}</option>@endforeach</select>
+                            <div class="unit-hint" id="unitHint"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
                     <div class="form-group">
                         <label class="form-label">Reason</label>
-                        <input type="text" name="reason" class="form-control" placeholder="e.g., Restock retail store, Rack reorganization" value="{{ old('reason', 'Stock Transfer') }}">
+                        <input type="text" name="reason" class="form-control" value="Stock transfer">
                     </div>
-
                     <div class="form-group">
                         <label class="form-label">Notes</label>
-                        <textarea name="notes" class="form-control" placeholder="Additional notes...">{{ old('notes') }}</textarea>
+                        <textarea name="notes" class="form-control"></textarea>
                     </div>
                 </div>
 
-                <!-- Actions -->
                 <div class="form-actions">
-                    <button type="submit" class="btn btn-purple" id="submitBtn">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
-                        </svg>
-                        Transfer Stock
-                    </button>
-                    <a href="{{ route('admin.inventory.dashboard') }}" class="btn btn-secondary">Cancel</a>
+                    <button type="submit" class="btn btn-primary" id="submitBtn">🔄 Transfer Stock</button>
+                    <a href="{{ route('admin.inventory.stock.movements') }}" class="btn btn-secondary">Cancel</a>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
 <script>
-let availableStock = 0;
+var pData={}, lots=[], baseStock=0;
+var selProduct, selFromWh, selFromRack, selToWh, selToRack, selUnit, selLot;
 
-function onProductChange() {
-    let productId = document.getElementById('product_id').value;
-    let selectedOption = document.getElementById('product_id').selectedOptions[0];
-    let isBatchManaged = selectedOption && selectedOption.dataset.batch === '1';
-    let productUnitId = selectedOption ? selectedOption.dataset.unit : '';
+document.addEventListener('DOMContentLoaded', function() {
+    selProduct = new TomSelect('#product_id', {plugins:['dropdown_input'], create:false, onChange:onProduct});
+    selFromWh = new TomSelect('#from_warehouse_id', {plugins:['dropdown_input'], create:false, onChange:onFromWarehouse});
+    selFromRack = new TomSelect('#from_rack_id', {plugins:['dropdown_input'], create:false, onChange:checkStock});
+    selToWh = new TomSelect('#to_warehouse_id', {plugins:['dropdown_input'], create:false, onChange:onToWarehouse});
+    selToRack = new TomSelect('#to_rack_id', {plugins:['dropdown_input'], create:false, onChange:validateLocations});
+    selUnit = new TomSelect('#unit_id', {plugins:['dropdown_input'], create:false, onChange:updateUnit});
+    selLot = new TomSelect('#lot_select', {plugins:['dropdown_input'], create:false, onChange:onLotChange});
     
-    // Set default unit based on product
-    if (productUnitId) {
-        document.getElementById('unit_id').value = productUnitId;
-    }
-    
-    if (isBatchManaged && productId) {
-        document.getElementById('lotGroup').style.display = 'block';
-        loadLots(productId);
-    } else {
-        document.getElementById('lotGroup').style.display = 'none';
-        let lotSelect = document.getElementById('lot_id');
-        lotSelect.innerHTML = '<option value="">-- Select Lot (Optional) --</option>';
-    }
-    
-    checkStock();
+    var w = document.getElementById('from_warehouse_id').value;
+    if(w) loadRacks(w, 'from');
+});
+
+function onProduct(v) {
+    var o = document.querySelector('#product_id option[value="'+v+'"]');
+    if(!o||!v) { document.getElementById('infoPanel').classList.remove('show'); document.getElementById('lotBox').classList.remove('show'); return; }
+    document.getElementById('infoPanel').classList.add('show');
+    document.getElementById('pIcon').textContent = o.dataset.name.substring(0,2).toUpperCase();
+    document.getElementById('pName').textContent = o.dataset.name;
+    document.getElementById('pSku').textContent = 'SKU: ' + o.dataset.sku;
+    document.getElementById('pUnit').textContent = o.dataset.unit;
+    document.getElementById('lotBadge').innerHTML = '';
+    if(o.dataset.batch==='1') document.getElementById('lotBox').classList.add('show');
+    else document.getElementById('lotBox').classList.remove('show');
+    loadUnits(v); checkStock();
 }
 
-function onFromWarehouseChange() {
-    let warehouseId = document.getElementById('from_warehouse_id').value;
-    loadRacks(warehouseId, 'from_rack_id');
-    checkStock();
-    validateLocation();
-}
-
-function onToWarehouseChange() {
-    let warehouseId = document.getElementById('to_warehouse_id').value;
-    loadRacks(warehouseId, 'to_rack_id');
-    validateLocation();
-}
-
-function loadRacks(warehouseId, selectId) {
-    let select = document.getElementById(selectId);
-    select.innerHTML = '<option value="">-- Select Rack (Optional) --</option>';
-    
-    if (!warehouseId) return;
-    
-    fetch('{{ url("admin/inventory/racks/by-warehouse") }}/' + warehouseId)
-        .then(response => response.json())
-        .then(racks => {
-            if (racks && racks.length > 0) {
-                racks.forEach(function(rack) {
-                    let option = document.createElement('option');
-                    option.value = rack.id;
-                    option.textContent = rack.code + ' - ' + rack.name + (rack.zone ? ' (' + rack.zone + ')' : '');
-                    select.appendChild(option);
-                });
-            }
-            validateLocation();
-        })
-        .catch(error => console.error('Error loading racks:', error));
-}
-
-function validateLocation() {
-    let fromWarehouse = document.getElementById('from_warehouse_id').value;
-    let toWarehouse = document.getElementById('to_warehouse_id').value;
-    let fromRack = document.getElementById('from_rack_id').value;
-    let toRack = document.getElementById('to_rack_id').value;
-    
-    let warningEl = document.getElementById('locationWarning');
-    let submitBtn = document.getElementById('submitBtn');
-    
-    // Check if source and destination are exactly the same
-    let isSameLocation = (fromWarehouse && toWarehouse && fromWarehouse === toWarehouse && fromRack === toRack);
-    
-    if (isSameLocation) {
-        warningEl.classList.add('show');
-        submitBtn.disabled = true;
-    } else {
-        warningEl.classList.remove('show');
-        submitBtn.disabled = false;
-    }
+function loadUnits(pid) {
+    fetch('{{ url("admin/inventory/stock/product-units") }}?product_id='+pid).then(r=>r.json()).then(d=>{
+        pData=d; selUnit.clear(); selUnit.clearOptions();
+        (d.units||[]).forEach(u=>{ selUnit.addOption({value:u.id, text:u.name+(u.is_base?' (Base)':u.conversion_factor!=1?' (='+u.conversion_factor+' '+d.base_unit_name+')':''), conv:u.conversion_factor, isBase:u.is_base}); });
+        selUnit.setValue(d.base_unit_id);
+    });
 }
 
 function checkStock() {
-    let productId = document.getElementById('product_id').value;
-    let warehouseId = document.getElementById('from_warehouse_id').value;
-    let rackId = document.getElementById('from_rack_id').value;
-    let lotId = document.getElementById('lot_id').value;
-    
-    if (productId && warehouseId) {
-        let url = '{{ route("admin.inventory.stock.check") }}?product_id=' + productId + '&warehouse_id=' + warehouseId;
-        if (rackId) url += '&rack_id=' + rackId;
-        if (lotId) url += '&lot_id=' + lotId;
-        
-        fetch(url)
-            .then(response => response.json())
-            .then(data => {
-                availableStock = parseFloat(data.quantity) || 0;
-                let stockEl = document.getElementById('currentStock');
-                let wrapperEl = document.getElementById('currentStockWrapper');
-                stockEl.textContent = availableStock;
-                document.getElementById('stockUnit').textContent = data.unit || 'PCS';
-                
-                if (availableStock <= 0) {
-                    wrapperEl.classList.add('low');
-                } else {
-                    wrapperEl.classList.remove('low');
-                }
-                
-                document.getElementById('stockInfo').classList.add('show');
-                document.getElementById('qtyHelp').textContent = 'Max available: ' + availableStock + ' ' + (data.unit || 'PCS');
-            })
-            .catch(error => console.error('Error checking stock:', error));
-    } else {
-        document.getElementById('stockInfo').classList.remove('show');
-        document.getElementById('qtyHelp').textContent = 'Enter quantity to transfer';
-    }
+    var p=document.getElementById('product_id').value, w=document.getElementById('from_warehouse_id').value, r=document.getElementById('from_rack_id').value, l=document.getElementById('lot_id').value;
+    if(!p||!w) { document.getElementById('stockDisplay').classList.remove('show'); return; }
+    var url='{{ route("admin.inventory.stock.check") }}?product_id='+p+'&warehouse_id='+w;
+    if(r) url+='&rack_id='+r; if(l) url+='&lot_id='+l;
+    fetch(url).then(r=>r.json()).then(d=>{
+        baseStock = parseFloat(d.base_stock||d.quantity)||0;
+        document.getElementById('availStock').textContent = baseStock + ' ' + (d.base_unit||'PCS');
+        document.getElementById('pStock').textContent = baseStock + ' ' + (d.base_unit||'PCS');
+        document.getElementById('stockDisplay').classList.add('show');
+        var o = document.querySelector('#product_id option[value="'+p+'"]');
+        if(d.is_batch_managed||(o&&o.dataset.batch==='1')) loadLots(p,w,r);
+        updateUnit();
+    });
 }
 
-function loadLots(productId) {
-    let select = document.getElementById('lot_id');
-    select.innerHTML = '<option value="">Loading lots...</option>';
-    
-    fetch('{{ url("admin/inventory/lots/by-product") }}/' + productId)
-        .then(response => response.json())
-        .then(lots => {
-            select.innerHTML = '<option value="">-- Select Lot (Optional) --</option>';
-            if (lots && lots.length > 0) {
-                lots.forEach(function(lot) {
-                    let option = document.createElement('option');
-                    option.value = lot.id;
-                    let text = lot.lot_no;
-                    if (lot.expiry_date) text += ' (Exp: ' + lot.expiry_date + ')';
-                    option.textContent = text;
-                    select.appendChild(option);
-                });
+function loadLots(p,w,r) {
+    var url='{{ url("admin/inventory/stock/product-lots") }}?product_id='+p;
+    if(w) url+='&warehouse_id='+w; if(r) url+='&rack_id='+r;
+    fetch(url).then(r=>r.json()).then(d=>{
+        lots=d.lots||[];
+        selLot.clear(); selLot.clearOptions();
+        selLot.addOption({value:'', text:'Select lot...'});
+        lots.forEach(l=>{ selLot.addOption({value:l.id, text:l.lot_no+(l.expiry_display?' (Exp: '+l.expiry_display+')':'')+' - '+l.stock_display}); });
+        if(lots.length) selLot.setValue(lots[0].id);
+    });
+}
+
+function onLotChange(v) {
+    document.getElementById('lot_id').value = v;
+    var lot = lots.find(l=>l.id==v);
+    if(lot) document.getElementById('lotBadge').innerHTML='<span class="info-badge ok">'+lot.lot_no+'</span>';
+    else document.getElementById('lotBadge').innerHTML='';
+    checkStock();
+}
+
+function updateUnit() {
+    var uid=document.getElementById('unit_id').value, qty=parseFloat(document.getElementById('qty').value)||0, h=document.getElementById('unitHint');
+    if(uid&&pData.units) {
+        var u=pData.units.find(x=>x.id==uid);
+        if(u&&pData.base_unit_name) {
+            var c=parseFloat(u.conversion_factor)||1;
+            document.getElementById('qtyHint').textContent='Max: '+(baseStock/c).toFixed(2);
+            if(!u.is_base&&c!=1) {
+                if(qty>0) h.innerHTML='<b>'+qty+'</b> × '+c+' = <b>'+(qty*c).toFixed(2)+' '+pData.base_unit_name+'</b>';
+                else h.innerHTML='1 unit = '+c+' '+pData.base_unit_name;
+                h.classList.add('show'); return;
             }
-        })
-        .catch(error => {
-            console.error('Error loading lots:', error);
-            select.innerHTML = '<option value="">-- Select Lot (Optional) --</option>';
-        });
+        }
+    }
+    document.getElementById('qtyHint').textContent='Max: '+baseStock;
+    h.classList.remove('show');
 }
 
-// Form validation before submit
-document.getElementById('transferForm').addEventListener('submit', function(e) {
-    let fromWarehouse = document.getElementById('from_warehouse_id').value;
-    let toWarehouse = document.getElementById('to_warehouse_id').value;
-    let fromRack = document.getElementById('from_rack_id').value;
-    let toRack = document.getElementById('to_rack_id').value;
-    
-    // Check if source and destination are exactly the same
-    if (fromWarehouse === toWarehouse && fromRack === toRack) {
-        e.preventDefault();
-        alert('Source and destination must be different. Choose a different warehouse or rack.');
-        return false;
-    }
-    
-    // Check available stock
-    let qty = parseFloat(document.getElementById('qty').value) || 0;
-    if (qty > availableStock) {
-        e.preventDefault();
-        alert('Transfer quantity (' + qty + ') exceeds available stock (' + availableStock + ')');
-        return false;
-    }
-    
-    return true;
-});
+function validateLocations() {
+    var fw=document.getElementById('from_warehouse_id').value, fr=document.getElementById('from_rack_id').value;
+    var tw=document.getElementById('to_warehouse_id').value, tr=document.getElementById('to_rack_id').value;
+    var same = (fw===tw && fr===tr && fw && tw);
+    document.getElementById('sameLocationWarning').classList.toggle('show', same);
+    document.getElementById('submitBtn').disabled = same;
+}
 
-// Initialize on page load
-document.addEventListener('DOMContentLoaded', function() {
-    let fromWarehouseId = document.getElementById('from_warehouse_id').value;
-    if (fromWarehouseId) {
-        loadRacks(fromWarehouseId, 'from_rack_id');
-    }
-    
-    let toWarehouseId = document.getElementById('to_warehouse_id').value;
-    if (toWarehouseId) {
-        loadRacks(toWarehouseId, 'to_rack_id');
-    }
-    
-    let productId = document.getElementById('product_id').value;
-    if (productId) {
-        onProductChange();
-    }
-    
-    validateLocation();
+function onFromWarehouse() { loadRacks(document.getElementById('from_warehouse_id').value, 'from'); checkStock(); validateLocations(); }
+function onToWarehouse() { loadRacks(document.getElementById('to_warehouse_id').value, 'to'); validateLocations(); }
+
+function loadRacks(wid, type) {
+    var sel = type==='from' ? selFromRack : selToRack;
+    sel.clear(); sel.clearOptions(); sel.addOption({value:'',text:'Select rack...'});
+    if(!wid) return;
+    fetch('{{ url("admin/inventory/racks/by-warehouse") }}/'+wid).then(r=>r.json()).then(d=>{ d.forEach(r=>{ sel.addOption({value:r.id,text:r.code+' - '+r.name}); }); });
+}
+
+document.getElementById('qty').addEventListener('input', updateUnit);
+document.getElementById('mainForm').addEventListener('submit', function(e) {
+    var qty=parseFloat(document.getElementById('qty').value)||0, c=1;
+    if(pData.units) { var u=pData.units.find(x=>x.id==document.getElementById('unit_id').value); if(u) c=parseFloat(u.conversion_factor)||1; }
+    if(qty*c>baseStock) { e.preventDefault(); alert('Insufficient stock!'); }
 });
 </script>
 </x-layouts.app>

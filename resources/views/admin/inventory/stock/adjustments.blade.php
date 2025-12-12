@@ -1,671 +1,322 @@
 <x-layouts.app>
+<link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css" rel="stylesheet">
 <style>
-    .page-header {
-        display: flex;
-        align-items: center;
-        gap: 16px;
-        margin-bottom: 24px;
-    }
+    .stock-page { padding: 24px; max-width: 900px; }
+    .stock-header { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
+    .stock-header h1 { font-size: 24px; font-weight: 700; color: var(--text-primary); margin: 0; }
+    .stock-header .icon { font-size: 28px; }
+    .back-link { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: var(--card-bg); border: 1px solid var(--card-border); color: var(--text-muted); text-decoration: none; font-size: 18px; }
+    .back-link:hover { background: #f1f5f9; }
     
-    .back-btn {
-        width: 40px;
-        height: 40px;
-        border-radius: 10px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: var(--card-bg);
-        border: 1px solid var(--card-border);
-        color: var(--text-muted);
-        text-decoration: none;
-        transition: all 0.2s;
-    }
+    .stock-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 16px; overflow: hidden; }
+    .stock-card-header { padding: 18px 24px; background: linear-gradient(135deg, #fef3c7, #fde68a); border-bottom: 1px solid #fcd34d; }
+    .stock-card-header h3 { margin: 0; font-size: 16px; font-weight: 600; color: #92400e; }
+    .stock-card-body { padding: 28px; }
     
-    .back-btn:hover {
-        background: var(--body-bg);
-        color: var(--text-primary);
-    }
+    .form-section { margin-bottom: 28px; padding-bottom: 24px; border-bottom: 1px solid #e2e8f0; }
+    .form-section:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+    .section-title { font-size: 13px; font-weight: 700; color: #d97706; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px; }
     
-    .back-btn svg {
-        width: 20px;
-        height: 20px;
-    }
-    
-    .page-header h1 {
-        font-size: 24px;
-        font-weight: 700;
-        color: var(--text-primary);
-        margin: 0;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-    
-    .page-header h1 svg {
-        width: 28px;
-        height: 28px;
-        color: #f59e0b;
-    }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 640px) { .form-row { grid-template-columns: 1fr; } }
+    .form-group { margin-bottom: 18px; }
+    .form-label { display: block; font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px; }
+    .form-label .req { color: #ef4444; }
+    .form-control { width: 100%; padding: 12px 14px; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 14px; background: #fff; box-sizing: border-box; }
+    .form-control:focus { outline: none; border-color: #d97706; box-shadow: 0 0 0 3px rgba(217,119,6,0.12); }
+    .form-control[readonly] { background: #f8fafc; }
+    textarea.form-control { min-height: 80px; resize: vertical; }
+    .form-hint { font-size: 12px; color: #64748b; margin-top: 6px; }
 
-    .form-card {
-        background: var(--card-bg);
-        border: 1px solid var(--card-border);
-        border-radius: 12px;
-        max-width: 700px;
-    }
-    
-    .form-card-header {
-        padding: 20px 24px;
-        border-bottom: 1px solid var(--card-border);
-        background: linear-gradient(135deg, #fef3c7, #fde68a);
-        border-radius: 12px 12px 0 0;
-    }
-    
-    .form-card-title {
-        font-size: 16px;
-        font-weight: 600;
-        color: #92400e;
-        margin: 0;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-    
-    .form-card-title svg {
-        width: 20px;
-        height: 20px;
-    }
-    
-    .form-card-body {
-        padding: 24px;
-    }
+    .ts-wrapper { width: 100%; }
+    .ts-control { padding: 10px 14px !important; border-radius: 10px !important; border: 1px solid #e2e8f0 !important; min-height: 46px !important; }
+    .ts-wrapper.focus .ts-control { border-color: #d97706 !important; box-shadow: 0 0 0 3px rgba(217,119,6,0.12) !important; }
+    .ts-dropdown { border-radius: 10px !important; box-shadow: 0 10px 40px rgba(0,0,0,0.12) !important; margin-top: 4px !important; }
+    .ts-dropdown .option { padding: 10px 14px !important; }
+    .ts-dropdown .option:hover, .ts-dropdown .option.active { background: #fffbeb !important; }
+    .ts-dropdown .dropdown-input-wrap { padding: 10px !important; border-bottom: 1px solid #e2e8f0 !important; }
+    .ts-dropdown .dropdown-input { width: 100% !important; padding: 10px !important; border: 1px solid #e2e8f0 !important; border-radius: 8px !important; }
 
-    .form-row {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 20px;
-    }
-    
-    @media (max-width: 640px) {
-        .form-row {
-            grid-template-columns: 1fr;
-        }
-    }
+    .info-panel { background: linear-gradient(135deg, #fffbeb, #fef3c7); border: 1px solid #fcd34d; border-radius: 12px; padding: 20px; margin-bottom: 20px; display: none; }
+    .info-panel.show { display: block; }
+    .info-header { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px solid #fcd34d; }
+    .info-icon { width: 50px; height: 50px; border-radius: 10px; background: linear-gradient(135deg, #f59e0b, #d97706); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 18px; }
+    .info-name { font-size: 17px; font-weight: 700; color: #92400e; }
+    .info-sku { font-size: 12px; color: #d97706; margin-top: 2px; }
+    .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; }
+    .info-item { background: #fff; border-radius: 8px; padding: 10px 12px; }
+    .info-item-label { font-size: 10px; color: #d97706; text-transform: uppercase; margin-bottom: 3px; }
+    .info-item-value { font-size: 14px; font-weight: 700; color: #92400e; }
 
-    .form-group {
-        margin-bottom: 20px;
-    }
-    
-    .form-group:last-child {
-        margin-bottom: 0;
-    }
-    
-    .form-label {
-        display: block;
-        font-size: 13px;
-        font-weight: 500;
-        color: var(--text-primary);
-        margin-bottom: 8px;
-    }
-    
-    .form-label .required {
-        color: #ef4444;
-    }
-    
-    .form-control {
-        width: 100%;
-        padding: 10px 14px;
-        border: 1px solid var(--card-border);
-        border-radius: 8px;
-        font-size: 14px;
-        background: var(--card-bg);
-        color: var(--text-primary);
-        transition: border-color 0.2s, box-shadow 0.2s;
-        box-sizing: border-box;
-    }
-    
-    .form-control:focus {
-        outline: none;
-        border-color: var(--primary);
-        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-    }
-    
-    .form-control::placeholder {
-        color: var(--text-muted);
-    }
-    
-    textarea.form-control {
-        min-height: 80px;
-        resize: vertical;
-    }
+    .stock-preview { background: #fffbeb; border: 1px solid #fcd34d; border-radius: 12px; padding: 20px; margin-bottom: 20px; display: none; }
+    .stock-preview.show { display: flex; align-items: center; justify-content: center; gap: 30px; }
+    .stock-preview-item { text-align: center; }
+    .stock-preview-label { font-size: 12px; color: #92400e; margin-bottom: 6px; }
+    .stock-preview-value { font-size: 28px; font-weight: 800; }
+    .stock-preview-value.current { color: #d97706; }
+    .stock-preview-value.new { color: #059669; }
+    .stock-preview-arrow { font-size: 28px; color: #d97706; }
 
-    .form-help {
-        font-size: 12px;
-        color: var(--text-muted);
-        margin-top: 6px;
-    }
+    .adjustment-types { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px; }
+    .adj-type { padding: 18px 14px; border: 2px solid #e5e7eb; border-radius: 12px; background: #fff; cursor: pointer; text-align: center; transition: all 0.2s; }
+    .adj-type:hover { border-color: #fbbf24; background: #fffbeb; }
+    .adj-type.active { border-color: #f59e0b; background: #fef3c7; }
+    .adj-type input { display: none; }
+    .adj-type-icon { font-size: 28px; margin-bottom: 8px; }
+    .adj-type-label { font-size: 14px; font-weight: 700; color: var(--text-primary); }
+    .adj-type-desc { font-size: 11px; color: #64748b; margin-top: 4px; }
 
-    .stock-info {
-        background: #fffbeb;
-        border: 1px solid #fde68a;
-        border-radius: 8px;
-        padding: 12px 16px;
-        margin-bottom: 20px;
-        display: none;
-    }
-    
-    .stock-info.show {
-        display: flex;
-        align-items: center;
-        gap: 20px;
-    }
-    
-    .stock-info-item {
-        flex: 1;
-    }
-    
-    .stock-info-label {
-        font-size: 12px;
-        color: #92400e;
-        margin-bottom: 4px;
-    }
-    
-    .stock-info-value {
-        font-size: 20px;
-        font-weight: 700;
-        color: #f59e0b;
-    }
-    
-    .stock-info-arrow {
-        font-size: 24px;
-        color: var(--text-muted);
-    }
-    
-    .stock-info-value.new {
-        color: #059669;
-    }
+    .lot-box { background: #fffbeb; border: 1px solid #fcd34d; border-radius: 12px; padding: 18px; margin-bottom: 20px; display: none; }
+    .lot-box.show { display: block; }
+    .lot-box-title { font-size: 14px; font-weight: 600; color: #92400e; margin-bottom: 14px; }
 
-    .adjustment-type-group {
-        display: flex;
-        gap: 12px;
-        margin-bottom: 20px;
-    }
+    .form-actions { display: flex; gap: 12px; padding-top: 20px; border-top: 1px solid #e2e8f0; margin-top: 20px; }
+    .btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 24px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; text-decoration: none; }
+    .btn-primary { background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff; }
+    .btn-primary:hover { opacity: 0.9; }
+    .btn-secondary { background: #f1f5f9; color: #334155; }
     
-    .adjustment-type-btn {
-        flex: 1;
-        padding: 16px;
-        border: 2px solid var(--card-border);
-        border-radius: 10px;
-        background: var(--card-bg);
-        cursor: pointer;
-        text-align: center;
-        transition: all 0.2s;
-    }
-    
-    .adjustment-type-btn:hover {
-        border-color: #f59e0b;
-    }
-    
-    .adjustment-type-btn.active {
-        border-color: #f59e0b;
-        background: #fffbeb;
-    }
-    
-    .adjustment-type-btn input {
-        display: none;
-    }
-    
-    .adjustment-type-icon {
-        font-size: 24px;
-        margin-bottom: 8px;
-    }
-    
-    .adjustment-type-label {
-        font-size: 14px;
-        font-weight: 600;
-        color: var(--text-primary);
-    }
-    
-    .adjustment-type-desc {
-        font-size: 12px;
-        color: var(--text-muted);
-        margin-top: 4px;
-    }
-
-    .form-actions {
-        display: flex;
-        gap: 12px;
-        padding-top: 24px;
-        border-top: 1px solid var(--card-border);
-        margin-top: 24px;
-    }
-
-    .btn {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        padding: 12px 24px;
-        border-radius: 8px;
-        font-size: 14px;
-        font-weight: 600;
-        cursor: pointer;
-        border: none;
-        text-decoration: none;
-        transition: all 0.2s;
-    }
-    
-    .btn svg {
-        width: 18px;
-        height: 18px;
-    }
-    
-    .btn-amber {
-        background: linear-gradient(135deg, #f59e0b, #d97706);
-        color: #fff;
-    }
-    
-    .btn-amber:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
-    }
-    
-    .btn-secondary {
-        background: var(--body-bg);
-        color: var(--text-primary);
-        border: 1px solid var(--card-border);
-    }
-    
-    .btn-secondary:hover {
-        background: var(--card-border);
-    }
-
-    .alert {
-        padding: 12px 16px;
-        border-radius: 8px;
-        margin-bottom: 20px;
-        font-size: 14px;
-    }
-    
-    .alert-success {
-        background: #d1fae5;
-        color: #065f46;
-        border: 1px solid #a7f3d0;
-    }
-    
-    .alert-error {
-        background: #fee2e2;
-        color: #991b1b;
-        border: 1px solid #fecaca;
-    }
-    
-    .alert-warning {
-        background: #fef3c7;
-        color: #92400e;
-        border: 1px solid #fcd34d;
-    }
+    .alert { padding: 14px 18px; border-radius: 10px; margin-bottom: 20px; }
+    .alert-success { background: #d1fae5; color: #065f46; }
+    .alert-error { background: #fee2e2; color: #991b1b; }
 </style>
 
-<div style="padding: 20px;">
-    <!-- Header -->
-    <div class="page-header">
-        <a href="{{ route('admin.inventory.dashboard') }}" class="back-btn">
-            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
-            </svg>
-        </a>
-        <h1>
-            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
-            </svg>
-            Stock Adjustment
-        </h1>
+<div class="stock-page">
+    <div class="stock-header">
+        <a href="{{ route('admin.inventory.stock.movements') }}" class="back-link">←</a>
+        <span class="icon">⚖️</span>
+        <h1>Stock Adjustment</h1>
     </div>
 
-    @if(session('success'))
-        <div class="alert alert-success">{{ session('success') }}</div>
-    @endif
-    
-    @if(session('error'))
-        <div class="alert alert-error">{{ session('error') }}</div>
-    @endif
+    @if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
+    @if(session('error'))<div class="alert alert-error">{{ session('error') }}</div>@endif
 
-    <div class="alert alert-warning">
-        <strong>⚠️ Caution:</strong> Stock adjustments directly modify inventory levels. Use this for inventory counts, corrections, or write-offs. All adjustments are logged for audit purposes.
-    </div>
-
-    <!-- Form Card -->
-    <div class="form-card">
-        <div class="form-card-header">
-            <h3 class="form-card-title">
-                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
-                </svg>
-                Adjust Inventory Levels
-            </h3>
+    <div class="stock-card">
+        <div class="stock-card-header">
+            <h3>⚖️ Adjust Stock Quantity</h3>
         </div>
-        <div class="form-card-body">
-            <form action="{{ route('admin.inventory.stock.adjustments.store') }}" method="POST">
+        <div class="stock-card-body">
+            <form action="{{ route('admin.inventory.stock.adjustments.store') }}" method="POST" id="mainForm">
                 @csrf
 
-                <div class="form-group">
-                    <label class="form-label">Product <span class="required">*</span></label>
-                    <select name="product_id" id="product_id" class="form-control" required onchange="onProductChange()">
-                        <option value="">-- Select Product --</option>
-                        @foreach($products as $product)
-                            <option value="{{ $product->id }}" 
-                                data-batch="{{ $product->is_batch_managed ? '1' : '0' }}"
-                                data-unit="{{ $product->unit_id }}"
-                                {{ old('product_id', request('product_id')) == $product->id ? 'selected' : '' }}>
-                                {{ $product->name }} ({{ $product->sku }})
-                            </option>
-                        @endforeach
-                    </select>
-                    @error('product_id')<div class="form-help" style="color: #ef4444;">{{ $message }}</div>@enderror
-                </div>
-
-                <div class="form-row">
+                <div class="form-section">
+                    <div class="section-title">📦 Product Selection</div>
                     <div class="form-group">
-                        <label class="form-label">Warehouse <span class="required">*</span></label>
-                        <select name="warehouse_id" id="warehouse_id" class="form-control" required onchange="onWarehouseChange()">
-                            <option value="">-- Select Warehouse --</option>
-                            @foreach($warehouses as $warehouse)
-                                <option value="{{ $warehouse->id }}" {{ $warehouse->is_default ? 'selected' : '' }}>
-                                    {{ $warehouse->name }} {{ $warehouse->is_default ? '(Default)' : '' }}
-                                </option>
+                        <label class="form-label">Product <span class="req">*</span></label>
+                        <select name="product_id" id="product_id" required>
+                            <option value="">Select product...</option>
+                            @foreach($products as $product)
+                                <option value="{{ $product->id }}" data-batch="{{ $product->is_batch_managed ? '1' : '0' }}" data-unit="{{ $product->unit->short_name ?? 'PCS' }}" data-name="{{ $product->name }}" data-sku="{{ $product->sku }}">{{ $product->name }} ({{ $product->sku }})</option>
                             @endforeach
                         </select>
-                        @error('warehouse_id')<div class="form-help" style="color: #ef4444;">{{ $message }}</div>@enderror
                     </div>
+
+                    <div class="info-panel" id="infoPanel">
+                        <div class="info-header">
+                            <div class="info-icon" id="pIcon">P</div>
+                            <div>
+                                <div class="info-name" id="pName">-</div>
+                                <div class="info-sku" id="pSku">-</div>
+                            </div>
+                        </div>
+                        <div class="info-grid">
+                            <div class="info-item"><div class="info-item-label">Base Unit</div><div class="info-item-value" id="pUnit">PCS</div></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <div class="section-title">📍 Location</div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Warehouse <span class="req">*</span></label>
+                            <select name="warehouse_id" id="warehouse_id" required>
+                                <option value="">Select warehouse...</option>
+                                @foreach($warehouses as $wh)
+                                    <option value="{{ $wh->id }}" {{ $wh->is_default ? 'selected' : '' }}>{{ $wh->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Rack</label>
+                            <select name="rack_id" id="rack_id"><option value="">Select rack...</option></select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="lot-box" id="lotBox">
+                    <div class="lot-box-title">📦 Lot Selection</div>
+                    <div class="form-group" style="margin:0;">
+                        <select name="lot_id" id="lot_id"><option value="">Select lot...</option></select>
+                    </div>
+                </div>
+
+                <div class="stock-preview" id="stockPreview">
+                    <div class="stock-preview-item">
+                        <div class="stock-preview-label">Current Stock</div>
+                        <div class="stock-preview-value current"><span id="currentStock">0</span> <small id="stockUnit">PCS</small></div>
+                    </div>
+                    <div class="stock-preview-arrow">→</div>
+                    <div class="stock-preview-item">
+                        <div class="stock-preview-label">New Stock</div>
+                        <div class="stock-preview-value new"><span id="newStock">0</span> <small id="newStockUnit">PCS</small></div>
+                    </div>
+                </div>
+
+                <div class="adjustment-types">
+                    <label class="adj-type active" onclick="setAdjType('set')">
+                        <input type="radio" name="adjustment_type" value="set" checked>
+                        <div class="adj-type-icon">📊</div>
+                        <div class="adj-type-label">Set To</div>
+                        <div class="adj-type-desc">Set exact quantity</div>
+                    </label>
+                    <label class="adj-type" onclick="setAdjType('add')">
+                        <input type="radio" name="adjustment_type" value="add">
+                        <div class="adj-type-icon">➕</div>
+                        <div class="adj-type-label">Add</div>
+                        <div class="adj-type-desc">Increase stock</div>
+                    </label>
+                    <label class="adj-type" onclick="setAdjType('subtract')">
+                        <input type="radio" name="adjustment_type" value="subtract">
+                        <div class="adj-type-icon">➖</div>
+                        <div class="adj-type-label">Subtract</div>
+                        <div class="adj-type-desc">Decrease stock</div>
+                    </label>
+                </div>
+
+                <div class="form-section">
+                    <div class="section-title">🔢 Quantity</div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" id="qtyLabel">New Quantity <span class="req">*</span></label>
+                            <input type="number" name="qty" id="qty" class="form-control" step="any" min="0" required>
+                            <div class="form-hint">In base unit</div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Unit</label>
+                            <input type="text" id="unit_display" class="form-control" readonly>
+                            <div class="form-hint">Adjustments in base unit</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
                     <div class="form-group">
-                        <label class="form-label">Rack / Location</label>
-                        <select name="rack_id" id="rack_id" class="form-control" onchange="checkStock()">
-                            <option value="">-- Select Rack (Optional) --</option>
+                        <label class="form-label">Reason <span class="req">*</span></label>
+                        <select name="reason" id="reason" required>
+                            <option value="">Select reason...</option>
+                            <option value="Physical Count">📋 Physical Count</option>
+                            <option value="Damaged">💔 Damaged Goods</option>
+                            <option value="Expired">⏰ Expired Products</option>
+                            <option value="Lost">❓ Lost / Missing</option>
+                            <option value="Theft">🚨 Theft / Shrinkage</option>
+                            <option value="Data Correction">🔧 Data Correction</option>
+                            <option value="Opening Stock">📦 Opening Stock</option>
+                            <option value="Other">📝 Other</option>
                         </select>
-                        <div class="form-help">Adjust stock at specific rack</div>
-                    </div>
-                </div>
-
-                <div class="form-group" id="lotGroup" style="display: none;">
-                    <label class="form-label">Lot / Batch</label>
-                    <select name="lot_id" id="lot_id" class="form-control" onchange="checkStock()">
-                        <option value="">-- Select Lot (Optional) --</option>
-                    </select>
-                    <div class="form-help">Adjust specific lot if batch managed</div>
-                </div>
-
-                <div class="stock-info" id="stockInfo">
-                    <div class="stock-info-item">
-                        <div class="stock-info-label">Current Stock</div>
-                        <div class="stock-info-value"><span id="currentStock">0</span> <small id="stockUnit">PCS</small></div>
-                    </div>
-                    <div class="stock-info-arrow">→</div>
-                    <div class="stock-info-item">
-                        <div class="stock-info-label">New Stock</div>
-                        <div class="stock-info-value new"><span id="newStock">0</span> <small id="newStockUnit">PCS</small></div>
-                    </div>
-                </div>
-
-                <!-- Adjustment Type -->
-                <div class="form-group">
-                    <label class="form-label">Adjustment Type <span class="required">*</span></label>
-                    <div class="adjustment-type-group">
-                        <label class="adjustment-type-btn" onclick="selectAdjustmentType('set')">
-                            <input type="radio" name="adjustment_type" value="set" {{ old('adjustment_type', 'set') == 'set' ? 'checked' : '' }}>
-                            <div class="adjustment-type-icon">📊</div>
-                            <div class="adjustment-type-label">Set Quantity</div>
-                            <div class="adjustment-type-desc">Set exact stock level</div>
-                        </label>
-                        <label class="adjustment-type-btn" onclick="selectAdjustmentType('add')">
-                            <input type="radio" name="adjustment_type" value="add" {{ old('adjustment_type') == 'add' ? 'checked' : '' }}>
-                            <div class="adjustment-type-icon">➕</div>
-                            <div class="adjustment-type-label">Add</div>
-                            <div class="adjustment-type-desc">Increase stock</div>
-                        </label>
-                        <label class="adjustment-type-btn" onclick="selectAdjustmentType('subtract')">
-                            <input type="radio" name="adjustment_type" value="subtract" {{ old('adjustment_type') == 'subtract' ? 'checked' : '' }}>
-                            <div class="adjustment-type-icon">➖</div>
-                            <div class="adjustment-type-label">Subtract</div>
-                            <div class="adjustment-type-desc">Decrease stock</div>
-                        </label>
-                    </div>
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label" id="qtyLabel">New Quantity <span class="required">*</span></label>
-                        <input type="number" name="qty" id="qty" class="form-control" step="any" min="0" placeholder="Enter quantity" value="{{ old('qty') }}" required oninput="updateNewStock()">
-                        <div class="form-help" id="qtyHelp">Enter the new stock quantity</div>
-                        @error('qty')<div class="form-help" style="color: #ef4444;">{{ $message }}</div>@enderror
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Unit <span class="required">*</span></label>
-                        <select name="unit_id" id="unit_id" class="form-control" required>
-                            <option value="">-- Select Unit --</option>
-                            @foreach($units as $unit)
-                                <option value="{{ $unit->id }}" {{ old('unit_id') == $unit->id ? 'selected' : '' }}>
-                                    {{ $unit->name }} ({{ $unit->short_name }})
-                                </option>
-                            @endforeach
-                        </select>
-                        @error('unit_id')<div class="form-help" style="color: #ef4444;">{{ $message }}</div>@enderror
+                        <label class="form-label">Notes</label>
+                        <textarea name="notes" class="form-control" placeholder="Additional details..."></textarea>
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label class="form-label">Adjustment Reason <span class="required">*</span></label>
-                    <select name="adjustment_reason" id="adjustment_reason" class="form-control" required>
-                        <option value="">-- Select Reason --</option>
-                        <option value="Physical Count" {{ old('adjustment_reason') == 'Physical Count' ? 'selected' : '' }}>Physical Count / Inventory Audit</option>
-                        <option value="Damaged" {{ old('adjustment_reason') == 'Damaged' ? 'selected' : '' }}>Damaged Goods</option>
-                        <option value="Expired" {{ old('adjustment_reason') == 'Expired' ? 'selected' : '' }}>Expired Products</option>
-                        <option value="Lost" {{ old('adjustment_reason') == 'Lost' ? 'selected' : '' }}>Lost / Missing</option>
-                        <option value="Theft" {{ old('adjustment_reason') == 'Theft' ? 'selected' : '' }}>Theft / Shrinkage</option>
-                        <option value="Data Correction" {{ old('adjustment_reason') == 'Data Correction' ? 'selected' : '' }}>Data Entry Correction</option>
-                        <option value="Opening Stock" {{ old('adjustment_reason') == 'Opening Stock' ? 'selected' : '' }}>Opening Stock Entry</option>
-                        <option value="Other" {{ old('adjustment_reason') == 'Other' ? 'selected' : '' }}>Other</option>
-                    </select>
-                    @error('adjustment_reason')<div class="form-help" style="color: #ef4444;">{{ $message }}</div>@enderror
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">Reference</label>
-                    <input type="text" name="reason" class="form-control" placeholder="e.g., Stock Count Jan 2025, Write-off #123" value="{{ old('reason') }}">
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">Notes</label>
-                    <textarea name="notes" class="form-control" placeholder="Detailed notes about this adjustment...">{{ old('notes') }}</textarea>
-                </div>
-
-                <!-- Actions -->
                 <div class="form-actions">
-                    <button type="submit" class="btn btn-amber">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
-                        </svg>
-                        Apply Adjustment
-                    </button>
-                    <a href="{{ route('admin.inventory.dashboard') }}" class="btn btn-secondary">Cancel</a>
+                    <button type="submit" class="btn btn-primary">⚖️ Apply Adjustment</button>
+                    <a href="{{ route('admin.inventory.stock.movements') }}" class="btn btn-secondary">Cancel</a>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
 <script>
-let currentStockValue = 0;
-let adjustmentType = 'set';
+var lots=[], currentStockVal=0, adjType='set', baseUnit='PCS';
+var selProduct, selWh, selRack, selLot, selReason;
 
-function selectAdjustmentType(type) {
-    adjustmentType = type;
+document.addEventListener('DOMContentLoaded', function() {
+    selProduct = new TomSelect('#product_id', {plugins:['dropdown_input'], create:false, onChange:onProduct});
+    selWh = new TomSelect('#warehouse_id', {plugins:['dropdown_input'], create:false, onChange:onWarehouse});
+    selRack = new TomSelect('#rack_id', {plugins:['dropdown_input'], create:false, onChange:checkStock});
+    selLot = new TomSelect('#lot_id', {plugins:['dropdown_input'], create:false, onChange:onLotChange});
+    selReason = new TomSelect('#reason', {plugins:['dropdown_input'], create:false});
     
-    // Update UI
-    document.querySelectorAll('.adjustment-type-btn').forEach(btn => {
-        btn.classList.remove('active');
-        if (btn.querySelector('input').value === type) {
-            btn.classList.add('active');
-            btn.querySelector('input').checked = true;
-        }
+    var w = document.getElementById('warehouse_id').value;
+    if(w) loadRacks(w);
+});
+
+function onProduct(v) {
+    var o = document.querySelector('#product_id option[value="'+v+'"]');
+    if(!o||!v) { document.getElementById('infoPanel').classList.remove('show'); document.getElementById('lotBox').classList.remove('show'); document.getElementById('stockPreview').classList.remove('show'); return; }
+    baseUnit = o.dataset.unit || 'PCS';
+    document.getElementById('unit_display').value = baseUnit;
+    document.getElementById('infoPanel').classList.add('show');
+    document.getElementById('pIcon').textContent = o.dataset.name.substring(0,2).toUpperCase();
+    document.getElementById('pName').textContent = o.dataset.name;
+    document.getElementById('pSku').textContent = 'SKU: ' + o.dataset.sku;
+    document.getElementById('pUnit').textContent = baseUnit;
+    if(o.dataset.batch==='1') document.getElementById('lotBox').classList.add('show');
+    else document.getElementById('lotBox').classList.remove('show');
+    checkStock();
+}
+
+function checkStock() {
+    var p=document.getElementById('product_id').value, w=document.getElementById('warehouse_id').value, r=document.getElementById('rack_id').value, l=document.getElementById('lot_id').value;
+    if(!p||!w) { document.getElementById('stockPreview').classList.remove('show'); return; }
+    var url='{{ route("admin.inventory.stock.check") }}?product_id='+p+'&warehouse_id='+w;
+    if(r) url+='&rack_id='+r; if(l) url+='&lot_id='+l;
+    fetch(url).then(r=>r.json()).then(d=>{
+        currentStockVal = parseFloat(d.base_stock||d.quantity)||0;
+        document.getElementById('currentStock').textContent = currentStockVal;
+        document.getElementById('stockUnit').textContent = d.base_unit||'PCS';
+        document.getElementById('newStockUnit').textContent = d.base_unit||'PCS';
+        document.getElementById('stockPreview').classList.add('show');
+        var o = document.querySelector('#product_id option[value="'+p+'"]');
+        if(d.is_batch_managed||(o&&o.dataset.batch==='1')) loadLots(p,w,r);
+        updateNewStock();
     });
-    
-    // Update label
-    let label = document.getElementById('qtyLabel');
-    let help = document.getElementById('qtyHelp');
-    
-    if (type === 'set') {
-        label.innerHTML = 'New Quantity <span class="required">*</span>';
-        help.textContent = 'Enter the new stock quantity';
-    } else if (type === 'add') {
-        label.innerHTML = 'Quantity to Add <span class="required">*</span>';
-        help.textContent = 'Enter quantity to add to current stock';
-    } else {
-        label.innerHTML = 'Quantity to Subtract <span class="required">*</span>';
-        help.textContent = 'Enter quantity to subtract from current stock';
-    }
-    
+}
+
+function loadLots(p,w,r) {
+    var url='{{ url("admin/inventory/stock/product-lots") }}?product_id='+p;
+    if(w) url+='&warehouse_id='+w; if(r) url+='&rack_id='+r;
+    fetch(url).then(r=>r.json()).then(d=>{
+        lots=d.lots||[];
+        selLot.clear(); selLot.clearOptions();
+        selLot.addOption({value:'', text:'Select lot...'});
+        lots.forEach(l=>{ selLot.addOption({value:l.id, text:l.lot_no+(l.expiry_display?' (Exp: '+l.expiry_display+')':'')}); });
+    });
+}
+
+function onLotChange(v) { checkStock(); }
+
+function setAdjType(type) {
+    adjType = type;
+    document.querySelectorAll('.adj-type').forEach(t=>{ t.classList.remove('active'); if(t.querySelector('input').value===type) { t.classList.add('active'); t.querySelector('input').checked=true; } });
+    var l = document.getElementById('qtyLabel');
+    if(type==='set') l.innerHTML='New Quantity <span class="req">*</span>';
+    else if(type==='add') l.innerHTML='Quantity to Add <span class="req">*</span>';
+    else l.innerHTML='Quantity to Subtract <span class="req">*</span>';
     updateNewStock();
 }
 
 function updateNewStock() {
-    let qty = parseFloat(document.getElementById('qty').value) || 0;
-    let newStock = 0;
-    
-    if (adjustmentType === 'set') {
-        newStock = qty;
-    } else if (adjustmentType === 'add') {
-        newStock = currentStockValue + qty;
-    } else {
-        newStock = currentStockValue - qty;
-    }
-    
-    document.getElementById('newStock').textContent = Math.max(0, newStock).toFixed(2);
+    var qty = parseFloat(document.getElementById('qty').value)||0;
+    var newVal = 0;
+    if(adjType==='set') newVal = qty;
+    else if(adjType==='add') newVal = currentStockVal + qty;
+    else newVal = currentStockVal - qty;
+    document.getElementById('newStock').textContent = Math.max(0, newVal).toFixed(2);
 }
 
-function onProductChange() {
-    let productId = document.getElementById('product_id').value;
-    let selectedOption = document.getElementById('product_id').selectedOptions[0];
-    let isBatchManaged = selectedOption && selectedOption.dataset.batch === '1';
-    let productUnitId = selectedOption ? selectedOption.dataset.unit : '';
-    
-    // Set default unit based on product
-    if (productUnitId) {
-        document.getElementById('unit_id').value = productUnitId;
-    }
-    
-    if (isBatchManaged && productId) {
-        document.getElementById('lotGroup').style.display = 'block';
-        loadLots(productId);
-    } else {
-        document.getElementById('lotGroup').style.display = 'none';
-        let lotSelect = document.getElementById('lot_id');
-        lotSelect.innerHTML = '<option value="">-- Select Lot (Optional) --</option>';
-    }
-    
-    checkStock();
+function onWarehouse() { loadRacks(document.getElementById('warehouse_id').value); checkStock(); }
+function loadRacks(wid) {
+    selRack.clear(); selRack.clearOptions(); selRack.addOption({value:'',text:'Select rack...'});
+    if(!wid) return;
+    fetch('{{ url("admin/inventory/racks/by-warehouse") }}/'+wid).then(r=>r.json()).then(d=>{ d.forEach(r=>{ selRack.addOption({value:r.id,text:r.code+' - '+r.name}); }); });
 }
 
-function onWarehouseChange() {
-    let warehouseId = document.getElementById('warehouse_id').value;
-    loadRacks(warehouseId);
-    checkStock();
-}
-
-function loadRacks(warehouseId) {
-    let select = document.getElementById('rack_id');
-    select.innerHTML = '<option value="">-- Select Rack (Optional) --</option>';
-    
-    if (!warehouseId) return;
-    
-    fetch('{{ url("admin/inventory/racks/by-warehouse") }}/' + warehouseId)
-        .then(response => response.json())
-        .then(racks => {
-            if (racks && racks.length > 0) {
-                racks.forEach(function(rack) {
-                    let option = document.createElement('option');
-                    option.value = rack.id;
-                    option.textContent = rack.code + ' - ' + rack.name + (rack.zone ? ' (' + rack.zone + ')' : '');
-                    select.appendChild(option);
-                });
-            }
-        })
-        .catch(error => console.error('Error loading racks:', error));
-}
-
-function checkStock() {
-    let productId = document.getElementById('product_id').value;
-    let warehouseId = document.getElementById('warehouse_id').value;
-    let rackId = document.getElementById('rack_id').value;
-    let lotId = document.getElementById('lot_id').value;
-    
-    if (productId && warehouseId) {
-        let url = '{{ route("admin.inventory.stock.check") }}?product_id=' + productId + '&warehouse_id=' + warehouseId;
-        if (rackId) url += '&rack_id=' + rackId;
-        if (lotId) url += '&lot_id=' + lotId;
-        
-        fetch(url)
-            .then(response => response.json())
-            .then(data => {
-                currentStockValue = parseFloat(data.quantity) || 0;
-                let unitName = data.unit || 'PCS';
-                
-                document.getElementById('currentStock').textContent = currentStockValue;
-                document.getElementById('stockUnit').textContent = unitName;
-                document.getElementById('newStockUnit').textContent = unitName;
-                document.getElementById('stockInfo').classList.add('show');
-                
-                updateNewStock();
-            })
-            .catch(error => console.error('Error checking stock:', error));
-    } else {
-        document.getElementById('stockInfo').classList.remove('show');
-    }
-}
-
-function loadLots(productId) {
-    let select = document.getElementById('lot_id');
-    select.innerHTML = '<option value="">Loading lots...</option>';
-    
-    fetch('{{ url("admin/inventory/lots/by-product") }}/' + productId)
-        .then(response => response.json())
-        .then(lots => {
-            select.innerHTML = '<option value="">-- Select Lot (Optional) --</option>';
-            if (lots && lots.length > 0) {
-                lots.forEach(function(lot) {
-                    let option = document.createElement('option');
-                    option.value = lot.id;
-                    let text = lot.lot_no;
-                    if (lot.expiry_date) text += ' (Exp: ' + lot.expiry_date + ')';
-                    option.textContent = text;
-                    select.appendChild(option);
-                });
-            }
-        })
-        .catch(error => {
-            console.error('Error loading lots:', error);
-            select.innerHTML = '<option value="">-- Select Lot (Optional) --</option>';
-        });
-}
-
-// Initialize on page load
-document.addEventListener('DOMContentLoaded', function() {
-    // Set initial adjustment type
-    let checkedType = document.querySelector('input[name="adjustment_type"]:checked');
-    if (checkedType) {
-        selectAdjustmentType(checkedType.value);
-    } else {
-        selectAdjustmentType('set');
-    }
-    
-    let warehouseId = document.getElementById('warehouse_id').value;
-    if (warehouseId) {
-        loadRacks(warehouseId);
-    }
-    
-    let productId = document.getElementById('product_id').value;
-    if (productId) {
-        onProductChange();
-    }
-});
+document.getElementById('qty').addEventListener('input', updateNewStock);
 </script>
 </x-layouts.app>

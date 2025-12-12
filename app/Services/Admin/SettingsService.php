@@ -63,6 +63,20 @@ class SettingsService
                     'sort_order' => 3,
                 ],
                 [
+                    'title' => 'Finances',
+                    'icon' => 'currency',
+                    'route' => null,
+                    'permission' => 'settings.finances.read',
+                    'sort_order' => 4,
+                    'children' => [
+                        [
+                            'title' => 'Tax Management',
+                            'route' => 'admin.settings.taxes.index',
+                            'permission' => 'taxes.list.read',
+                        ],
+                    ],
+                ],
+                [
                     'title' => 'Roles/Permission',
                     'icon' => 'shield',
                     'route' => null,
@@ -80,8 +94,13 @@ class SettingsService
                             'permission' => 'roles.list.read',
                         ],
                         [
-                            'title' => 'User',
+                            'title' => 'Staff',
                             'route' => 'admin.settings.users.index',
+                            'permission' => 'users.list.read',
+                        ],
+                        [
+                            'title' => 'Client',
+                            'route' => 'admin.settings.client.index',
                             'permission' => 'users.list.read',
                         ],
                     ],

@@ -21,14 +21,16 @@ class BaseController extends Controller
         if ($warehouseId) {
             $query->where('warehouse_id', $warehouseId);
         }
+        
         if ($rackId) {
             $query->where('rack_id', $rackId);
         }
+        
         if ($lotId) {
             $query->where('lot_id', $lotId);
         }
         
-        return $query->sum('qty') ?? 0;
+        return $query->sum('qty');
     }
 
     /**
