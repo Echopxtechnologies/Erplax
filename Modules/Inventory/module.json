@@ -1,0 +1,14 @@
+{
+    "name": "Inventory",
+    "alias": "inventory",
+    "description": "Complete Inventory Management Module",
+    "keywords": ["inventory", "stock", "warehouse", "products"],
+    "priority": 0,
+    "sort_order": 10,
+    "is_core": false,
+    "providers": [
+        "Modules\\Inventory\\Providers\\InventoryServiceProvider"
+    ],
+    "files": [],
+    "requires": []
+}

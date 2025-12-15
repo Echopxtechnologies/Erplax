@@ -4,6 +4,10 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Admin;
+use App\Models\Country;
+use App\Models\Currency;
+use App\Models\PaymentMethod;
+use App\Models\Timezone;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -15,7 +19,7 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use App\Traits\DataTable;
 use App\Models\Option;
-use App\Models\Inventory\Tax;
+use App\Models\Admin\Tax;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Mail;
 
@@ -54,6 +58,16 @@ class AdminController extends Controller
     {
         $this->middleware(function ($request, $next) {
             $this->admin = auth()->guard('admin')->user(); // This now returns Admin model
+
+                    // ✅ Logout if admin is inactive
+        if ($this->admin && !$this->admin->is_active) {
+            Auth::guard('admin')->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+            
+            return redirect()->route('admin.login')
+                ->with('error', 'Your account has been deactivated.');
+        }
             
             // If you have any other code that expects User, update it too
             return $next($request);
@@ -118,6 +132,10 @@ class AdminController extends Controller
     protected function canAccessAdminPanel($admin): bool
     {
         if (!$admin) {
+            return false;
+        }
+        // ✅ Add this check - Block inactive admins
+        if (!$admin->is_active) {
             return false;
         }
 
@@ -1237,6 +1255,889 @@ public function sendTestEmail(Request $request)
 
         return redirect()->route('admin.settings.taxes.index')->with('success', 'Tax deleted successfully!');
     }
+
+
+
+    // ===================================================================================
+// COUNTRIES
+// ===================================================================================
+
+/**
+ * Countries Index Page
+ */
+public function countriesIndex()
+{
+    $stats = [
+        'total' => \App\Models\Country::count(),
+        'un_members' => \App\Models\Country::where('un_member', 'yes')->count(),
+        'non_members' => \App\Models\Country::where('un_member', '!=', 'yes')->orWhereNull('un_member')->count(),
+    ];
+    
+    return view('admin.settings.countries.index', compact('stats'));
+}
+
+/**
+ * Countries Data (DataTable)
+ */
+public function countriesData(Request $request)
+{
+    // Handle Store (POST with form data)
+    if ($request->isMethod('post') && $request->has('iso2')) {
+        return $this->countryStore($request);
+    }
+
+    // Build query
+    $query = \App\Models\Country::query();
+
+    // Search
+    if ($search = $request->get('search')) {
+        $query->where(function ($q) use ($search) {
+            $q->where('short_name', 'like', "%{$search}%")
+              ->orWhere('long_name', 'like', "%{$search}%")
+              ->orWhere('iso2', 'like', "%{$search}%")
+              ->orWhere('iso3', 'like', "%{$search}%")
+              ->orWhere('calling_code', 'like', "%{$search}%");
+        });
+    }
+
+    // Filter by UN member
+    if ($request->filled('un_member')) {
+        $query->where('un_member', $request->un_member);
+    }
+
+    // Sorting - USE country_id NOT id
+    $sortField = 'country_id';
+    $sortDir = $request->get('dir', 'desc');
+    $query->orderBy($sortField, $sortDir);
+
+    // Paginate
+    $perPage = $request->get('per_page', 25);
+    $data = $query->paginate($perPage);
+
+    $items = collect($data->items())->map(function ($item) {
+        return [
+            'id' => $item->country_id,
+            'iso2' => $item->iso2,
+            'iso3' => $item->iso3,
+            'short_name' => $item->short_name,
+            'long_name' => $item->long_name,
+            'numcode' => $item->numcode,
+            'calling_code' => $item->calling_code,
+            'cctld' => $item->cctld,
+            'un_member' => $item->un_member,
+            '_edit_url' => route('admin.settings.countries.update', $item->country_id),
+            '_delete_url' => route('admin.settings.countries.destroy', $item->country_id),
+        ];
+    });
+
+    return response()->json([
+        'data' => $items,
+        'total' => $data->total(),
+        'current_page' => $data->currentPage(),
+        'last_page' => $data->lastPage(),
+    ]);
+}
+/**
+ * Store Country
+ */
+public function countryStore(Request $request)
+{
+    $validated = $request->validate([
+        'iso2' => 'required|string|max:2|unique:countries,iso2',
+        'iso3' => 'nullable|string|max:3',
+        'short_name' => 'required|string|max:80',
+        'long_name' => 'nullable|string|max:80',
+        'numcode' => 'nullable|string|max:6',
+        'calling_code' => 'nullable|string|max:8',
+        'cctld' => 'nullable|string|max:5',
+        'un_member' => 'nullable|string|in:yes,no,some,former',
+    ]);
+
+    $country = \App\Models\Country::create($validated);
+
+    if ($request->expectsJson()) {
+        return response()->json([
+            'success' => true,
+            'message' => 'Country created successfully!',
+            'data' => $country,
+        ]);
+    }
+
+    return redirect()->route('admin.settings.countries.index')->with('success', 'Country created successfully!');
+}
+
+/**
+ * Update Country
+ */
+public function countryUpdate(Request $request, $id)
+{
+    $country = \App\Models\Country::findOrFail($id);
+
+    $validated = $request->validate([
+        'iso2' => 'required|string|max:2|unique:countries,iso2,' . $id . ',country_id',
+        'iso3' => 'nullable|string|max:3',
+        'short_name' => 'required|string|max:80',
+        'long_name' => 'nullable|string|max:80',
+        'numcode' => 'nullable|string|max:6',
+        'calling_code' => 'nullable|string|max:8',
+        'cctld' => 'nullable|string|max:5',
+        'un_member' => 'nullable|string|in:yes,no,some,former',
+    ]);
+
+    $country->update($validated);
+
+    if ($request->expectsJson()) {
+        return response()->json([
+            'success' => true,
+            'message' => 'Country updated successfully!',
+            'data' => $country,
+        ]);
+    }
+
+    return redirect()->route('admin.settings.countries.index')->with('success', 'Country updated successfully!');
+}
+
+/**
+ * Delete Country
+ */
+public function countryDestroy($id)
+{
+    $country = \App\Models\Country::findOrFail($id);
+    $country->delete();
+
+    if (request()->expectsJson()) {
+        return response()->json([
+            'success' => true,
+            'message' => 'Country deleted successfully!',
+        ]);
+    }
+
+    return redirect()->route('admin.settings.countries.index')->with('success', 'Country deleted successfully!');
+}
+
+
+// ===================================================================================
+// CURRENCIES
+// ===================================================================================
+
+/**
+ * Currencies Index Page
+ */
+public function currenciesIndex()
+{
+    $stats = [
+        'total' => \App\Models\Currency::count(),
+        'active' => \App\Models\Currency::where('is_active', true)->count(),
+        'inactive' => \App\Models\Currency::where('is_active', false)->count(),
+    ];
+    
+    return view('admin.settings.currencies.index', compact('stats'));
+}
+
+/**
+ * Currencies Data (DataTable)
+ */
+public function currenciesData(Request $request)
+{
+    // Handle Store (POST with form data)
+    if ($request->isMethod('post') && $request->has('code')) {
+        return $this->currencyStore($request);
+    }
+
+    // Build query
+    $query = \App\Models\Currency::query();
+
+    // Search
+    if ($search = $request->get('search')) {
+        $query->where(function ($q) use ($search) {
+            $q->where('name', 'like', "%{$search}%")
+              ->orWhere('code', 'like', "%{$search}%")
+              ->orWhere('symbol', 'like', "%{$search}%");
+        });
+    }
+
+    // Filter by status
+    if ($request->filled('is_active')) {
+        $query->where('is_active', $request->is_active);
+    }
+
+    // Sorting
+    $sortField = $request->get('sort', 'code');
+    $sortDir = $request->get('dir', 'asc');
+    $query->orderBy($sortField, $sortDir);
+
+    // Paginate
+    $perPage = $request->get('per_page', 25);
+    $data = $query->paginate($perPage);
+
+    $items = collect($data->items())->map(function ($item) {
+        return [
+            'id' => $item->id,
+            'code' => $item->code,
+            'name' => $item->name,
+            'symbol' => $item->symbol,
+            'exchange_rate' => $item->exchange_rate,
+            'exchange_rate_display' => number_format($item->exchange_rate, 4),
+            'decimal_places' => $item->decimal_places,
+            'symbol_position' => $item->symbol_position,
+            'is_default' => $item->is_default,
+            'is_active' => $item->is_active,
+            'created_at' => $item->created_at ? $item->created_at->format('d M Y') : '-',
+            '_edit_url' => route('admin.settings.currencies.update', $item->id),
+            '_delete_url' => route('admin.settings.currencies.destroy', $item->id),
+        ];
+    });
+
+    return response()->json([
+        'data' => $items,
+        'total' => $data->total(),
+        'current_page' => $data->currentPage(),
+        'last_page' => $data->lastPage(),
+    ]);
+}
+
+/**
+ * Store Currency
+ */
+public function currencyStore(Request $request)
+{
+    $validated = $request->validate([
+        'code' => 'required|string|max:3|unique:currencies,code',
+        'name' => 'required|string|max:100',
+        'symbol' => 'required|string|max:10',
+        'exchange_rate' => 'required|numeric|min:0',
+        'decimal_places' => 'nullable|integer|min:0|max:4',
+        'symbol_position' => 'nullable|string|in:before,after',
+        'thousand_separator' => 'nullable|string|max:1',
+        'decimal_separator' => 'nullable|string|max:1',
+        'is_default' => 'nullable|boolean',
+        'is_active' => 'nullable|boolean',
+    ]);
+
+    $validated['is_active'] = $request->has('is_active') || $request->is_active == '1';
+    $validated['is_default'] = $request->has('is_default') || $request->is_default == '1';
+
+    // If setting as default, unset others
+    if ($validated['is_default']) {
+        \App\Models\Currency::where('is_default', true)->update(['is_default' => false]);
+    }
+
+    $currency = \App\Models\Currency::create($validated);
+
+    if ($request->expectsJson()) {
+        return response()->json([
+            'success' => true,
+            'message' => 'Currency created successfully!',
+            'data' => $currency,
+        ]);
+    }
+
+    return redirect()->route('admin.settings.currencies.index')->with('success', 'Currency created successfully!');
+}
+
+/**
+ * Update Currency
+ */
+public function currencyUpdate(Request $request, $id)
+{
+    $currency = \App\Models\Currency::findOrFail($id);
+
+    $validated = $request->validate([
+        'code' => 'required|string|max:3|unique:currencies,code,' . $id,
+        'name' => 'required|string|max:100',
+        'symbol' => 'required|string|max:10',
+        'exchange_rate' => 'required|numeric|min:0',
+        'decimal_places' => 'nullable|integer|min:0|max:4',
+        'symbol_position' => 'nullable|string|in:before,after',
+        'thousand_separator' => 'nullable|string|max:1',
+        'decimal_separator' => 'nullable|string|max:1',
+        'is_default' => 'nullable|boolean',
+        'is_active' => 'nullable|boolean',
+    ]);
+
+    $validated['is_active'] = $request->has('is_active') || $request->is_active == '1';
+    $validated['is_default'] = $request->has('is_default') || $request->is_default == '1';
+
+    // If setting as default, unset others
+    if ($validated['is_default'] && !$currency->is_default) {
+        \App\Models\Currency::where('is_default', true)->update(['is_default' => false]);
+    }
+
+    $currency->update($validated);
+
+    if ($request->expectsJson()) {
+        return response()->json([
+            'success' => true,
+            'message' => 'Currency updated successfully!',
+            'data' => $currency,
+        ]);
+    }
+
+    return redirect()->route('admin.settings.currencies.index')->with('success', 'Currency updated successfully!');
+}
+
+/**
+ * Delete Currency
+ */
+public function currencyDestroy($id)
+{
+    $currency = \App\Models\Currency::findOrFail($id);
+
+    if ($currency->is_default) {
+        if (request()->expectsJson()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Cannot delete the default currency.',
+            ], 422);
+        }
+        return back()->with('error', 'Cannot delete the default currency.');
+    }
+
+    $currency->delete();
+
+    if (request()->expectsJson()) {
+        return response()->json([
+            'success' => true,
+            'message' => 'Currency deleted successfully!',
+        ]);
+    }
+
+    return redirect()->route('admin.settings.currencies.index')->with('success', 'Currency deleted successfully!');
+}
+
+
+// ===================================================================================
+// PAYMENT METHODS
+// ===================================================================================
+
+/**
+ * Payment Methods Index Page
+ */
+public function paymentMethodsIndex()
+{
+    $stats = [
+        'total' => \App\Models\PaymentMethod::count(),
+        'active' => \App\Models\PaymentMethod::where('is_active', true)->count(),
+        'inactive' => \App\Models\PaymentMethod::where('is_active', false)->count(),
+    ];
+    
+    return view('admin.settings.payment-methods.index', compact('stats'));
+}
+
+/**
+ * Payment Methods Data (DataTable)
+ */
+public function paymentMethodsData(Request $request)
+{
+    // Handle Store (POST with form data)
+    if ($request->isMethod('post') && $request->has('name')) {
+        return $this->paymentMethodStore($request);
+    }
+
+    // Build query
+    $query = \App\Models\PaymentMethod::query();
+
+    // Search
+    if ($search = $request->get('search')) {
+        $query->where(function ($q) use ($search) {
+            $q->where('name', 'like', "%{$search}%")
+              ->orWhere('slug', 'like', "%{$search}%")
+              ->orWhere('description', 'like', "%{$search}%");
+        });
+    }
+
+    // Filter by status
+    if ($request->filled('is_active')) {
+        $query->where('is_active', $request->is_active);
+    }
+
+    // Sorting
+    $sortField = $request->get('sort', 'sort_order');
+    $sortDir = $request->get('dir', 'asc');
+    $query->orderBy($sortField, $sortDir);
+
+    // Paginate
+    $perPage = $request->get('per_page', 25);
+    $data = $query->paginate($perPage);
+
+    $items = collect($data->items())->map(function ($item) {
+        return [
+            'id' => $item->id,
+            'name' => $item->name,
+            'slug' => $item->slug,
+            'description' => $item->description,
+            'sort_order' => $item->sort_order,
+            'show_on_invoice' => $item->show_on_invoice,
+            'is_default' => $item->is_default,
+            'is_active' => $item->is_active,
+            'created_at' => $item->created_at ? $item->created_at->format('d M Y') : '-',
+            '_edit_url' => route('admin.settings.payment-methods.update', $item->id),
+            '_delete_url' => route('admin.settings.payment-methods.destroy', $item->id),
+        ];
+    });
+
+    return response()->json([
+        'data' => $items,
+        'total' => $data->total(),
+        'current_page' => $data->currentPage(),
+        'last_page' => $data->lastPage(),
+    ]);
+}
+
+/**
+ * Store Payment Method
+ */
+public function paymentMethodStore(Request $request)
+{
+    $validated = $request->validate([
+        'name' => 'required|string|max:100|unique:payment_methods,name',
+        'slug' => 'nullable|string|max:100|unique:payment_methods,slug',
+        'description' => 'nullable|string|max:500',
+        'sort_order' => 'nullable|integer|min:0',
+        'show_on_invoice' => 'nullable|boolean',
+        'is_default' => 'nullable|boolean',
+        'is_active' => 'nullable|boolean',
+    ]);
+
+    // Generate slug if not provided
+    if (empty($validated['slug'])) {
+        $validated['slug'] = \Illuminate\Support\Str::slug($validated['name']);
+    }
+
+    $validated['is_active'] = $request->has('is_active') || $request->is_active == '1';
+    $validated['is_default'] = $request->has('is_default') || $request->is_default == '1';
+    $validated['show_on_invoice'] = $request->has('show_on_invoice') || $request->show_on_invoice == '1';
+
+    // If setting as default, unset others
+    if ($validated['is_default']) {
+        \App\Models\PaymentMethod::where('is_default', true)->update(['is_default' => false]);
+    }
+
+    $paymentMethod = \App\Models\PaymentMethod::create($validated);
+
+    if ($request->expectsJson()) {
+        return response()->json([
+            'success' => true,
+            'message' => 'Payment method created successfully!',
+            'data' => $paymentMethod,
+        ]);
+    }
+
+    return redirect()->route('admin.settings.payment-methods.index')->with('success', 'Payment method created successfully!');
+}
+
+/**
+ * Update Payment Method
+ */
+public function paymentMethodUpdate(Request $request, $id)
+{
+    $paymentMethod = \App\Models\PaymentMethod::findOrFail($id);
+
+    $validated = $request->validate([
+        'name' => 'required|string|max:100|unique:payment_methods,name,' . $id,
+        'slug' => 'nullable|string|max:100|unique:payment_methods,slug,' . $id,
+        'description' => 'nullable|string|max:500',
+        'sort_order' => 'nullable|integer|min:0',
+        'show_on_invoice' => 'nullable|boolean',
+        'is_default' => 'nullable|boolean',
+        'is_active' => 'nullable|boolean',
+    ]);
+
+    $validated['is_active'] = $request->has('is_active') || $request->is_active == '1';
+    $validated['is_default'] = $request->has('is_default') || $request->is_default == '1';
+    $validated['show_on_invoice'] = $request->has('show_on_invoice') || $request->show_on_invoice == '1';
+
+    // If setting as default, unset others
+    if ($validated['is_default'] && !$paymentMethod->is_default) {
+        \App\Models\PaymentMethod::where('is_default', true)->update(['is_default' => false]);
+    }
+
+    $paymentMethod->update($validated);
+
+    if ($request->expectsJson()) {
+        return response()->json([
+            'success' => true,
+            'message' => 'Payment method updated successfully!',
+            'data' => $paymentMethod,
+        ]);
+    }
+
+    return redirect()->route('admin.settings.payment-methods.index')->with('success', 'Payment method updated successfully!');
+}
+
+/**
+ * Delete Payment Method
+ */
+public function paymentMethodDestroy($id)
+{
+    $paymentMethod = \App\Models\PaymentMethod::findOrFail($id);
+
+    if ($paymentMethod->is_default) {
+        if (request()->expectsJson()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Cannot delete the default payment method.',
+            ], 422);
+        }
+        return back()->with('error', 'Cannot delete the default payment method.');
+    }
+
+    $paymentMethod->delete();
+
+    if (request()->expectsJson()) {
+        return response()->json([
+            'success' => true,
+            'message' => 'Payment method deleted successfully!',
+        ]);
+    }
+
+    return redirect()->route('admin.settings.payment-methods.index')->with('success', 'Payment method deleted successfully!');
+}
+
+
+// ===================================================================================
+// TIMEZONES
+// ===================================================================================
+
+/**
+ * Timezones Index Page
+ */
+public function timezonesIndex()
+{
+    $stats = [
+        'total' => \App\Models\Timezone::count(),
+        'active' => \App\Models\Timezone::where('is_active', true)->count(),
+        'inactive' => \App\Models\Timezone::where('is_active', false)->count(),
+    ];
+    
+    return view('admin.settings.timezones.index', compact('stats'));
+}
+
+/**
+ * Timezones Data (DataTable)
+ */
+public function timezonesData(Request $request)
+{
+    // Handle Store (POST with form data)
+    if ($request->isMethod('post') && $request->has('name')) {
+        return $this->timezoneStore($request);
+    }
+
+    // Build query
+    $query = \App\Models\Timezone::query();
+
+    // Search
+    if ($search = $request->get('search')) {
+        $query->where(function ($q) use ($search) {
+            $q->where('name', 'like', "%{$search}%")
+              ->orWhere('label', 'like', "%{$search}%")
+              ->orWhere('country_code', 'like', "%{$search}%");
+        });
+    }
+
+    // Filter by status
+    if ($request->filled('is_active')) {
+        $query->where('is_active', $request->is_active);
+    }
+
+    // Sorting
+    $sortField = $request->get('sort', 'utc_offset');
+    $sortDir = $request->get('dir', 'asc');
+    $query->orderBy($sortField, $sortDir);
+
+    // Paginate
+    $perPage = $request->get('per_page', 25);
+    $data = $query->paginate($perPage);
+
+    $items = collect($data->items())->map(function ($item) {
+        return [
+            'id' => $item->id,
+            'name' => $item->name,
+            'label' => $item->label,
+            'country_code' => $item->country_code,
+            'utc_offset' => $item->utc_offset,
+            'utc_offset_display' => $item->utc_offset >= 0 ? '+' . $item->utc_offset : $item->utc_offset,
+            'sort_order' => $item->sort_order,
+            'is_active' => $item->is_active,
+            'created_at' => $item->created_at ? $item->created_at->format('d M Y') : '-',
+            '_edit_url' => route('admin.settings.timezones.update', $item->id),
+            '_delete_url' => route('admin.settings.timezones.destroy', $item->id),
+        ];
+    });
+
+    return response()->json([
+        'data' => $items,
+        'total' => $data->total(),
+        'current_page' => $data->currentPage(),
+        'last_page' => $data->lastPage(),
+    ]);
+}
+
+/**
+ * Store Timezone
+ */
+public function timezoneStore(Request $request)
+{
+    $validated = $request->validate([
+        'name' => 'required|string|max:100|unique:timezones,name',
+        'label' => 'nullable|string|max:150',
+        'country_code' => 'nullable|string|max:2',
+        'utc_offset' => 'required|numeric|between:-12,14',
+        'sort_order' => 'nullable|integer|min:0',
+        'is_active' => 'nullable|boolean',
+    ]);
+
+    $validated['is_active'] = $request->has('is_active') || $request->is_active == '1';
+
+    $timezone = \App\Models\Timezone::create($validated);
+
+    if ($request->expectsJson()) {
+        return response()->json([
+            'success' => true,
+            'message' => 'Timezone created successfully!',
+            'data' => $timezone,
+        ]);
+    }
+
+    return redirect()->route('admin.settings.timezones.index')->with('success', 'Timezone created successfully!');
+}
+
+/**
+ * Update Timezone
+ */
+public function timezoneUpdate(Request $request, $id)
+{
+    $timezone = \App\Models\Timezone::findOrFail($id);
+
+    $validated = $request->validate([
+        'name' => 'required|string|max:100|unique:timezones,name,' . $id,
+        'label' => 'nullable|string|max:150',
+        'country_code' => 'nullable|string|max:2',
+        'utc_offset' => 'required|numeric|between:-12,14',
+        'sort_order' => 'nullable|integer|min:0',
+        'is_active' => 'nullable|boolean',
+    ]);
+
+    $validated['is_active'] = $request->has('is_active') || $request->is_active == '1';
+
+    $timezone->update($validated);
+
+    if ($request->expectsJson()) {
+        return response()->json([
+            'success' => true,
+            'message' => 'Timezone updated successfully!',
+            'data' => $timezone,
+        ]);
+    }
+
+    return redirect()->route('admin.settings.timezones.index')->with('success', 'Timezone updated successfully!');
+}
+
+/**
+ * Delete Timezone
+ */
+public function timezoneDestroy($id)
+{
+    $timezone = \App\Models\Timezone::findOrFail($id);
+    $timezone->delete();
+
+    if (request()->expectsJson()) {
+        return response()->json([
+            'success' => true,
+            'message' => 'Timezone deleted successfully!',
+        ]);
+    }
+
+    return redirect()->route('admin.settings.timezones.index')->with('success', 'Timezone deleted successfully!');
+}
+
+// ===================================================================================
+// BANK DETAILS
+// ===================================================================================
+
+/**
+ * Bank Details Index Page
+ */
+public function bankDetailsIndex()
+{
+    $stats = [
+        'total' => \App\Models\Admin\BankDetail::count(),
+        'active' => \App\Models\Admin\BankDetail::where('is_active', true)->count(),
+        'vendors' => \App\Models\Admin\BankDetail::where('holder_type', 'vendor')->count(),
+        'customers' => \App\Models\Admin\BankDetail::where('holder_type', 'customer')->count(),
+    ];
+    
+    return view('admin.settings.bank-details.index', compact('stats'));
+}
+
+/**
+ * Bank Details Data (DataTable)
+ */
+public function bankDetailsData(Request $request)
+{
+    if ($request->isMethod('post') && $request->has('account_holder_name')) {
+        return $this->bankDetailStore($request);
+    }
+
+    $query = \App\Models\Admin\BankDetail::query();
+
+    if ($search = $request->get('search')) {
+        $query->where(function ($q) use ($search) {
+            $q->where('account_holder_name', 'like', "%{$search}%")
+              ->orWhere('bank_name', 'like', "%{$search}%")
+              ->orWhere('account_number', 'like', "%{$search}%")
+              ->orWhere('ifsc_code', 'like', "%{$search}%");
+        });
+    }
+
+    if ($request->filled('holder_type')) {
+        $query->where('holder_type', $request->holder_type);
+    }
+
+    if ($request->filled('is_active')) {
+        $query->where('is_active', $request->is_active);
+    }
+
+    $sortField = $request->get('sort', 'id');
+    $sortDir = $request->get('dir', 'desc');
+    $query->orderBy($sortField, $sortDir);
+
+    $perPage = $request->get('per_page', 25);
+    $data = $query->paginate($perPage);
+
+    $items = collect($data->items())->map(function ($item) {
+        return [
+            'id' => $item->id,
+            'holder_type' => ucfirst($item->holder_type),
+            'holder_id' => $item->holder_id,
+            'account_holder_name' => $item->account_holder_name,
+            'bank_name' => $item->bank_name,
+            'account_number' => $item->account_number,
+            'ifsc_code' => $item->ifsc_code,
+            'branch_name' => $item->branch_name,
+            'upi_id' => $item->upi_id,
+            'account_type' => $item->account_type,
+            'is_primary' => $item->is_primary,
+            'is_active' => $item->is_active,
+            'created_at' => $item->created_at ? $item->created_at->format('d M Y') : '-',
+            '_edit_url' => route('admin.settings.bank-details.update', $item->id),
+            '_delete_url' => route('admin.settings.bank-details.destroy', $item->id),
+        ];
+    });
+
+    return response()->json([
+        'data' => $items,
+        'total' => $data->total(),
+        'current_page' => $data->currentPage(),
+        'last_page' => $data->lastPage(),
+    ]);
+}
+
+/**
+ * Store Bank Detail
+ */
+public function bankDetailStore(Request $request)
+{
+    $validated = $request->validate([
+        'holder_type' => 'required|string|in:vendor,customer,employee,company',
+        'holder_id' => 'required|integer',
+        'account_holder_name' => 'required|string|max:191',
+        'bank_name' => 'required|string|max:191',
+        'account_number' => 'required|string|max:50',
+        'ifsc_code' => 'nullable|string|max:20',
+        'branch_name' => 'nullable|string|max:191',
+        'upi_id' => 'nullable|string|max:100',
+        'account_type' => 'nullable|string|in:SAVINGS,CURRENT,OTHER',
+        'is_primary' => 'nullable|boolean',
+        'is_active' => 'nullable|boolean',
+    ]);
+
+    $validated['is_active'] = $request->has('is_active') || $request->is_active == '1';
+    $validated['is_primary'] = $request->has('is_primary') || $request->is_primary == '1';
+
+    // If setting as primary, unset others for same holder
+    if ($validated['is_primary']) {
+        \App\Models\Admin\BankDetail::where('holder_type', $validated['holder_type'])
+            ->where('holder_id', $validated['holder_id'])
+            ->where('is_primary', true)
+            ->update(['is_primary' => false]);
+    }
+
+    $bank = \App\Models\Admin\BankDetail::create($validated);
+
+    if ($request->expectsJson()) {
+        return response()->json([
+            'success' => true,
+            'message' => 'Bank detail created successfully!',
+            'data' => $bank,
+        ]);
+    }
+
+    return redirect()->route('admin.settings.bank-details.index')->with('success', 'Bank detail created successfully!');
+}
+
+/**
+ * Update Bank Detail
+ */
+public function bankDetailUpdate(Request $request, $id)
+{
+    $bank = \App\Models\Admin\BankDetail::findOrFail($id);
+
+    $validated = $request->validate([
+        'holder_type' => 'required|string|in:vendor,customer,employee,company',
+        'holder_id' => 'required|integer',
+        'account_holder_name' => 'required|string|max:191',
+        'bank_name' => 'required|string|max:191',
+        'account_number' => 'required|string|max:50',
+        'ifsc_code' => 'nullable|string|max:20',
+        'branch_name' => 'nullable|string|max:191',
+        'upi_id' => 'nullable|string|max:100',
+        'account_type' => 'nullable|string|in:SAVINGS,CURRENT,OTHER',
+        'is_primary' => 'nullable|boolean',
+        'is_active' => 'nullable|boolean',
+    ]);
+
+    $validated['is_active'] = $request->has('is_active') || $request->is_active == '1';
+    $validated['is_primary'] = $request->has('is_primary') || $request->is_primary == '1';
+
+    // If setting as primary, unset others for same holder
+    if ($validated['is_primary'] && !$bank->is_primary) {
+        \App\Models\Admin\BankDetail::where('holder_type', $validated['holder_type'])
+            ->where('holder_id', $validated['holder_id'])
+            ->where('is_primary', true)
+            ->update(['is_primary' => false]);
+    }
+
+    $bank->update($validated);
+
+    if ($request->expectsJson()) {
+        return response()->json([
+            'success' => true,
+            'message' => 'Bank detail updated successfully!',
+            'data' => $bank,
+        ]);
+    }
+
+    return redirect()->route('admin.settings.bank-details.index')->with('success', 'Bank detail updated successfully!');
+}
+
+/**
+ * Delete Bank Detail
+ */
+public function bankDetailDestroy($id)
+{
+    $bank = \App\Models\Admin\BankDetail::findOrFail($id);
+    $bank->delete();
+
+    if (request()->expectsJson()) {
+        return response()->json([
+            'success' => true,
+            'message' => 'Bank detail deleted successfully!',
+        ]);
+    }
+
+    return redirect()->route('admin.settings.bank-details.index')->with('success', 'Bank detail deleted successfully!');
+}
     /*
     |--------------------------------------------------------------------------
     | Menu Configuration
@@ -1314,4 +2215,7 @@ public function sendTestEmail(Request $request)
 
         return $html;
     }
+
+
+
 }

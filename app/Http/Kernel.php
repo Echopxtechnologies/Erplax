@@ -42,16 +42,6 @@ class Kernel extends HttpKernel
             \Illuminate\Routing\Middleware\ThrottleRequests::class.':api',
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
         ],
-    
-    // 'admin' => [  // Add this group
-    //     \App\Http\Middleware\EncryptCookies::class,
-    //     \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
-    //     \Illuminate\Session\Middleware\StartSession::class,
-    //     \App\Http\Middleware\AdminSessionMiddleware::class, // Add this
-    //     \Illuminate\View\Middleware\ShareErrorsFromSession::class,
-    //     \App\Http\Middleware\VerifyCsrfToken::class,
-    //     \Illuminate\Routing\Middleware\SubstituteBindings::class,
-    // ],
 ];
 
 
@@ -76,7 +66,6 @@ class Kernel extends HttpKernel
     'throttle' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
     'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
     'ensure.is.admin' => \App\Http\Middleware\EnsureIsAdmin::class,
-    // 'admin.session' => \App\Http\Middleware\AdminSessionMiddleware::class, // Add this
-    // 'admin.auth' => \App\Http\Middleware\AdminAuthenticate::class, // You'll need to create this
+    'admin.registration.allowed'=>\App\Http\Middleware\AllowAdminRegistration::class,
 ];
 }

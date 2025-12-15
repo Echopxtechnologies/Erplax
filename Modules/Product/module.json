@@ -1,0 +1,12 @@
+{
+    "name": "Product",
+    "alias": "product",
+    "description": "Simple product catalog module",
+    "version": "1.0.0",
+    "keywords": ["product", "catalog"],
+    "active": 1,
+    "order": 10,
+    "providers": [
+        "Modules\\Product\\Providers\\ProductServiceProvider"
+    ]
+}

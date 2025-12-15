@@ -63,16 +63,50 @@ class SettingsService
                     'sort_order' => 3,
                 ],
                 [
+                    'title' => 'Localization',
+                    'icon' => 'globe',
+                    'route' => null,
+                    'permission' => 'settings.localization.read',
+                    'sort_order' => 4,
+                    'children' => [
+                        [
+                            'title' => 'Countries',
+                            'route' => 'admin.settings.countries.index',
+                            'permission' => 'countries.list.read',
+                        ],
+                        [
+                            'title' => 'Timezones',
+                            'route' => 'admin.settings.timezones.index',
+                            'permission' => 'timezones.list.read',
+                        ],
+                        [
+                            'title' => 'Currencies',
+                            'route' => 'admin.settings.currencies.index',
+                            'permission' => 'currencies.list.read',
+                        ],
+                    ],
+                ],
+                [
                     'title' => 'Finances',
                     'icon' => 'currency',
                     'route' => null,
                     'permission' => 'settings.finances.read',
-                    'sort_order' => 4,
+                    'sort_order' => 5,
                     'children' => [
                         [
                             'title' => 'Tax Management',
                             'route' => 'admin.settings.taxes.index',
                             'permission' => 'taxes.list.read',
+                        ],
+                        [
+                            'title' => 'Payment Methods',
+                            'route' => 'admin.settings.payment-methods.index',
+                            'permission' => 'payment-methods.list.read',
+                        ],
+                        [
+                            'title' => 'Bank Details',
+                            'route' => 'admin.settings.bank-details.index',
+                            'permission' => 'bank-details.list.read',
                         ],
                     ],
                 ],
@@ -81,7 +115,7 @@ class SettingsService
                     'icon' => 'shield',
                     'route' => null,
                     'permission' => 'settings.roles.read',
-                    'sort_order' => 4,
+                    'sort_order' => 6,
                     'children' => [
                         [
                             'title' => 'Permission',

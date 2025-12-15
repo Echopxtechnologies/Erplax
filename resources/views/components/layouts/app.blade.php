@@ -78,8 +78,7 @@
             $currentPage = 'module';
         }
     @endphp
-    
-    <style>
+<style>
         :root {
             --primary: #3b82f6;
             --primary-hover: #2563eb;
@@ -577,8 +576,33 @@
             overflow-y: auto;
             transition: transform 0.3s ease, width 0.3s ease;
             z-index: 1000;
+            /* Modern Scrollbar - Firefox */
+            scrollbar-width: thin;
+            scrollbar-color: transparent transparent;
+        }
+        .sidebar:hover {
+            scrollbar-color: var(--sidebar-border) transparent;
         }
         .sidebar.hidden { transform: translateX(-100%); }
+        
+        /* Modern Scrollbar - Webkit (Chrome, Safari, Edge) */
+        .sidebar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .sidebar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .sidebar::-webkit-scrollbar-thumb {
+            background: transparent;
+            border-radius: 3px;
+            transition: background 0.2s;
+        }
+        .sidebar:hover::-webkit-scrollbar-thumb {
+            background: var(--sidebar-border);
+        }
+        .sidebar:hover::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
+        }
         
         .sidebar-user {
             display: flex; align-items: center; gap: 10px;
@@ -623,11 +647,12 @@
         .nav-item.open .chevron { transform: rotate(90deg); }
         
         .nav-submenu {
-            max-height: 0; overflow: hidden;
+            max-height: 0; 
+            overflow: hidden;
             transition: max-height 0.3s ease;
             padding-left: 28px;
         }
-        .nav-submenu.open { max-height: 500px; }
+        .nav-submenu.open { max-height: 9999px; }
         
         /* Main Content */
         .main-content {
@@ -694,70 +719,198 @@
             .navbar-center { display: none; }
             .user-name { display: none; }
         }
+        
         /* Nested Submenu Styles */
-.nav-item.has-nested {
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
+        .nav-item.has-nested {
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .nav-item.has-nested span {
+            flex: 1;
+        }
+        .chevron-nested {
+            width: 16px;
+            height: 16px;
+            transition: transform 0.2s;
+            margin-left: auto;
+        }
+        .nav-item.has-nested.expanded .chevron-nested {
+            transform: rotate(180deg);
+        }
+        .nav-nested-submenu {
+            display: none;
+            padding-left: 20px;
+            border-left: 2px solid var(--card-border);
+            margin-left: 16px;
+            margin-top: 4px;
+            margin-bottom: 4px;
+        }
+        .nav-nested-submenu.open {
+            display: block;
+        }
+        .nav-nested-submenu .nav-item {
+            padding: 8px 12px;
+            font-size: 13px;
+            border-radius: 6px;
+            margin-bottom: 2px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        .nav-nested-submenu .nav-item:hover {
+            background: var(--body-bg);
+            color: var(--text-primary);
+        }
+        .nav-nested-submenu .nav-item.active {
+            background: rgba(59, 130, 246, 0.1);
+            color: var(--primary);
+        }
+        .nav-nested-submenu .nav-item svg {
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+        }
+        
+        /* ========== Modern Scrollbar for Panels ========== */
+        .notif-body::-webkit-scrollbar,
+        .setup-body::-webkit-scrollbar {
+            width: 4px;
+        }
+        .notif-body::-webkit-scrollbar-track,
+        .setup-body::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .notif-body::-webkit-scrollbar-thumb,
+        .setup-body::-webkit-scrollbar-thumb {
+            background: var(--card-border);
+            border-radius: 2px;
+        }
+        .notif-body::-webkit-scrollbar-thumb:hover,
+        .setup-body::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
+        }
+        .notif-body,
+        .setup-body {
+            scrollbar-width: thin;
+            scrollbar-color: var(--card-border) transparent;
+        }
+    /* Toast Container - Bottom center like Android snackbar */
+    .toast-container {
+        top: auto;
+        bottom: 20px;
+        left: 16px;
+        right: 16px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    /* Toast - Compact pill style */
+    .toast {
+        min-width: auto;
+        max-width: 100%;
+        width: auto;
+        padding: 10px 16px;
+        border-radius: 50px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        gap: 10px;
+        align-items: center;
+    }
+    
+    /* Hide progress bar on mobile - cleaner look */
+    .toast .toast-progress {
+        display: none;
+    }
+    
+    /* Smaller icon */
+    .toast .toast-icon {
+        width: 18px;
+        height: 18px;
+        margin: 0;
+    }
+    
+    /* Single line text */
+    .toast .toast-title {
+        font-size: 13px;
+        font-weight: 500;
+    }
+    
+    /* Hide detailed message on mobile */
+    .toast .toast-message {
+        display: none;
+    }
+    
+    /* Compact close button */
+    .toast .toast-close {
+        padding: 2px;
+        margin-left: 4px;
+    }
+    .toast .toast-close svg {
+        width: 14px;
+        height: 14px;
+    }
+    
+    /* Animation - Slide up from bottom */
+    .toast {
+        transform: translateY(100px);
+        opacity: 0;
+    }
+    .toast.show {
+        transform: translateY(0);
+        opacity: 1;
+    }
+    .toast.hide {
+        transform: translateY(100px);
+        opacity: 0;
+    }
+    
+    /* Color variants - Solid background for better visibility */
+    .toast-success {
+        background: var(--success);
+        color: #fff;
+    }
+    .toast-success .toast-icon,
+    .toast-success .toast-title,
+    .toast-success .toast-close {
+        color: #fff;
+    }
+    
+    .toast-error {
+        background: var(--danger);
+        color: #fff;
+    }
+    .toast-error .toast-icon,
+    .toast-error .toast-title,
+    .toast-error .toast-close {
+        color: #fff;
+    }
+    
+    .toast-warning {
+        background: var(--warning);
+        color: #fff;
+    }
+    .toast-warning .toast-icon,
+    .toast-warning .toast-title,
+    .toast-warning .toast-close {
+        color: #fff;
+    }
+    
+    .toast-info {
+        background: var(--primary);
+        color: #fff;
+    }
+    .toast-info .toast-icon,
+    .toast-info .toast-title,
+    .toast-info .toast-close {
+        color: #fff;
+    }
 
-.nav-item.has-nested span {
-    flex: 1;
-}
-
-.chevron-nested {
-    width: 16px;
-    height: 16px;
-    transition: transform 0.2s;
-    margin-left: auto;
-}
-
-.nav-item.has-nested.expanded .chevron-nested {
-    transform: rotate(180deg);
-}
-
-.nav-nested-submenu {
-    display: none;
-    padding-left: 20px;
-    border-left: 2px solid var(--card-border);
-    margin-left: 16px;
-    margin-top: 4px;
-    margin-bottom: 4px;
-}
-
-.nav-nested-submenu.open {
-    display: block;
-}
-
-.nav-nested-submenu .nav-item {
-    padding: 8px 12px;
-    font-size: 13px;
-    border-radius: 6px;
-    margin-bottom: 2px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    color: var(--text-muted);
-    text-decoration: none;
-    transition: all 0.2s;
-}
-
-.nav-nested-submenu .nav-item:hover {
-    background: var(--body-bg);
-    color: var(--text-primary);
-}
-
-.nav-nested-submenu .nav-item.active {
-    background: rgba(59, 130, 246, 0.1);
-    color: var(--primary);
-}
-
-.nav-nested-submenu .nav-item svg {
-    width: 16px;
-    height: 16px;
-    flex-shrink: 0;
-}
     </style>
     
     @stack('styles')
@@ -928,7 +1081,7 @@
             </div>
         </div>
         
- <nav class="sidebar-nav">
+<nav class="sidebar-nav">
     <div class="sidebar-nav-title">Menu</div>
     
     {{-- Dashboard --}}
@@ -939,21 +1092,27 @@
         <span>Dashboard</span>
     </a>
 
-    {{-- ========== DYNAMIC CORE MENUS (Inventory, etc.) ========== --}}
+    {{-- ========== CORE SECTION ========== --}}
     {!! \App\Services\Admin\CoreMenuService::renderCoreMenu() !!}
 
-    {{-- Module menu items (non-core modules from Modules folder) --}}
-    @foreach($activeModules as $module)
-        @if(!$module->is_core)
+    {{-- ========== MODULES SECTION ========== --}}
+    @php
+        $nonCoreModules = $activeModules->filter(fn($m) => !$m->is_core)->sortBy('sort_order');
+    @endphp
+    
+    @if($nonCoreModules->count() > 0)
+        <div class="sidebar-nav-title">Modules</div>
+        
+        @foreach($nonCoreModules as $module)
             @if(View::exists(strtolower($module->alias) . '::sidebar'))
                 @include(strtolower($module->alias) . '::sidebar')
             @elseif(View::exists(strtolower($module->alias) . '::menu'))
                 @include(strtolower($module->alias) . '::menu')
             @endif
-        @endif
-    @endforeach
+        @endforeach
+    @endif
     
-    {{-- ========== DYNAMIC SYSTEM MENU ========== --}}
+    {{-- ========== SYSTEM SECTION ========== --}}
     <div class="sidebar-nav-title">System</div>
     {!! \App\Services\Admin\CoreMenuService::renderSystemMenu() !!}
     

@@ -1,0 +1,5 @@
+{
+    "name": "modules/product",
+    "description": "Simple product catalog module",
+    "type": "laravel-module"
+}

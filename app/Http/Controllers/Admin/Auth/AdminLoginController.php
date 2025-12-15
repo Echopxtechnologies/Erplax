@@ -57,6 +57,12 @@ class AdminLoginController extends Controller
                 'email' => __('No account found with this email.'),
             ]);
         }
+        // ✅ Fixed: Check if user is inactive
+        if (!$admin->is_active) {
+            throw ValidationException::withMessages([
+                'email' => __('Your account is inactive. Please contact administrator.'),
+            ]);
+        }
 
         if (!$this->canAccessAdminPanel($admin)) {
             throw ValidationException::withMessages([
