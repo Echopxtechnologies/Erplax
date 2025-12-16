@@ -27,6 +27,8 @@
         .form-textarea { min-height: 100px; resize: vertical; }
         
         .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
+        .form-row-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+        @media (max-width: 768px) { .form-row-3 { grid-template-columns: 1fr; } }
         
         .file-upload { display: flex; align-items: center; gap: 16px; }
         .file-preview { width: 80px; height: 80px; border: 2px dashed var(--card-border); border-radius: 8px; display: flex; align-items: center; justify-content: center; overflow: hidden; background: var(--body-bg); }
@@ -125,13 +127,43 @@
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">GST Number</label>
-                        <input type="text" name="company_gst" class="form-input" value="{{ old('company_gst', $company_gst) }}">
+                        <label class="form-label">Address</label>
+                        <textarea name="company_address" class="form-textarea" rows="2">{{ old('company_address', $company_address) }}</textarea>
+                    </div>
+
+                    <div class="form-row-3">
+                        <div class="form-group">
+                            <label class="form-label">City</label>
+                            <input type="text" name="company_city" class="form-input" value="{{ old('company_city', $company_city ?? '') }}">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">State</label>
+                            <input type="text" name="company_state" class="form-input" value="{{ old('company_state', $company_state ?? '') }}">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Zip Code</label>
+                            <input type="text" name="company_zip" class="form-input" value="{{ old('company_zip', $company_zip ?? '') }}">
+                        </div>
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">Address</label>
-                        <textarea name="company_address" class="form-textarea">{{ old('company_address', $company_address) }}</textarea>
+                        <label class="form-label">Country Code</label>
+                        <input type="text" name="company_country_code" class="form-input" value="{{ old('company_country_code', $company_country_code ?? '') }}" placeholder="e.g., IN, US, UK" style="max-width: 200px;">
+                    </div>
+
+                    <div class="form-row-3">
+                        <div class="form-group">
+                            <label class="form-label">GST Number</label>
+                            <input type="text" name="company_gst" class="form-input" value="{{ old('company_gst', $company_gst) }}" placeholder="e.g., 29ABCDE1234F1Z5">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">PAN Number</label>
+                            <input type="text" name="company_pan" class="form-input" value="{{ old('company_pan', $company_pan ?? '') }}" placeholder="e.g., ABCDE1234F">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">CIN Number</label>
+                            <input type="text" name="company_cin" class="form-input" value="{{ old('company_cin', $company_cin ?? '') }}" placeholder="Corporate Identity Number">
+                        </div>
                     </div>
                 </div>
             </div>

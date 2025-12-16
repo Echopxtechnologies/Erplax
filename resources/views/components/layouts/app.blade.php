@@ -799,6 +799,7 @@
             scrollbar-width: thin;
             scrollbar-color: var(--card-border) transparent;
         }
+     @media (max-width: 768px) {    
     /* Toast Container - Bottom center like Android snackbar */
     .toast-container {
         top: auto;
@@ -910,6 +911,7 @@
     .toast-info .toast-close {
         color: #fff;
     }
+}
 
     </style>
     

@@ -269,4 +269,77 @@ class Option extends Model
     {
         return static::get('mail_from_name');
     }
+    // ===================================================================================
+// ADD THESE HELPER METHODS TO app/Models/Option.php
+// ===================================================================================
+
+// Add these inside the "Company Settings Helpers" section:
+
+public static function companyCity(): ?string
+{
+    return static::get('company_city');
+}
+
+public static function companyState(): ?string
+{
+    return static::get('company_state');
+}
+
+public static function companyCountryCode(): ?string
+{
+    return static::get('company_country_code');
+}
+
+public static function companyZip(): ?string
+{
+    return static::get('company_zip');
+}
+
+public static function companyPan(): ?string
+{
+    return static::get('company_pan');
+}
+
+public static function companyCin(): ?string
+{
+    return static::get('company_cin');
+}
+
+/**
+ * Get full company address formatted for PDF/invoices
+ */
+public static function companyFullAddress(): string
+{
+    $parts = array_filter([
+        static::companyAddress(),
+        static::companyCity(),
+        static::companyState(),
+        static::companyZip(),
+    ]);
+    
+    return implode(', ', $parts);
+}
+
+/**
+ * Get all company information as array (for PDF/invoices)
+ */
+public static function companyInfo(): array
+{
+    return [
+        'name' => static::companyName(),
+        'email' => static::companyEmail(),
+        'phone' => static::companyPhone(),
+        'address' => static::companyAddress(),
+        'city' => static::companyCity(),
+        'state' => static::companyState(),
+        'country_code' => static::companyCountryCode(),
+        'zip' => static::companyZip(),
+        'website' => static::companyWebsite(),
+        'logo' => static::companyLogo(),
+        'gst' => static::companyGst(),
+        'pan' => static::companyPan(),
+        'cin' => static::companyCin(),
+        'full_address' => static::companyFullAddress(),
+    ];
+}
 }

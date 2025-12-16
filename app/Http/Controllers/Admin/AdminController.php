@@ -899,6 +899,12 @@ class AdminController extends Controller
             'currency_symbol' => Option::get('currency_symbol', '₹'),
             'currency_code' => Option::get('currency_code', 'INR'),
             'pagination_limit' => Option::get('pagination_limit', 10),
+            'company_city' => Option::get('company_city', ''),
+            'company_state' => Option::get('company_state', ''),
+            'company_country_code' => Option::get('company_country_code', ''),
+            'company_zip' => Option::get('company_zip', ''),
+            'company_pan' => Option::get('company_pan', ''),
+            'company_cin' => Option::get('company_cin', ''),
         ];
 
         return view('admin.settings.general', $data);
@@ -924,6 +930,12 @@ class AdminController extends Controller
             'currency_symbol' => 'required|string|max:10',
             'currency_code' => 'required|string|max:10',
             'pagination_limit' => 'required|integer|min:5|max:100',
+            'company_city' => 'nullable|string|max:100',
+            'company_state' => 'nullable|string|max:100',
+            'company_country_code' => 'nullable|string|max:5',
+            'company_zip' => 'nullable|string|max:20',
+            'company_pan' => 'nullable|string|max:20',
+            'company_cin' => 'nullable|string|max:50',
         ]);
 
         // Company settings
@@ -933,6 +945,12 @@ class AdminController extends Controller
         Option::set('company_address', $request->company_address, ['group' => 'company']);
         Option::set('company_website', $request->company_website, ['group' => 'company']);
         Option::set('company_gst', $request->company_gst, ['group' => 'company']);
+        Option::set('company_city', $request->company_city, ['group' => 'company']);
+        Option::set('company_state', $request->company_state, ['group' => 'company']);
+        Option::set('company_country_code', $request->company_country_code, ['group' => 'company']);
+        Option::set('company_zip', $request->company_zip, ['group' => 'company']);
+        Option::set('company_pan', $request->company_pan, ['group' => 'company']);
+        Option::set('company_cin', $request->company_cin, ['group' => 'company']);
 
         // Handle logo upload
         if ($request->hasFile('company_logo')) {
@@ -958,6 +976,149 @@ class AdminController extends Controller
 
         return redirect()->back()->with('success', 'Settings saved successfully!');
     }
+
+    // ===================================================================================
+// SYSTEM/SERVER INFORMATION - ADD THIS NEW METHOD
+// ===================================================================================
+
+/**
+ * System/Server Information Page
+ */
+public function systemInfoIndex()
+{
+    // Get MySQL version and settings
+    $mysqlVersion = 'N/A';
+    $maxConnections = 'N/A';
+    $maxPacketSize = 'N/A';
+    $sqlMode = 'N/A';
+    
+    try {
+        $mysqlVersion = DB::select('SELECT VERSION() as version')[0]->version ?? 'N/A';
+        
+        $maxConnResult = DB::select("SHOW VARIABLES LIKE 'max_connections'");
+        $maxConnections = $maxConnResult[0]->Value ?? 'N/A';
+        
+        $maxPacketResult = DB::select("SHOW VARIABLES LIKE 'max_allowed_packet'");
+        $maxPacketSize = $maxPacketResult[0]->Value ?? 'N/A';
+        if (is_numeric($maxPacketSize)) {
+            $maxPacketSize = $this->formatBytes((int)$maxPacketSize);
+        }
+        
+        $sqlModeResult = DB::select("SHOW VARIABLES LIKE 'sql_mode'");
+        $sqlMode = $sqlModeResult[0]->Value ?? 'N/A';
+    } catch (\Exception $e) {}
+
+    // Session count
+    $sessionCount = 0;
+    try {
+        if (config('session.driver') === 'database') {
+            $sessionCount = DB::table(config('session.table', 'sessions'))->count();
+        }
+    } catch (\Exception $e) {}
+
+    $systemInfo = [
+        'os' => PHP_OS,
+        'php_version' => PHP_VERSION,
+        'laravel_version' => app()->version(),
+        'webserver' => $_SERVER['SERVER_SOFTWARE'] ?? 'N/A',
+        'webserver_user' => get_current_user(),
+        'server_protocol' => $_SERVER['SERVER_PROTOCOL'] ?? 'N/A',
+        'document_root' => $_SERVER['DOCUMENT_ROOT'] ?? base_path(),
+        'base_url' => config('app.url'),
+        'environment' => config('app.env'),
+        'debug_mode' => config('app.debug'),
+        'timezone' => config('app.timezone'),
+        'installation_path' => base_path(),
+        'temp_dir' => sys_get_temp_dir(),
+        
+        'memory_limit' => ini_get('memory_limit'),
+        'max_execution_time' => ini_get('max_execution_time'),
+        'upload_max_filesize' => ini_get('upload_max_filesize'),
+        'post_max_size' => ini_get('post_max_size'),
+        'max_input_vars' => ini_get('max_input_vars'),
+        'allow_url_fopen' => ini_get('allow_url_fopen'),
+        
+        'db_driver' => config('database.default'),
+        'mysql_version' => $mysqlVersion,
+        'db_name' => config('database.connections.mysql.database'),
+        'db_host' => config('database.connections.mysql.host'),
+        'max_connections' => $maxConnections,
+        'max_packet_size' => $maxPacketSize,
+        'sql_mode' => $sqlMode,
+        
+        'cache_driver' => config('cache.default'),
+        'session_driver' => config('session.driver'),
+        'session_count' => $sessionCount,
+        'queue_driver' => config('queue.default'),
+        'mail_driver' => config('mail.default'),
+        'filesystem_driver' => config('filesystems.default'),
+        
+        'csrf_enabled' => 'Yes',
+        'cloudflare' => isset($_SERVER['HTTP_CF_RAY']) ? 'Yes' : 'No',
+    ];
+
+    $requiredExtensions = ['curl', 'openssl', 'mbstring', 'iconv', 'gd', 'zip', 
+        'pdo', 'pdo_mysql', 'json', 'xml', 'fileinfo', 'bcmath', 'tokenizer', 'ctype', 'dom', 'session', 'imap'];
+    
+    $phpExtensions = [];
+    foreach ($requiredExtensions as $ext) {
+        $phpExtensions[$ext] = [
+            'loaded' => extension_loaded($ext),
+            'version' => extension_loaded($ext) ? (phpversion($ext) ?: null) : null,
+        ];
+    }
+
+    $diskTotal = @disk_total_space(base_path()) ?: 0;
+    $diskFree = @disk_free_space(base_path()) ?: 0;
+    $diskUsed = $diskTotal - $diskFree;
+    $diskPercentage = $diskTotal > 0 ? round(($diskUsed / $diskTotal) * 100, 2) : 0;
+    
+    $diskSpace = [
+        'total' => $this->formatBytes($diskTotal),
+        'free' => $this->formatBytes($diskFree),
+        'used' => $this->formatBytes($diskUsed),
+        'percentage' => $diskPercentage,
+    ];
+
+    $modules = [];
+    try {
+        $modules = \App\Models\Module::orderBy('name')->get();
+    } catch (\Exception $e) {}
+
+    return view('admin.settings.system-info.index', compact('systemInfo', 'phpExtensions', 'diskSpace', 'modules'));
+}
+
+/**
+ * Clear Sessions
+ */
+public function clearSessions()
+{
+    try {
+        if (config('session.driver') === 'database') {
+            $table = config('session.table', 'sessions');
+            $currentSessionId = session()->getId();
+            DB::table($table)->where('id', '!=', $currentSessionId)->delete();
+            $this->logAction('Cleared session table');
+            return redirect()->back()->with('success', 'Sessions cleared! Other users will need to login again.');
+        }
+        return redirect()->back()->with('error', 'Session clearing only available for database session driver.');
+    } catch (\Exception $e) {
+        return redirect()->back()->with('error', 'Failed: ' . $e->getMessage());
+    }
+}
+
+/**
+ * Format bytes to human readable
+ */
+protected function formatBytes($bytes, $precision = 2): string
+{
+    $units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    $bytes = max($bytes, 0);
+    $pow = floor(($bytes ? log($bytes) : 0) / log(1024));
+    $pow = min($pow, count($units) - 1);
+    $bytes /= pow(1024, $pow);
+    return round($bytes, $precision) . ' ' . $units[$pow];
+}
 
     /**
      * Email Settings Page

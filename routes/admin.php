@@ -54,6 +54,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('/email', [AdminController::class, 'saveSettingsEmail'])->name('email.save');
             Route::post('/email/test', [AdminController::class, 'sendTestEmail'])->name('email.test');
             Route::get('/permission', Permission::class)->name('permission');
+            Route::get('/system-info', [AdminController::class, 'systemInfoIndex'])->name('system-info');
+            Route::post('/system-info/clear-sessions', [AdminController::class, 'clearSessions'])->name('system-info.clear-sessions');
 
             Route::get('/permissions/list', [PermissionController::class, 'index'])->name('permissions.index');
             Route::get('/permissions/create', [PermissionController::class, 'create'])->name('permissions.create');

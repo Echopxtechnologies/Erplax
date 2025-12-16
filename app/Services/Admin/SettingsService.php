@@ -139,6 +139,14 @@ class SettingsService
                         ],
                     ],
                 ],
+                // NEW: System Info Menu Item
+                [
+                    'title' => 'System Info',
+                    'icon' => 'server',
+                    'route' => 'admin.settings.system-info',
+                    'permission' => 'settings.system-info.read',
+                    'sort_order' => 7,
+                ],
             ],
         ];
     }
