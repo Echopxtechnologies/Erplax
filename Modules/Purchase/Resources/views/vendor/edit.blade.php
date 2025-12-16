@@ -1,47 +1,5 @@
-<style>
-.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid #e5e7eb; }
-.page-header h1 { font-size: 24px; font-weight: 600; color: #1f2937; margin: 0; }
-.btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 18px; border-radius: 8px; font-weight: 500; font-size: 14px; cursor: pointer; text-decoration: none; border: none; transition: all 0.2s; }
-.btn-primary { background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); color: #fff; }
-.btn-primary:hover { background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%); color: #fff; }
-.btn-outline { background: #fff; color: #374151; border: 1px solid #d1d5db; }
-.btn-outline:hover { background: #f9fafb; color: #374151; }
-.btn-danger { background: #ef4444; color: #fff; }
-.btn-danger:hover { background: #dc2626; color: #fff; }
+@include('purchase::partials.styles')
 
-.card { background: #fff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid #e5e7eb; margin-bottom: 20px; }
-.card-header { padding: 16px 24px; border-bottom: 1px solid #e5e7eb; background: #f9fafb; border-radius: 12px 12px 0 0; }
-.card-header h5 { margin: 0; font-size: 16px; font-weight: 600; color: #1f2937; }
-.card-body { padding: 24px; }
-
-.form-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 20px; }
-.form-group { display: flex; flex-direction: column; }
-.form-group.col-2 { grid-column: span 2; }
-.form-group.col-3 { grid-column: span 3; }
-.form-group.col-full { grid-column: 1 / -1; }
-
-.form-label { font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 6px; }
-.form-label .required { color: #ef4444; }
-.form-control { padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; transition: border-color 0.2s, box-shadow 0.2s; width: 100%; box-sizing: border-box; }
-.form-control:focus { outline: none; border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
-.form-control:read-only, .form-control:disabled { background: #f3f4f6; color: #6b7280; cursor: not-allowed; }
-.form-control.is-invalid { border-color: #ef4444; }
-.invalid-feedback { color: #ef4444; font-size: 12px; margin-top: 4px; display: none; }
-.form-control.is-invalid + .invalid-feedback { display: block; }
-.form-text { font-size: 12px; color: #6b7280; margin-top: 4px; }
-
-select.form-control { appearance: none; background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e"); background-position: right 10px center; background-repeat: no-repeat; background-size: 16px; padding-right: 36px; }
-textarea.form-control { min-height: 80px; resize: vertical; }
-
-.alert { padding: 16px; border-radius: 8px; margin-bottom: 20px; }
-.alert-danger { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
-.alert ul { margin: 0; padding-left: 20px; }
-
-.form-actions { display: flex; justify-content: space-between; margin-top: 24px; }
-.form-actions-left, .form-actions-right { display: flex; gap: 12px; }
-
-@media (max-width: 768px) { .form-row { grid-template-columns: 1fr; } .form-group.col-2, .form-group.col-3 { grid-column: span 1; } }
-</style>
 
 <div class="page-header">
     <h1>Edit Vendor: {{ $vendor->name }}</h1>
@@ -192,6 +150,49 @@ textarea.form-control { min-height: 80px; resize: vertical; }
                 <div class="form-group">
                     <label class="form-label">Current Balance (₹)</label>
                     <input type="text" class="form-control" value="{{ number_format($vendor->current_balance ?? 0, 2) }}" readonly>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bank Details -->
+    <div class="card">
+        <div class="card-header"><h5>🏦 Bank Details</h5></div>
+        <div class="card-body">
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Account Holder Name</label>
+                    <input type="text" name="bank_account_holder" class="form-control" value="{{ old('bank_account_holder', $bankDetail->account_holder_name ?? '') }}" placeholder="Account holder name">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Bank Name</label>
+                    <input type="text" name="bank_name" class="form-control" value="{{ old('bank_name', $bankDetail->bank_name ?? '') }}" placeholder="e.g., State Bank of India">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Account Number</label>
+                    <input type="text" name="bank_account_number" class="form-control" value="{{ old('bank_account_number', $bankDetail->account_number ?? '') }}" placeholder="Account number">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Account Type</label>
+                    <select name="bank_account_type" class="form-control">
+                        <option value="CURRENT" {{ old('bank_account_type', $bankDetail->account_type ?? 'CURRENT') == 'CURRENT' ? 'selected' : '' }}>Current</option>
+                        <option value="SAVINGS" {{ old('bank_account_type', $bankDetail->account_type ?? '') == 'SAVINGS' ? 'selected' : '' }}>Savings</option>
+                        <option value="OTHER" {{ old('bank_account_type', $bankDetail->account_type ?? '') == 'OTHER' ? 'selected' : '' }}>Other</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">IFSC Code</label>
+                    <input type="text" name="bank_ifsc" class="form-control" value="{{ old('bank_ifsc', $bankDetail->ifsc_code ?? '') }}" placeholder="e.g., SBIN0001234" style="text-transform: uppercase;">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Branch Name</label>
+                    <input type="text" name="bank_branch" class="form-control" value="{{ old('bank_branch', $bankDetail->branch_name ?? '') }}" placeholder="Branch name">
+                </div>
+                <div class="form-group col-2">
+                    <label class="form-label">UPI ID</label>
+                    <input type="text" name="bank_upi_id" class="form-control" value="{{ old('bank_upi_id', $bankDetail->upi_id ?? '') }}" placeholder="e.g., vendor@upi">
                 </div>
             </div>
         </div>

@@ -11,7 +11,7 @@ class AllowAdminRegistration
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if(\App\Models\Admin::count()>10){
+        if(\App\Models\Admin::count()>0){
             return redirect()->route('admin.login')->with('error','Registration is Disabled');
         }
         return $next($request);

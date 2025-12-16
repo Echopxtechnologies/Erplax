@@ -1,57 +1,5 @@
-<style>
-.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid #e5e7eb; }
-.page-header h1 { font-size: 24px; font-weight: 600; color: #1f2937; margin: 0; }
-.btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 18px; border-radius: 8px; font-weight: 500; font-size: 14px; cursor: pointer; text-decoration: none; border: none; transition: all 0.2s; }
-.btn-primary { background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); color: #fff; }
-.btn-success { background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); color: #fff; }
-.btn-outline { background: #fff; color: #374151; border: 1px solid #d1d5db; }
-.btn-sm { padding: 6px 12px; font-size: 13px; }
-.btn-danger-outline { background: #fff; color: #dc2626; border: 1px solid #fca5a5; padding: 4px 8px; cursor: pointer; }
+@include('purchase::partials.styles')
 
-.card { background: #fff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid #e5e7eb; margin-bottom: 20px; }
-.card-header { padding: 16px 24px; border-bottom: 1px solid #e5e7eb; background: #f9fafb; border-radius: 12px 12px 0 0; display: flex; justify-content: space-between; align-items: center; }
-.card-header h5 { margin: 0; font-size: 16px; font-weight: 600; color: #1f2937; }
-.card-body { padding: 24px; }
-
-.form-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 20px; }
-.form-group { display: flex; flex-direction: column; }
-.form-group.col-2 { grid-column: span 2; }
-.form-group.col-full { grid-column: 1 / -1; }
-
-.form-label { font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 6px; }
-.form-label .required { color: #ef4444; }
-.form-control { padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; width: 100%; box-sizing: border-box; }
-.form-control:focus { outline: none; border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
-.form-control:read-only { background: #f9fafb; color: #6b7280; }
-.form-control-sm { padding: 8px 12px; font-size: 13px; }
-.form-control.is-invalid { border-color: #ef4444; }
-select.form-control { appearance: none; background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e"); background-position: right 10px center; background-repeat: no-repeat; background-size: 16px; padding-right: 36px; }
-
-.alert { padding: 16px; border-radius: 8px; margin-bottom: 20px; }
-.alert-danger { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
-.alert-info { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; }
-.alert ul { margin: 0; padding-left: 20px; }
-
-.table-responsive { overflow-x: auto; }
-.items-table { width: 100%; border-collapse: collapse; min-width: 800px; }
-.items-table th { background: #f9fafb; padding: 12px 10px; text-align: left; font-weight: 600; color: #374151; font-size: 13px; border-bottom: 2px solid #e5e7eb; white-space: nowrap; }
-.items-table td { padding: 10px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
-.items-table tfoot td { background: #f9fafb; font-weight: 600; }
-.text-center { text-align: center; }
-.text-end { text-align: right; }
-
-.unit-display { padding: 8px 10px; background: #f3f4f6; border-radius: 6px; font-size: 13px; color: #374151; text-align: center; }
-
-.summary-table { width: 100%; }
-.summary-table td { padding: 8px 0; }
-.summary-table td:first-child { color: #6b7280; }
-.summary-table td:last-child { text-align: right; font-weight: 500; }
-.summary-table .grand-total td { font-size: 18px; font-weight: 600; color: #4f46e5; border-top: 2px solid #e5e7eb; padding-top: 12px; }
-
-.form-actions { display: flex; gap: 12px; margin-top: 24px; }
-
-@media (max-width: 768px) { .form-row { grid-template-columns: 1fr; } .form-group.col-2 { grid-column: span 1; } }
-</style>
 
 <div class="page-header">
     <h1>{{ $pr ? 'Create PO from PR: '.$pr->pr_number : 'New Purchase Order' }}</h1>
@@ -120,21 +68,21 @@ select.form-control { appearance: none; background-image: url("data:image/svg+xm
             <div class="form-row">
                 <div class="form-group col-full">
                     <label class="form-label">Address</label>
-                    <textarea name="shipping_address" class="form-control" rows="2">{{ old('shipping_address') }}</textarea>
+                    <textarea name="shipping_address" class="form-control" rows="2">{{ old('shipping_address', $companyAddress['address'] ?? '') }}</textarea>
                 </div>
             </div>
             <div class="form-row">
                 <div class="form-group">
                     <label class="form-label">City</label>
-                    <input type="text" name="shipping_city" class="form-control" value="{{ old('shipping_city') }}">
+                    <input type="text" name="shipping_city" class="form-control" value="{{ old('shipping_city', $companyAddress['city'] ?? '') }}">
                 </div>
                 <div class="form-group">
                     <label class="form-label">State</label>
-                    <input type="text" name="shipping_state" class="form-control" value="{{ old('shipping_state') }}">
+                    <input type="text" name="shipping_state" class="form-control" value="{{ old('shipping_state', $companyAddress['state'] ?? '') }}">
                 </div>
                 <div class="form-group">
                     <label class="form-label">Pincode</label>
-                    <input type="text" name="shipping_pincode" class="form-control" value="{{ old('shipping_pincode') }}">
+                    <input type="text" name="shipping_pincode" class="form-control" value="{{ old('shipping_pincode', $companyAddress['pincode'] ?? '') }}">
                 </div>
             </div>
         </div>

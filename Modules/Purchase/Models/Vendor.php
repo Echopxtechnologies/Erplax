@@ -24,7 +24,22 @@ class Vendor extends Model
 
     // Relationships
     public function purchaseOrders() { return $this->hasMany(PurchaseOrder::class); }
+    public function purchaseBills() { return $this->hasMany(PurchaseBill::class); }
     public function creator() { return $this->belongsTo(\App\Models\Admin::class, 'created_by'); }
+    
+    // Bank Details (polymorphic via holder_type/holder_id in bank_details table)
+    public function bankDetails()
+    {
+        return $this->hasMany(\App\Models\BankDetail::class, 'holder_id')
+            ->where('holder_type', 'vendor');
+    }
+    
+    public function primaryBank()
+    {
+        return $this->hasOne(\App\Models\BankDetail::class, 'holder_id')
+            ->where('holder_type', 'vendor')
+            ->where('is_primary', true);
+    }
 
     // Accessors
     public function getDisplayNameOrNameAttribute()

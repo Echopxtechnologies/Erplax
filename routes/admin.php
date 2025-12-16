@@ -17,15 +17,49 @@ use App\Http\Controllers\Admin\Customers\Form as CustomersFormController;
 use App\Http\Controllers\Admin\Customers\CustomerController;
 use App\Http\Controllers\Admin\ClientUserController;
 use App\Http\Controllers\Admin\Auth\AdminRegisterController;
+use App\Http\Controllers\Admin\Auth\ForgotPasswordOtpController;
+
 
 Route::get('/admin', [AdminLoginController::class, 'showLoginForm'])->name('login');
 Route::prefix('admin')->name('admin.')->group(function () {
-    Route::middleware('admin.registration.allowed')->group(function(){
-        Route::get('/setup', [AdminRegisterController::class, 'showRegisterForm'])->name('setup');
-        Route::post('/setup', [AdminRegisterController::class, 'register']);
-    });
+    // ✅ Auto-redirect: /admin → setup or login based on admin count
+    Route::get('/', function () {
+        if (\App\Models\Admin::count() === 0) {
+            return redirect()->route('admin.setup');
+        }
+        return redirect()->route('admin.login');
+    })->name('index');
 
-    // Login routes - NO middleware at all
+    // ✅ Setup routes - only accessible when no admins exist
+    Route::middleware('admin.registration.allowed')->group(function () {
+        Route::get('/setup', [AdminRegisterController::class, 'showRegisterForm'])->name('setup');
+        Route::post('/setup', [AdminRegisterController::class, 'register'])->name('setup.submit');
+    });
+    // Forgot Password (OTP)
+    Route::get('/forgot-password', [ForgotPasswordOtpController::class, 'showEmailForm'])
+        ->name('forgot-password.form');
+
+    Route::post('/forgot-password', [ForgotPasswordOtpController::class, 'sendOtp'])
+        ->name('forgot-password.send');
+        // ->middleware('throttle:5,10');
+
+    // Verify OTP
+    Route::get('/verify-otp', [ForgotPasswordOtpController::class, 'showOtpForm'])
+        ->name('verify-otp.form');
+
+    Route::post('/verify-otp', [ForgotPasswordOtpController::class, 'verifyOtp'])
+        ->name('verify-otp.check');
+        // ->middleware('throttle:5,10');
+
+    // Reset Password (after OTP verified)
+    Route::get('/reset-password', [ForgotPasswordOtpController::class, 'showResetForm'])
+        ->name('reset-password.form');
+
+    Route::post('/reset-password', [ForgotPasswordOtpController::class, 'resetPassword'])
+        ->name('reset-password.update');
+
+
+    // ✅ Login routes - always available
     Route::get('/login', [AdminLoginController::class, 'showLoginForm'])->name('login');
     Route::post('/login', [AdminLoginController::class, 'login'])->name('login.submit');
 

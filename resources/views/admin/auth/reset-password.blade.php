@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Admin Login - {{ config('app.name', 'ERPLax') }}</title>
+    <title>Reset Password - {{ config('app.name', 'ERPLax') }}</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -74,7 +74,7 @@
         .orb-2 { width: 400px; height: 400px; background: var(--orb2); bottom: -100px; left: -100px; }
         .orb-3 { width: 300px; height: 300px; background: var(--orb3); top: 50%; left: 50%; transform: translate(-50%, -50%); }
         
-        .login-card {
+        .card {
             width: 100%;
             max-width: 400px;
             background: var(--bg-card);
@@ -109,10 +109,17 @@
         .form-header { text-align: center; margin-bottom: 2rem; }
         .form-title { font-size: 1.5rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.375rem; }
         .form-subtitle { font-size: 0.875rem; color: var(--text-muted); }
+        .form-subtitle strong { color: var(--text-secondary); }
         
-        .alert { padding: 0.875rem 1rem; border-radius: 12px; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.625rem; background: var(--error-bg); border: 1px solid rgba(239,68,68,0.2); }
-        .alert svg { width: 1.125rem; height: 1.125rem; color: var(--error); flex-shrink: 0; }
-        .alert p { font-size: 0.875rem; color: var(--error-text); }
+        .alert { padding: 0.875rem 1rem; border-radius: 12px; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.625rem; }
+        .alert svg { width: 1.125rem; height: 1.125rem; flex-shrink: 0; }
+        .alert p { font-size: 0.875rem; }
+        .alert-error { background: var(--error-bg); border: 1px solid rgba(239,68,68,0.2); }
+        .alert-error svg { color: var(--error); }
+        .alert-error p { color: var(--error-text); }
+        .alert-success { background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); }
+        .alert-success svg { color: var(--success); }
+        .alert-success p { color: #10b981; }
         
         .form-group { margin-bottom: 1.25rem; }
         .form-label { display: block; font-size: 0.875rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.5rem; }
@@ -134,20 +141,20 @@
         .form-input:hover { border-color: var(--border-hover); }
         .form-input:focus { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-light); }
         .input-wrapper:focus-within .input-icon { color: var(--accent); }
+        .form-input.readonly { background: var(--bg-input); color: var(--text-muted); cursor: not-allowed; opacity: 0.7; }
         
         .password-toggle { position: absolute; right: 0.875rem; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 0.25rem; display: flex; transition: color 0.2s; }
         .password-toggle:hover { color: var(--text-secondary); }
         .password-toggle svg { width: 1.125rem; height: 1.125rem; }
         .error-text { font-size: 0.8125rem; color: var(--error); margin-top: 0.5rem; }
         
-        .form-options { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.75rem; }
-        .checkbox-wrapper { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; }
-        .checkbox-input { width: 1.125rem; height: 1.125rem; border: 2px solid var(--border-hover); border-radius: 5px; background: transparent; cursor: pointer; appearance: none; position: relative; transition: all 0.2s; }
-        .checkbox-input:checked { background: var(--accent); border-color: var(--accent); }
-        .checkbox-input:checked::after { content: ''; position: absolute; left: 3px; top: 0px; width: 5px; height: 9px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg); }
-        .checkbox-label { font-size: 0.875rem; color: var(--text-muted); }
-        .forgot-link { font-size: 0.875rem; color: var(--accent); text-decoration: none; font-weight: 500; transition: color 0.2s; }
-        .forgot-link:hover { color: var(--accent-dark); }
+        .password-strength { margin-top: 0.625rem; }
+        .strength-bar { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; margin-bottom: 0.375rem; }
+        .strength-fill { height: 100%; border-radius: 2px; transition: all 0.3s ease; width: 0%; }
+        .strength-fill.weak { width: 33%; background: var(--error); }
+        .strength-fill.medium { width: 66%; background: #f59e0b; }
+        .strength-fill.strong { width: 100%; background: var(--success); }
+        .strength-text { font-size: 0.75rem; color: var(--text-muted); }
         
         .submit-btn {
             width: 100%;
@@ -163,6 +170,7 @@
             position: relative;
             transition: all 0.25s;
             box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4);
+            margin-top: 0.5rem;
         }
         .submit-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(59, 130, 246, 0.45); }
         .submit-btn:active { transform: translateY(0); }
@@ -183,7 +191,12 @@
         .footer-link:hover { color: var(--accent); }
         .footer-link svg { width: 1rem; height: 1rem; }
         
-        @media (max-width: 440px) { body { padding: 1rem; } .login-card { padding: 1.75rem; border-radius: 16px; } }
+        .help-section { margin-top: 1.5rem; text-align: center; }
+        .help-text { font-size: 0.8125rem; color: var(--text-muted); }
+        .help-text a { color: var(--accent); text-decoration: none; }
+        .help-text a:hover { text-decoration: underline; }
+        
+        @media (max-width: 440px) { body { padding: 1rem; } .card { padding: 1.75rem; border-radius: 16px; } }
     </style>
 </head>
 <body>
@@ -191,7 +204,7 @@
     <div class="bg-orb orb-2"></div>
     <div class="bg-orb orb-3"></div>
     
-    <div class="login-card">
+    <div class="card">
         <div class="logo">
             <div class="logo-icon">
                 <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
@@ -202,76 +215,120 @@
         </div>
         
         <div class="form-header">
-            <h1 class="form-title">Admin Login</h1>
-            <p class="form-subtitle">Sign in to access your dashboard</p>
+            <h1 class="form-title">Reset Password</h1>
+            @php
+                $resolvedEmail = old('email', $email ?? session('password_reset_email'));
+            @endphp
+            <p class="form-subtitle">
+                @if(!empty($resolvedEmail))
+                    Create a new password for <strong>{{ $resolvedEmail }}</strong>
+                @else
+                    Set a strong password to secure your account
+                @endif
+            </p>
         </div>
         
-        @if($errors->any() && $errors->has('email') && str_contains($errors->first('email'), 'credentials'))
-            <div class="alert">
+        @if(session('status'))
+            <div class="alert alert-success">
                 <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                    <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
-                <p>Invalid email or password</p>
+                <p>{{ session('status') }}</p>
             </div>
         @endif
         
-        <form method="POST" action="{{ route('admin.login.submit') }}" id="loginForm">
-            @csrf
-            <div class="form-group">
-                <label for="email" class="form-label">Email</label>
-                <div class="input-wrapper">
-                    <svg class="input-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
-                    </svg>
-                    <input type="email" name="email" id="email" class="form-input" placeholder="admin@example.com" value="{{ old('email') }}" required autofocus autocomplete="email">
-                </div>
-                @error('email')
-                    @if(!str_contains($message, 'credentials'))
-                        <p class="error-text">{{ $message }}</p>
-                    @endif
-                @enderror
+        @if($errors->any())
+            <div class="alert alert-error">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                </svg>
+                <p>{{ $errors->first() }}</p>
             </div>
+        @endif
+        
+        <form method="POST" action="{{ route('admin.reset-password.update') }}" id="resetForm">
+            @csrf
+            
+            @isset($token)
+                <input type="hidden" name="token" value="{{ $token }}">
+            @endisset
+            
+            @if(!empty($resolvedEmail))
+                <div class="form-group">
+                    <label for="email" class="form-label">Email</label>
+                    <div class="input-wrapper">
+                        <svg class="input-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                        </svg>
+                        <input type="email" name="email" id="email" class="form-input readonly" value="{{ $resolvedEmail }}" readonly autocomplete="username">
+                    </div>
+                    @error('email')<p class="error-text">{{ $message }}</p>@enderror
+                </div>
+            @else
+                <input type="hidden" name="email" value="{{ old('email') }}">
+            @endif
             
             <div class="form-group">
-                <label for="password" class="form-label">Password</label>
+                <label for="password" class="form-label">New Password</label>
                 <div class="input-wrapper">
                     <svg class="input-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                         <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
                     </svg>
-                    <input type="password" name="password" id="password" class="form-input" placeholder="••••••••" required autocomplete="current-password">
-                    <button type="button" class="password-toggle" onclick="togglePassword()">
-                        <svg id="eyeIcon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <input type="password" name="password" id="password" class="form-input" placeholder="••••••••" required autocomplete="new-password" onkeyup="checkPasswordStrength()">
+                    <button type="button" class="password-toggle" onclick="togglePassword('password')">
+                        <svg id="eyeIcon1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                             <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                             <path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
                         </svg>
-                        <svg id="eyeOffIcon" style="display:none;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <svg id="eyeOffIcon1" style="display:none;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                             <path d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"></path>
                         </svg>
                     </button>
                 </div>
-                @error('password')
-                    <p class="error-text">{{ $message }}</p>
-                @enderror
+                <div class="password-strength">
+                    <div class="strength-bar">
+                        <div class="strength-fill" id="strengthFill"></div>
+                    </div>
+                    <span class="strength-text" id="strengthText">Enter a password</span>
+                </div>
+                @error('password')<p class="error-text">{{ $message }}</p>@enderror
             </div>
             
-            <div class="form-options">
-                <label class="checkbox-wrapper">
-                    <input type="checkbox" name="remember" class="checkbox-input" {{ old('remember') ? 'checked' : '' }}>
-                    <span class="checkbox-label">Remember me</span>
-                </label>
-                <a href="{{ route('admin.forgot-password.form') }}" class="forgot-link">Forgot password?</a>
+            <div class="form-group">
+                <label for="password_confirmation" class="form-label">Confirm Password</label>
+                <div class="input-wrapper">
+                    <svg class="input-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                    </svg>
+                    <input type="password" name="password_confirmation" id="password_confirmation" class="form-input" placeholder="••••••••" required autocomplete="new-password">
+                    <button type="button" class="password-toggle" onclick="togglePassword('password_confirmation')">
+                        <svg id="eyeIcon2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            <path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                        </svg>
+                        <svg id="eyeOffIcon2" style="display:none;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"></path>
+                        </svg>
+                    </button>
+                </div>
             </div>
             
             <button type="submit" class="submit-btn" id="submitBtn">
                 <span class="spinner"></span>
                 <span class="submit-btn-content">
-                    <span class="btn-text">Sign in</span>
+                    <span class="btn-text">Reset Password</span>
                     <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
+                        <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                     </svg>
                 </span>
             </button>
         </form>
+        
+        <div class="help-section">
+            <p class="help-text">
+                Didn't receive the OTP? <a href="{{ route('admin.forgot-password.form') }}">Request a new one</a>
+            </p>
+        </div>
         
         <div class="form-footer">
             <div class="security-badge">
@@ -280,32 +337,63 @@
                 </svg>
                 <span>SSL Secured</span>
             </div>
-            <a href="{{ url('/') }}" class="footer-link">
+            <a href="{{ route('admin.login') }}" class="footer-link">
                 <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
                 </svg>
-                Back to website
+                Back to Login
             </a>
         </div>
     </div>
     
     <script>
-        function togglePassword() {
-            const p = document.getElementById('password');
-            const e1 = document.getElementById('eyeIcon');
-            const e2 = document.getElementById('eyeOffIcon');
-            if (p.type === 'password') {
-                p.type = 'text';
-                e1.style.display = 'none';
-                e2.style.display = 'block';
+        function togglePassword(fieldId) {
+            const input = document.getElementById(fieldId);
+            const eyeIcon = document.getElementById(fieldId === 'password' ? 'eyeIcon1' : 'eyeIcon2');
+            const eyeOffIcon = document.getElementById(fieldId === 'password' ? 'eyeOffIcon1' : 'eyeOffIcon2');
+            
+            if (input.type === 'password') {
+                input.type = 'text';
+                eyeIcon.style.display = 'none';
+                eyeOffIcon.style.display = 'block';
             } else {
-                p.type = 'password';
-                e1.style.display = 'block';
-                e2.style.display = 'none';
+                input.type = 'password';
+                eyeIcon.style.display = 'block';
+                eyeOffIcon.style.display = 'none';
             }
         }
         
-        document.getElementById('loginForm').addEventListener('submit', function() {
+        function checkPasswordStrength() {
+            const password = document.getElementById('password').value;
+            const fill = document.getElementById('strengthFill');
+            const text = document.getElementById('strengthText');
+            
+            let strength = 0;
+            if (password.length >= 8) strength++;
+            if (/[a-z]/.test(password) && /[A-Z]/.test(password)) strength++;
+            if (/\d/.test(password)) strength++;
+            if (/[^a-zA-Z0-9]/.test(password)) strength++;
+            
+            fill.className = 'strength-fill';
+            
+            if (!password.length) {
+                text.textContent = 'Enter a password';
+                return;
+            }
+            
+            if (strength <= 1) {
+                fill.classList.add('weak');
+                text.textContent = 'Weak password';
+            } else if (strength <= 2) {
+                fill.classList.add('medium');
+                text.textContent = 'Medium strength';
+            } else {
+                fill.classList.add('strong');
+                text.textContent = 'Strong password';
+            }
+        }
+        
+        document.getElementById('resetForm').addEventListener('submit', function() {
             document.getElementById('submitBtn').classList.add('loading');
         });
     </script>

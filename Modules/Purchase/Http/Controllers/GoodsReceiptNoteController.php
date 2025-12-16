@@ -91,6 +91,8 @@ class GoodsReceiptNoteController extends AdminController
                 'stock_updated' => $grn->stock_updated,
                 'created_by' => $grn->creator->name ?? '-',
                 'created_at' => $grn->created_at->format('d M Y'),
+                '_show_url' => route('admin.purchase.grn.show', $grn->id),
+                '_edit_url' => route('admin.purchase.grn.edit', $grn->id),
             ];
         });
 
@@ -215,7 +217,7 @@ class GoodsReceiptNoteController extends AdminController
     /**
      * Show GRN details
      */
-    public function show($id)
+    public function show(Request $request, $id)
     {
         $grn = GoodsReceiptNote::with([
             'vendor',
@@ -229,6 +231,32 @@ class GoodsReceiptNoteController extends AdminController
             'receiver',
             'approver',
         ])->findOrFail($id);
+
+        // Return JSON for AJAX requests
+        if ($request->wantsJson() || $request->input('format') === 'json') {
+            return response()->json([
+                'id' => $grn->id,
+                'grn_number' => $grn->grn_number,
+                'vendor_id' => $grn->vendor_id,
+                'vendor' => $grn->vendor,
+                'warehouse_id' => $grn->warehouse_id,
+                'items' => $grn->items->map(function($item) {
+                    return [
+                        'id' => $item->id,
+                        'product_id' => $item->product_id,
+                        'product' => $item->product,
+                        'unit_id' => $item->unit_id,
+                        'unit' => $item->unit,
+                        'variation_id' => $item->variation_id,
+                        'ordered_qty' => $item->ordered_qty,
+                        'received_qty' => $item->received_qty,
+                        'accepted_qty' => $item->accepted_qty,
+                        'rejected_qty' => $item->rejected_qty,
+                        'rate' => $item->rate,
+                    ];
+                }),
+            ]);
+        }
 
         return $this->moduleView('purchase::grn.show', compact('grn'));
     }
@@ -333,7 +361,7 @@ class GoodsReceiptNoteController extends AdminController
     }
 
     /**
-     * Submit for inspection
+     * Submit for inspection (alias: inspect)
      */
     public function submit($id)
     {
@@ -346,6 +374,14 @@ class GoodsReceiptNoteController extends AdminController
         $grn->update(['status' => 'INSPECTING']);
 
         return back()->with('success', 'GRN submitted for inspection.');
+    }
+
+    /**
+     * Start inspection (change status from DRAFT to INSPECTING)
+     */
+    public function inspect($id)
+    {
+        return $this->submit($id);
     }
 
     /**

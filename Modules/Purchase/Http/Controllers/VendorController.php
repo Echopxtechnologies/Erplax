@@ -164,6 +164,14 @@ class VendorController extends AdminController
             'credit_limit' => 'nullable|numeric|min:0',
             'opening_balance' => 'nullable|numeric',
             'status' => 'required|in:ACTIVE,INACTIVE,BLOCKED',
+            // Bank details validation
+            'bank_account_holder' => 'nullable|string|max:191',
+            'bank_name' => 'nullable|string|max:191',
+            'bank_account_number' => 'nullable|string|max:50',
+            'bank_ifsc' => 'nullable|string|max:20',
+            'bank_branch' => 'nullable|string|max:191',
+            'bank_upi_id' => 'nullable|string|max:100',
+            'bank_account_type' => 'nullable|in:SAVINGS,CURRENT,OTHER',
         ], [
             'gst_number.required' => 'GST Number is required for registered vendors.',
             'gst_number.size' => 'GST Number must be exactly 15 characters.',
@@ -186,8 +194,42 @@ class VendorController extends AdminController
             $validated['pan_number'] = strtoupper($validated['pan_number']);
         }
 
+        // Extract bank fields
+        $bankData = [
+            'account_holder_name' => $request->bank_account_holder,
+            'bank_name' => $request->bank_name,
+            'account_number' => $request->bank_account_number,
+            'ifsc_code' => $request->bank_ifsc ? strtoupper($request->bank_ifsc) : null,
+            'branch_name' => $request->bank_branch,
+            'upi_id' => $request->bank_upi_id,
+            'account_type' => $request->bank_account_type ?? 'CURRENT',
+        ];
+        
+        // Remove bank fields from vendor data
+        unset($validated['bank_account_holder'], $validated['bank_name'], $validated['bank_account_number'], 
+              $validated['bank_ifsc'], $validated['bank_branch'], $validated['bank_upi_id'], $validated['bank_account_type']);
+
         $validated['created_by'] = auth()->id();
-        Vendor::create($validated);
+        $vendor = Vendor::create($validated);
+        
+        // Save bank details if account number provided
+        if (!empty($bankData['account_number']) && \Schema::hasTable('bank_details')) {
+            \DB::table('bank_details')->insert([
+                'holder_type' => 'vendor',
+                'holder_id' => $vendor->id,
+                'account_holder_name' => $bankData['account_holder_name'] ?? $vendor->name,
+                'bank_name' => $bankData['bank_name'],
+                'account_number' => $bankData['account_number'],
+                'ifsc_code' => $bankData['ifsc_code'],
+                'branch_name' => $bankData['branch_name'],
+                'upi_id' => $bankData['upi_id'],
+                'account_type' => $bankData['account_type'],
+                'is_primary' => true,
+                'is_active' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
 
         return redirect()->route('admin.purchase.vendors.index')->with('success', 'Vendor created successfully!');
     }
@@ -195,13 +237,29 @@ class VendorController extends AdminController
     public function show($id)
     {
         $vendor = Vendor::findOrFail($id);
-        return $this->moduleView('purchase::vendor.show', compact('vendor'));
+        $bankDetail = null;
+        if (\Schema::hasTable('bank_details')) {
+            $bankDetail = \DB::table('bank_details')
+                ->where('holder_type', 'vendor')
+                ->where('holder_id', $id)
+                ->where('is_primary', true)
+                ->first();
+        }
+        return $this->moduleView('purchase::vendor.show', compact('vendor', 'bankDetail'));
     }
 
     public function edit($id)
     {
         $vendor = Vendor::findOrFail($id);
-        return $this->moduleView('purchase::vendor.edit', compact('vendor'));
+        $bankDetail = null;
+        if (\Schema::hasTable('bank_details')) {
+            $bankDetail = \DB::table('bank_details')
+                ->where('holder_type', 'vendor')
+                ->where('holder_id', $id)
+                ->where('is_primary', true)
+                ->first();
+        }
+        return $this->moduleView('purchase::vendor.edit', compact('vendor', 'bankDetail'));
     }
 
     public function update(Request $request, $id)
@@ -233,6 +291,14 @@ class VendorController extends AdminController
             'credit_days' => 'nullable|integer|min:0|max:365',
             'credit_limit' => 'nullable|numeric|min:0',
             'status' => 'required|in:ACTIVE,INACTIVE,BLOCKED',
+            // Bank details validation
+            'bank_account_holder' => 'nullable|string|max:191',
+            'bank_name' => 'nullable|string|max:191',
+            'bank_account_number' => 'nullable|string|max:50',
+            'bank_ifsc' => 'nullable|string|max:20',
+            'bank_branch' => 'nullable|string|max:191',
+            'bank_upi_id' => 'nullable|string|max:100',
+            'bank_account_type' => 'nullable|in:SAVINGS,CURRENT,OTHER',
         ], [
             'gst_number.required' => 'GST Number is required for registered vendors.',
             'gst_number.size' => 'GST Number must be exactly 15 characters.',
@@ -253,8 +319,49 @@ class VendorController extends AdminController
         if (!empty($validated['pan_number'])) {
             $validated['pan_number'] = strtoupper($validated['pan_number']);
         }
+        
+        // Extract bank fields
+        $bankData = [
+            'account_holder_name' => $request->bank_account_holder,
+            'bank_name' => $request->bank_name,
+            'account_number' => $request->bank_account_number,
+            'ifsc_code' => $request->bank_ifsc ? strtoupper($request->bank_ifsc) : null,
+            'branch_name' => $request->bank_branch,
+            'upi_id' => $request->bank_upi_id,
+            'account_type' => $request->bank_account_type ?? 'CURRENT',
+        ];
+        
+        // Remove bank fields from vendor data
+        unset($validated['bank_account_holder'], $validated['bank_name'], $validated['bank_account_number'], 
+              $validated['bank_ifsc'], $validated['bank_branch'], $validated['bank_upi_id'], $validated['bank_account_type']);
 
         $vendor->update($validated);
+        
+        // Update or create bank details
+        if (\Schema::hasTable('bank_details')) {
+            if (!empty($bankData['account_number'])) {
+                \DB::table('bank_details')->updateOrInsert(
+                    ['holder_type' => 'vendor', 'holder_id' => $vendor->id, 'is_primary' => true],
+                    [
+                        'account_holder_name' => $bankData['account_holder_name'] ?? $vendor->name,
+                        'bank_name' => $bankData['bank_name'],
+                        'account_number' => $bankData['account_number'],
+                        'ifsc_code' => $bankData['ifsc_code'],
+                        'branch_name' => $bankData['branch_name'],
+                        'upi_id' => $bankData['upi_id'],
+                        'account_type' => $bankData['account_type'],
+                        'is_active' => true,
+                        'updated_at' => now(),
+                    ]
+                );
+            } else {
+                // Remove bank details if account number is cleared
+                \DB::table('bank_details')
+                    ->where('holder_type', 'vendor')
+                    ->where('holder_id', $vendor->id)
+                    ->delete();
+            }
+        }
 
         return redirect()->route('admin.purchase.vendors.index')->with('success', 'Vendor updated successfully!');
     }

@@ -6,6 +6,7 @@ use Modules\Purchase\Http\Controllers\PurchaseRequestController;
 use Modules\Purchase\Http\Controllers\PurchaseOrderController;
 use Modules\Purchase\Http\Controllers\SettingsController;
 use Modules\Purchase\Http\Controllers\GoodsReceiptNoteController;
+use Modules\Purchase\Http\Controllers\PurchaseBillController;
 
 Route::prefix('admin/purchase')->middleware(['web', 'auth:admin'])->group(function () {
     
@@ -67,6 +68,7 @@ Route::prefix('admin/purchase')->middleware(['web', 'auth:admin'])->group(functi
     Route::get('grn/po-items/{poId}', [GoodsReceiptNoteController::class, 'getPOItems'])->name('admin.purchase.grn.po-items');
     Route::get('grn/racks/{warehouseId}', [GoodsReceiptNoteController::class, 'getRacks'])->name('admin.purchase.grn.racks');
     Route::post('grn/{id}/submit', [GoodsReceiptNoteController::class, 'submit'])->name('admin.purchase.grn.submit');
+    Route::post('grn/{id}/inspect', [GoodsReceiptNoteController::class, 'inspect'])->name('admin.purchase.grn.inspect');
     Route::post('grn/{id}/approve', [GoodsReceiptNoteController::class, 'approve'])->name('admin.purchase.grn.approve');
     Route::post('grn/{id}/reject', [GoodsReceiptNoteController::class, 'reject'])->name('admin.purchase.grn.reject');
     Route::post('grn/{id}/cancel', [GoodsReceiptNoteController::class, 'cancel'])->name('admin.purchase.grn.cancel');
@@ -78,5 +80,25 @@ Route::prefix('admin/purchase')->middleware(['web', 'auth:admin'])->group(functi
         'edit' => 'admin.purchase.grn.edit',
         'update' => 'admin.purchase.grn.update',
         'destroy' => 'admin.purchase.grn.destroy',
+    ]);
+
+    // Purchase Bills (Vendor Bills)
+    Route::get('bills/data', [PurchaseBillController::class, 'dataTable'])->name('admin.purchase.bills.data');
+    Route::post('bills/bulk-delete', [PurchaseBillController::class, 'bulkDelete'])->name('admin.purchase.bills.bulk-delete');
+    Route::post('bills/{id}/submit', [PurchaseBillController::class, 'submit'])->name('admin.purchase.bills.submit');
+    Route::post('bills/{id}/approve', [PurchaseBillController::class, 'approve'])->name('admin.purchase.bills.approve');
+    Route::post('bills/{id}/reject', [PurchaseBillController::class, 'reject'])->name('admin.purchase.bills.reject');
+    Route::post('bills/{id}/cancel', [PurchaseBillController::class, 'cancel'])->name('admin.purchase.bills.cancel');
+    Route::post('bills/{id}/payment', [PurchaseBillController::class, 'recordPayment'])->name('admin.purchase.bills.payment');
+    Route::get('bills/{id}/pdf', [PurchaseBillController::class, 'pdf'])->name('admin.purchase.bills.pdf');
+    Route::get('bills/payment/{paymentId}/receipt', [PurchaseBillController::class, 'paymentReceipt'])->name('admin.purchase.bills.payment.receipt');
+    Route::resource('bills', PurchaseBillController::class)->names([
+        'index' => 'admin.purchase.bills.index',
+        'create' => 'admin.purchase.bills.create',
+        'store' => 'admin.purchase.bills.store',
+        'show' => 'admin.purchase.bills.show',
+        'edit' => 'admin.purchase.bills.edit',
+        'update' => 'admin.purchase.bills.update',
+        'destroy' => 'admin.purchase.bills.destroy',
     ]);
 });

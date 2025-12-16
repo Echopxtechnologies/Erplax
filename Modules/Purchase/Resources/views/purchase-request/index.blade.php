@@ -1,26 +1,5 @@
-<style>
-    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; }
-    .page-header h1 { font-size: 24px; font-weight: 700; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 10px; }
-    .page-header h1 svg { width: 28px; height: 28px; color: var(--primary); }
-    .btn-add { display: inline-flex; align-items: center; gap: 8px; background: linear-gradient(135deg, var(--primary), var(--primary-hover)); color: #fff; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; transition: all 0.2s; }
-    .btn-add:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3); color: #fff; }
-    .btn-add svg { width: 18px; height: 18px; }
-    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 24px; }
-    .stat-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 12px; padding: 20px; display: flex; align-items: center; gap: 16px; }
-    .stat-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; }
-    .stat-icon svg { width: 24px; height: 24px; }
-    .stat-icon.total { background: rgba(99, 102, 241, 0.1); color: #6366f1; }
-    .stat-icon.draft { background: rgba(156, 163, 175, 0.1); color: #9ca3af; }
-    .stat-icon.pending { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
-    .stat-icon.approved { background: rgba(34, 197, 94, 0.1); color: #22c55e; }
-    .stat-icon.rejected { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
-    .stat-value { font-size: 28px; font-weight: 700; color: var(--text-primary); }
-    .stat-label { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
-    .table-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 12px; overflow: hidden; }
-    .table-card-header { padding: 16px 20px; border-bottom: 1px solid var(--card-border); }
-    .table-card-title { font-size: 16px; font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 8px; }
-    .table-card-title svg { width: 20px; height: 20px; color: var(--text-muted); }
-</style>
+@include('purchase::partials.styles')
+
 
 <div style="padding: 20px;">
     <div class="page-header">

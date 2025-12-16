@@ -89,6 +89,7 @@
                     </div>
                 @endif
 
+                {{-- UPDATE FORM --}}
                 <form action="{{ route('admin.cronjob.update', $cronjob) }}" method="POST">
                     @csrf
                     @method('PUT')
@@ -166,21 +167,25 @@
                         <a href="{{ route('admin.cronjob.index') }}" class="btn btn-secondary">
                             Cancel
                         </a>
-                        
-                        <div class="form-actions-right">
-                            <form action="{{ route('admin.cronjob.destroy', $cronjob) }}" method="POST" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this cron job?')">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="btn btn-danger">
-                                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                        <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                                    </svg>
-                                    Delete
-                                </button>
-                            </form>
-                        </div>
                     </div>
                 </form>
+                {{-- END UPDATE FORM --}}
+
+                {{-- DELETE FORM (Separate, outside update form) --}}
+                <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--card-border);">
+                    <form action="{{ route('admin.cronjob.destroy', $cronjob) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this cron job?')">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="btn btn-danger">
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                            </svg>
+                            Delete Cron Job
+                        </button>
+                    </form>
+                </div>
+                {{-- END DELETE FORM --}}
+
             </div>
         </div>
     </div>

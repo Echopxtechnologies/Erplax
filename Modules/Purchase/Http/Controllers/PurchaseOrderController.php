@@ -143,6 +143,22 @@ class PurchaseOrderController extends AdminController
         $defaultTax = PurchaseSetting::getValue('default_tax_percent', 18);
         $defaultTerms = PurchaseSetting::getValue('po_terms', '');
         
+        // Get company address for shipping (from Options)
+        $companyAddress = [
+            'address' => '',
+            'city' => '',
+            'state' => '',
+            'pincode' => '',
+        ];
+        if (class_exists('\App\Models\Option')) {
+            $companyAddress = [
+                'address' => \App\Models\Option::get('company_address', ''),
+                'city' => \App\Models\Option::get('company_city', ''),
+                'state' => \App\Models\Option::get('company_state', ''),
+                'pincode' => \App\Models\Option::get('company_zip', ''),
+            ];
+        }
+        
         if (class_exists('\Modules\Inventory\Models\Product')) {
             $products = \Modules\Inventory\Models\Product::with('unit')
                 ->where('is_active', true)
@@ -160,7 +176,7 @@ class PurchaseOrderController extends AdminController
             $pr = PurchaseRequest::with(['items.product.unit'])->find($prId);
         }
         
-        return $this->moduleView('purchase::purchase-order.create', compact('poNumber', 'vendors', 'products', 'taxes', 'pr', 'defaultTax', 'defaultTerms'));
+        return $this->moduleView('purchase::purchase-order.create', compact('poNumber', 'vendors', 'products', 'taxes', 'pr', 'defaultTax', 'defaultTerms', 'companyAddress'));
     }
 
     public function store(Request $request)

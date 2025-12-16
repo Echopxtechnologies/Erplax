@@ -1,144 +1,130 @@
-<style>
-.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid #e5e7eb; }
-.page-header-left { display: flex; align-items: center; gap: 12px; }
-.page-header h1 { font-size: 24px; font-weight: 600; color: #1f2937; margin: 0; }
-.page-header-right { display: flex; gap: 10px; }
-.btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 18px; border-radius: 8px; font-weight: 500; font-size: 14px; cursor: pointer; text-decoration: none; border: none; transition: all 0.2s; }
-.btn-primary { background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); color: #fff; }
-.btn-primary:hover { background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%); color: #fff; }
-.btn-outline { background: #fff; color: #374151; border: 1px solid #d1d5db; }
-.btn-outline:hover { background: #f9fafb; color: #374151; }
+@include('purchase::partials.styles')
 
-.badge { display: inline-flex; align-items: center; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; text-transform: uppercase; }
-.badge-success { background: #dcfce7; color: #166534; }
-.badge-warning { background: #fef3c7; color: #92400e; }
-.badge-danger { background: #fee2e2; color: #991b1b; }
-
-.detail-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; }
-.card { background: #fff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid #e5e7eb; margin-bottom: 20px; }
-.card-header { padding: 16px 24px; border-bottom: 1px solid #e5e7eb; background: #f9fafb; border-radius: 12px 12px 0 0; }
-.card-header h5 { margin: 0; font-size: 16px; font-weight: 600; color: #1f2937; }
-.card-body { padding: 24px; }
-
-.info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
-.info-item { }
-.info-label { font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
-.info-value { font-size: 15px; color: #1f2937; font-weight: 500; }
-.info-value.highlight { font-size: 18px; color: #4f46e5; }
-
-@media (max-width: 768px) { .detail-grid { grid-template-columns: 1fr; } .info-grid { grid-template-columns: 1fr; } }
-</style>
-
-<div class="page-header">
-    <div class="page-header-left">
-        <h1>{{ $vendor->name }}</h1>
-        <span class="badge badge-{{ $vendor->status == 'ACTIVE' ? 'success' : ($vendor->status == 'INACTIVE' ? 'warning' : 'danger') }}">{{ $vendor->status }}</span>
+<div class="detail-page">
+    <div class="detail-header">
+        <div class="detail-header-left">
+            <a href="{{ route('admin.purchase.vendors.index') }}" class="btn-back">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7"></path></svg>
+            </a>
+            <h1>
+                {{ $vendor->name }}
+                <span class="badge badge-{{ strtolower($vendor->status) }} badge-lg">{{ $vendor->status }}</span>
+            </h1>
+        </div>
+        <div class="header-actions">
+            <a href="{{ route('admin.purchase.vendors.edit', $vendor->id) }}" class="btn btn-outline">✏️ Edit</a>
+            <a href="{{ route('admin.purchase.vendors.index') }}" class="btn btn-outline">📋 All Vendors</a>
+        </div>
     </div>
-    <div class="page-header-right">
-        <a href="{{ route('admin.purchase.vendors.edit', $vendor->id) }}" class="btn btn-primary">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-            Edit
-        </a>
-        <a href="{{ route('admin.purchase.vendors.index') }}" class="btn btn-outline">Back</a>
-    </div>
-</div>
 
-<div class="detail-grid">
-    <div>
-        <div class="card">
-            <div class="card-header"><h5>Basic Information</h5></div>
-            <div class="card-body">
-                <div class="info-grid">
-                    <div class="info-item">
-                        <div class="info-label">Vendor Code</div>
-                        <div class="info-value highlight">{{ $vendor->vendor_code }}</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Name</div>
-                        <div class="info-value">{{ $vendor->name }}</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Contact Person</div>
-                        <div class="info-value">{{ $vendor->contact_person ?: '-' }}</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Email</div>
-                        <div class="info-value">{{ $vendor->email ?: '-' }}</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Phone</div>
-                        <div class="info-value">{{ $vendor->phone ?: '-' }}</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Mobile</div>
-                        <div class="info-value">{{ $vendor->mobile ?: '-' }}</div>
-                    </div>
-                </div>
+    @if(session('success'))
+    <div class="alert alert-success">{{ session('success') }}</div>
+    @endif
+
+    <div class="grid-2">
+        <!-- Basic Info -->
+        <div class="detail-card">
+            <div class="detail-card-header">
+                <h5 class="detail-card-title">🏢 Basic Information</h5>
+            </div>
+            <div class="detail-card-body">
+                <div class="detail-row"><div class="detail-label">Vendor Code</div><div class="detail-value"><strong>{{ $vendor->vendor_code }}</strong></div></div>
+                <div class="detail-row"><div class="detail-label">Vendor Name</div><div class="detail-value">{{ $vendor->name }}</div></div>
+                <div class="detail-row"><div class="detail-label">Display Name</div><div class="detail-value">{{ $vendor->display_name ?? '-' }}</div></div>
+                <div class="detail-row"><div class="detail-label">Contact Person</div><div class="detail-value">{{ $vendor->contact_person ?? '-' }}</div></div>
+                <div class="detail-row"><div class="detail-label">Email</div><div class="detail-value">{{ $vendor->email ? '<a href="mailto:'.$vendor->email.'">'.$vendor->email.'</a>' : '-' }}</div></div>
+                <div class="detail-row"><div class="detail-label">Phone</div><div class="detail-value">{{ $vendor->phone ?? '-' }}</div></div>
+                <div class="detail-row"><div class="detail-label">Mobile</div><div class="detail-value">{{ $vendor->mobile ?? '-' }}</div></div>
+                <div class="detail-row"><div class="detail-label">Website</div><div class="detail-value">{!! $vendor->website ? '<a href="'.$vendor->website.'" target="_blank">'.$vendor->website.'</a>' : '-' !!}</div></div>
             </div>
         </div>
 
-        <div class="card">
-            <div class="card-header"><h5>Tax Information</h5></div>
-            <div class="card-body">
-                <div class="info-grid">
-                    <div class="info-item">
-                        <div class="info-label">GST Type</div>
-                        <div class="info-value">{{ $vendor->gst_type }}</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">GST Number</div>
-                        <div class="info-value">{{ $vendor->gst_number ?: '-' }}</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">PAN Number</div>
-                        <div class="info-value">{{ $vendor->pan_number ?: '-' }}</div>
-                    </div>
-                </div>
+        <!-- Tax Info -->
+        <div class="detail-card">
+            <div class="detail-card-header">
+                <h5 class="detail-card-title">📑 Tax Information</h5>
             </div>
-        </div>
-
-        <div class="card">
-            <div class="card-header"><h5>Address</h5></div>
-            <div class="card-body">
-                <div class="info-value" style="margin-bottom: 8px;">{{ $vendor->billing_address ?: '-' }}</div>
-                <div style="color: #6b7280;">
-                    {{ $vendor->billing_city }}{{ $vendor->billing_state ? ', ' . $vendor->billing_state : '' }}
-                    {{ $vendor->billing_pincode ? ' - ' . $vendor->billing_pincode : '' }}
-                </div>
+            <div class="detail-card-body">
+                <div class="detail-row"><div class="detail-label">GST Type</div><div class="detail-value"><span class="badge badge-info">{{ $vendor->gst_type }}</span></div></div>
+                <div class="detail-row"><div class="detail-label">GST Number</div><div class="detail-value"><strong>{{ $vendor->gst_number ?? '-' }}</strong></div></div>
+                <div class="detail-row"><div class="detail-label">PAN Number</div><div class="detail-value">{{ $vendor->pan_number ?? '-' }}</div></div>
             </div>
         </div>
     </div>
 
-    <div>
-        <div class="card">
-            <div class="card-header"><h5>Financial Info</h5></div>
-            <div class="card-body">
-                <div class="info-item" style="margin-bottom: 20px;">
-                    <div class="info-label">Payment Terms</div>
-                    <div class="info-value">{{ $vendor->payment_terms ?: 'Net 30' }}</div>
-                </div>
-                <div class="info-item" style="margin-bottom: 20px;">
-                    <div class="info-label">Credit Days</div>
-                    <div class="info-value">{{ $vendor->credit_days }} days</div>
-                </div>
-                <div class="info-item">
-                    <div class="info-label">Credit Limit</div>
-                    <div class="info-value highlight">₹{{ number_format($vendor->credit_limit, 2) }}</div>
-                </div>
+    <div class="grid-2">
+        <!-- Billing Address -->
+        <div class="detail-card">
+            <div class="detail-card-header">
+                <h5 class="detail-card-title">📍 Billing Address</h5>
+            </div>
+            <div class="detail-card-body">
+                <div class="detail-row"><div class="detail-label">Address</div><div class="detail-value">{{ $vendor->billing_address ?? '-' }}</div></div>
+                <div class="detail-row"><div class="detail-label">City</div><div class="detail-value">{{ $vendor->billing_city ?? '-' }}</div></div>
+                <div class="detail-row"><div class="detail-label">State</div><div class="detail-value">{{ $vendor->billing_state ?? '-' }}</div></div>
+                <div class="detail-row"><div class="detail-label">PIN Code</div><div class="detail-value">{{ $vendor->billing_pincode ?? '-' }}</div></div>
+                <div class="detail-row"><div class="detail-label">Country</div><div class="detail-value">{{ $vendor->billing_country ?? 'India' }}</div></div>
             </div>
         </div>
 
-        <div class="card">
-            <div class="card-header"><h5>Timeline</h5></div>
-            <div class="card-body">
-                <div class="info-item" style="margin-bottom: 20px;">
-                    <div class="info-label">Created</div>
-                    <div class="info-value">{{ $vendor->created_at->format('d M Y, h:i A') }}</div>
-                </div>
-                <div class="info-item">
-                    <div class="info-label">Last Updated</div>
-                    <div class="info-value">{{ $vendor->updated_at->format('d M Y, h:i A') }}</div>
-                </div>
+        <!-- Payment Terms -->
+        <div class="detail-card">
+            <div class="detail-card-header">
+                <h5 class="detail-card-title">💰 Payment Terms</h5>
+            </div>
+            <div class="detail-card-body">
+                <div class="detail-row"><div class="detail-label">Payment Terms</div><div class="detail-value">{{ $vendor->payment_terms ?? '-' }}</div></div>
+                <div class="detail-row"><div class="detail-label">Credit Days</div><div class="detail-value">{{ $vendor->credit_days }} days</div></div>
+                <div class="detail-row"><div class="detail-label">Credit Limit</div><div class="detail-value">₹{{ number_format($vendor->credit_limit, 2) }}</div></div>
+                <div class="detail-row"><div class="detail-label">Opening Balance</div><div class="detail-value">₹{{ number_format($vendor->opening_balance, 2) }}</div></div>
+            </div>
+        </div>
+    </div>
+
+    @if($vendor->bankDetail)
+    <div class="detail-card">
+        <div class="detail-card-header">
+            <h5 class="detail-card-title">🏦 Bank Details</h5>
+        </div>
+        <div class="detail-card-body">
+            <div class="grid-4">
+                <div class="detail-row" style="display:block;border:none;"><div class="detail-label">Account Holder</div><div class="detail-value"><strong>{{ $vendor->bankDetail->account_holder_name ?? '-' }}</strong></div></div>
+                <div class="detail-row" style="display:block;border:none;"><div class="detail-label">Bank Name</div><div class="detail-value">{{ $vendor->bankDetail->bank_name ?? '-' }}</div></div>
+                <div class="detail-row" style="display:block;border:none;"><div class="detail-label">Account Number</div><div class="detail-value"><strong>{{ $vendor->bankDetail->account_number ?? '-' }}</strong></div></div>
+                <div class="detail-row" style="display:block;border:none;"><div class="detail-label">IFSC Code</div><div class="detail-value">{{ $vendor->bankDetail->ifsc_code ?? '-' }}</div></div>
+            </div>
+            <div class="grid-4" style="margin-top:12px;">
+                <div class="detail-row" style="display:block;border:none;"><div class="detail-label">Branch</div><div class="detail-value">{{ $vendor->bankDetail->branch_name ?? '-' }}</div></div>
+                <div class="detail-row" style="display:block;border:none;"><div class="detail-label">Account Type</div><div class="detail-value">{{ $vendor->bankDetail->account_type ?? '-' }}</div></div>
+                <div class="detail-row" style="display:block;border:none;"><div class="detail-label">UPI ID</div><div class="detail-value">{{ $vendor->bankDetail->upi_id ?? '-' }}</div></div>
+                <div class="detail-row" style="display:block;border:none;"><div class="detail-label">SWIFT Code</div><div class="detail-value">{{ $vendor->bankDetail->swift_code ?? '-' }}</div></div>
+            </div>
+        </div>
+    </div>
+    @endif
+
+    @if($vendor->notes)
+    <div class="detail-card">
+        <div class="detail-card-header">
+            <h5 class="detail-card-title">📝 Notes</h5>
+        </div>
+        <div class="detail-card-body">
+            <p style="margin:0;white-space:pre-wrap;color:var(--text-primary);">{{ $vendor->notes }}</p>
+        </div>
+    </div>
+    @endif
+
+    <!-- Audit Info -->
+    <div class="detail-card">
+        <div class="detail-card-header">
+            <h5 class="detail-card-title">🕐 Audit Information</h5>
+        </div>
+        <div class="detail-card-body">
+            <div class="grid-4">
+                <div class="detail-row" style="display:block;border:none;"><div class="detail-label">Created By</div><div class="detail-value">{{ $vendor->creator->name ?? '-' }}</div></div>
+                <div class="detail-row" style="display:block;border:none;"><div class="detail-label">Created At</div><div class="detail-value">{{ $vendor->created_at->format('d M Y, h:i A') }}</div></div>
+                <div class="detail-row" style="display:block;border:none;"><div class="detail-label">Updated At</div><div class="detail-value">{{ $vendor->updated_at->format('d M Y, h:i A') }}</div></div>
+                <div class="detail-row" style="display:block;border:none;"><div class="detail-label">Status</div><div class="detail-value"><span class="badge badge-{{ strtolower($vendor->status) }}">{{ $vendor->status }}</span></div></div>
             </div>
         </div>
     </div>
