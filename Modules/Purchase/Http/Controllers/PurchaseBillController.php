@@ -12,9 +12,20 @@ use Modules\Purchase\Models\PurchaseSetting;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
+use Modules\Core\Traits\DataTableTrait;
 
 class PurchaseBillController extends AdminController
 {
+    use DataTableTrait;
+    
+    // DataTable Configuration
+    protected $model = PurchaseBill::class;
+    protected $with = ['vendor:id,name', 'purchaseOrder:id,po_number', 'grn:id,grn_number'];
+    protected $searchable = ['bill_number', 'vendor_invoice_no', 'vendor.name'];
+    protected $sortable = ['id', 'bill_number', 'bill_date', 'due_date', 'grand_total', 'status', 'payment_status'];
+    protected $filterable = ['status', 'payment_status', 'vendor_id'];
+    protected $exportTitle = 'Purchase Bills Export';
+
     public function index()
     {
         $stats = [
@@ -30,65 +41,58 @@ class PurchaseBillController extends AdminController
         return $this->moduleView('purchase::bill.index', compact('stats'));
     }
 
-    public function dataTable(Request $request): JsonResponse
+    /**
+     * DataTable row mapping for list view
+     */
+    protected function mapRow($item)
     {
-        $query = PurchaseBill::with(['vendor:id,name', 'purchaseOrder:id,po_number', 'grn:id,grn_number']);
+        return [
+            'id' => $item->id,
+            'bill_number' => $item->bill_number,
+            'vendor_name' => $item->vendor->name ?? '-',
+            'vendor_invoice_no' => $item->vendor_invoice_no ?? '-',
+            'bill_date' => $item->bill_date->format('d M Y'),
+            'due_date' => $item->due_date?->format('d M Y') ?? '-',
+            'grand_total' => '₹' . number_format($item->grand_total, 2),
+            'paid_amount' => '₹' . number_format($item->paid_amount, 2),
+            'balance_due' => '₹' . number_format($item->balance_due, 2),
+            'status' => $item->status,
+            'payment_status' => $item->payment_status,
+            'is_overdue' => $item->is_overdue,
+            '_show_url' => route('admin.purchase.bills.show', $item->id),
+            '_edit_url' => route('admin.purchase.bills.edit', $item->id),
+            '_pdf_url' => route('admin.purchase.bills.pdf', $item->id),
+        ];
+    }
 
-        // Search
-        if ($search = $request->input('search')) {
-            $query->where(function($q) use ($search) {
-                $q->where('bill_number', 'like', "%{$search}%")
-                  ->orWhere('vendor_invoice_no', 'like', "%{$search}%")
-                  ->orWhereHas('vendor', fn($v) => $v->where('name', 'like', "%{$search}%"));
-            });
-        }
+    /**
+     * DataTable row mapping for export
+     */
+    protected function mapExportRow($item)
+    {
+        return [
+            'ID' => $item->id,
+            'Bill Number' => $item->bill_number,
+            'Vendor' => $item->vendor->name ?? '',
+            'Invoice No' => $item->vendor_invoice_no ?? '',
+            'Bill Date' => $item->bill_date->format('Y-m-d'),
+            'Due Date' => $item->due_date?->format('Y-m-d') ?? '',
+            'Subtotal' => $item->subtotal,
+            'Tax Amount' => $item->tax_amount,
+            'Grand Total' => $item->grand_total,
+            'Paid Amount' => $item->paid_amount,
+            'Balance Due' => $item->balance_due,
+            'Status' => $item->status,
+            'Payment Status' => $item->payment_status,
+        ];
+    }
 
-        // Filters
-        if ($status = $request->input('status')) {
-            $query->where('status', $status);
-        }
-        if ($paymentStatus = $request->input('payment_status')) {
-            $query->where('payment_status', $paymentStatus);
-        }
-        if ($vendorId = $request->input('vendor_id')) {
-            $query->where('vendor_id', $vendorId);
-        }
-
-        // Sorting
-        $sortCol = $request->input('sort', 'id');
-        $sortDir = $request->input('dir', 'desc');
-        $query->orderBy($sortCol, $sortDir);
-
-        // Pagination
-        $data = $query->paginate($request->input('per_page', 15));
-
-        $items = collect($data->items())->map(function($item) {
-            return [
-                'id' => $item->id,
-                'bill_number' => $item->bill_number,
-                'vendor_name' => $item->vendor->name ?? '-',
-                'vendor_invoice_no' => $item->vendor_invoice_no ?? '-',
-                'bill_date' => $item->bill_date->format('d M Y'),
-                'due_date' => $item->due_date?->format('d M Y') ?? '-',
-                'grand_total' => '₹' . number_format($item->grand_total, 2),
-                'paid_amount' => '₹' . number_format($item->paid_amount, 2),
-                'balance_due' => '₹' . number_format($item->balance_due, 2),
-                'status' => $item->status,
-                'payment_status' => $item->payment_status,
-                'is_overdue' => $item->is_overdue,
-                '_show_url' => route('admin.purchase.bills.show', $item->id),
-                '_edit_url' => route('admin.purchase.bills.edit', $item->id),
-                '_pdf_url' => route('admin.purchase.bills.pdf', $item->id),
-            ];
-        });
-
-        return response()->json([
-            'data' => $items,
-            'total' => $data->total(),
-            'current_page' => $data->currentPage(),
-            'last_page' => $data->lastPage(),
-            'per_page' => $data->perPage(),
-        ]);
+    /**
+     * DataTable endpoint
+     */
+    public function dataTable(Request $request)
+    {
+        return $this->handleData($request);
     }
 
     public function create(Request $request)
@@ -96,9 +100,15 @@ class PurchaseBillController extends AdminController
         $billNumber = PurchaseBill::generateNumber();
         $vendors = Vendor::where('status', 'ACTIVE')->orderBy('name')->get(['id', 'name']);
         $warehouses = collect();
+        $taxes = collect();
 
         if (class_exists('\Modules\Inventory\Models\Warehouse')) {
             $warehouses = \Modules\Inventory\Models\Warehouse::where('is_active', true)->orderBy('name')->get(['id', 'name']);
+        }
+        
+        // Get taxes from taxes table
+        if (\Schema::hasTable('taxes')) {
+            $taxes = DB::table('taxes')->where('is_active', true)->orderBy('name')->get(['id', 'name', 'rate']);
         }
 
         // Get approved GRNs that don't have bills yet (or allow multiple bills per GRN)
@@ -107,7 +117,7 @@ class PurchaseBillController extends AdminController
             ->orderBy('grn_date', 'desc')
             ->get();
         
-        return $this->moduleView('purchase::bill.create', compact('billNumber', 'vendors', 'grns', 'warehouses'));
+        return $this->moduleView('purchase::bill.create', compact('billNumber', 'vendors', 'grns', 'warehouses', 'taxes'));
     }
 
     public function store(Request $request)
@@ -126,10 +136,20 @@ class PurchaseBillController extends AdminController
             'notes' => 'nullable|string|max:1000',
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
+            'items.*.grn_item_id' => 'nullable|integer',
+            'items.*.variation_id' => 'nullable|integer',
+            'items.*.unit_id' => 'nullable|integer',
+            'items.*.description' => 'nullable|string',
             'items.*.qty' => 'required|numeric|min:0.001',
             'items.*.rate' => 'required|numeric|min:0',
             'items.*.tax_percent' => 'nullable|numeric|min:0|max:100',
             'items.*.discount_percent' => 'nullable|numeric|min:0|max:100',
+            'items.*.tax_1_id' => 'nullable',
+            'items.*.tax_1_name' => 'nullable|string',
+            'items.*.tax_1_rate' => 'nullable|numeric',
+            'items.*.tax_2_id' => 'nullable',
+            'items.*.tax_2_name' => 'nullable|string',
+            'items.*.tax_2_rate' => 'nullable|numeric',
         ]);
 
         DB::beginTransaction();
@@ -156,8 +176,44 @@ class PurchaseBillController extends AdminController
                 $discountPercent = $itemData['discount_percent'] ?? 0;
                 $discountAmount = $lineTotal * ($discountPercent / 100);
                 $afterDiscount = $lineTotal - $discountAmount;
-                $taxPercent = $itemData['tax_percent'] ?? 0;
-                $taxAmount = $afterDiscount * ($taxPercent / 100);
+
+                // Get tax info from request (already has correct values from JavaScript)
+                $tax1Id = !empty($itemData['tax_1_id']) ? $itemData['tax_1_id'] : null;
+                $tax1Name = !empty($itemData['tax_1_name']) ? $itemData['tax_1_name'] : null;
+                $tax1Rate = floatval($itemData['tax_1_rate'] ?? 0);
+                $tax2Id = !empty($itemData['tax_2_id']) ? $itemData['tax_2_id'] : null;
+                $tax2Name = !empty($itemData['tax_2_name']) ? $itemData['tax_2_name'] : null;
+                $tax2Rate = floatval($itemData['tax_2_rate'] ?? 0);
+                
+                // Only fallback to GRN/PO if form doesn't have tax data
+                if (empty($tax1Name) && $tax1Rate == 0 && !empty($itemData['grn_item_id'])) {
+                    $grnItem = \Modules\Purchase\Models\GoodsReceiptNoteItem::with('purchaseOrderItem')->find($itemData['grn_item_id']);
+                    if ($grnItem) {
+                        // Try GRN item first
+                        if (!empty($grnItem->tax_1_name) || $grnItem->tax_1_rate > 0) {
+                            $tax1Id = $grnItem->tax_1_id;
+                            $tax1Name = $grnItem->tax_1_name;
+                            $tax1Rate = floatval($grnItem->tax_1_rate ?? 0);
+                            $tax2Id = $grnItem->tax_2_id;
+                            $tax2Name = $grnItem->tax_2_name;
+                            $tax2Rate = floatval($grnItem->tax_2_rate ?? 0);
+                        } 
+                        // Fallback to PO item if GRN doesn't have tax
+                        elseif ($grnItem->purchaseOrderItem) {
+                            $poItem = $grnItem->purchaseOrderItem;
+                            $tax1Id = $poItem->tax_1_id;
+                            $tax1Name = $poItem->tax_1_name;
+                            $tax1Rate = floatval($poItem->tax_1_rate ?? 0);
+                            $tax2Id = $poItem->tax_2_id;
+                            $tax2Name = $poItem->tax_2_name;
+                            $tax2Rate = floatval($poItem->tax_2_rate ?? 0);
+                        }
+                    }
+                }
+                
+                $tax1Amount = $afterDiscount * ($tax1Rate / 100);
+                $tax2Amount = $afterDiscount * ($tax2Rate / 100);
+                $taxAmount = $tax1Amount + $tax2Amount;
                 $total = $afterDiscount + $taxAmount;
 
                 PurchaseBillItem::create([
@@ -169,10 +225,18 @@ class PurchaseBillController extends AdminController
                     'description' => $itemData['description'] ?? null,
                     'qty' => $itemData['qty'],
                     'rate' => $itemData['rate'],
-                    'tax_percent' => $taxPercent,
-                    'tax_amount' => $taxAmount,
+                    'tax_percent' => $tax1Rate + $tax2Rate,
                     'discount_percent' => $discountPercent,
                     'discount_amount' => $discountAmount,
+                    'tax_1_id' => $tax1Id,
+                    'tax_1_name' => $tax1Name,
+                    'tax_1_rate' => $tax1Rate,
+                    'tax_1_amount' => $tax1Amount,
+                    'tax_2_id' => $tax2Id,
+                    'tax_2_name' => $tax2Name,
+                    'tax_2_rate' => $tax2Rate,
+                    'tax_2_amount' => $tax2Amount,
+                    'tax_amount' => $taxAmount,
                     'total' => $total,
                 ]);
             }
@@ -228,6 +292,7 @@ class PurchaseBillController extends AdminController
         $vendors = Vendor::where('status', 'ACTIVE')->orderBy('name')->get(['id', 'name']);
         $products = collect();
         $warehouses = collect();
+        $taxes = collect();
 
         if (class_exists('\Modules\Inventory\Models\Product')) {
             $products = \Modules\Inventory\Models\Product::with('unit')
@@ -238,7 +303,12 @@ class PurchaseBillController extends AdminController
             $warehouses = \Modules\Inventory\Models\Warehouse::where('is_active', true)->orderBy('name')->get(['id', 'name']);
         }
         
-        return $this->moduleView('purchase::bill.edit', compact('bill', 'vendors', 'products', 'warehouses'));
+        // Get taxes from taxes table
+        if (\Schema::hasTable('taxes')) {
+            $taxes = DB::table('taxes')->where('is_active', true)->orderBy('name')->get(['id', 'name', 'rate']);
+        }
+        
+        return $this->moduleView('purchase::bill.edit', compact('bill', 'vendors', 'products', 'warehouses', 'taxes'));
     }
 
     public function update(Request $request, $id)
@@ -285,23 +355,29 @@ class PurchaseBillController extends AdminController
                 $discountPercent = $itemData['discount_percent'] ?? 0;
                 $discountAmount = $lineTotal * ($discountPercent / 100);
                 $afterDiscount = $lineTotal - $discountAmount;
-                $taxPercent = $itemData['tax_percent'] ?? 0;
-                $taxAmount = $afterDiscount * ($taxPercent / 100);
-                $total = $afterDiscount + $taxAmount;
 
-                PurchaseBillItem::create([
+                $billItem = PurchaseBillItem::create([
                     'purchase_bill_id' => $bill->id,
                     'product_id' => $itemData['product_id'],
                     'variation_id' => $itemData['variation_id'] ?? null,
                     'unit_id' => $itemData['unit_id'] ?? null,
                     'qty' => $itemData['qty'],
                     'rate' => $itemData['rate'],
-                    'tax_percent' => $taxPercent,
-                    'tax_amount' => $taxAmount,
+                    'tax_percent' => 0, // Will be calculated from taxes
+                    'tax_amount' => 0,
                     'discount_percent' => $discountPercent,
                     'discount_amount' => $discountAmount,
-                    'total' => $total,
+                    'total' => $afterDiscount,
                 ]);
+                
+                // Save multi-taxes
+                if (!empty($itemData['tax_ids'])) {
+                    $taxIds = is_array($itemData['tax_ids']) ? $itemData['tax_ids'] : explode(',', $itemData['tax_ids']);
+                    $taxIds = array_filter($taxIds);
+                    $billItem->saveTaxes($taxIds, $afterDiscount);
+                }
+                
+                $billItem->calculateTotal();
             }
 
             $bill->calculateTotals();
@@ -497,15 +573,51 @@ class PurchaseBillController extends AdminController
         // Amount in words
         $amountInWords = $this->convertNumberToWords($bill->grand_total);
         
+        // Calculate tax totals
+        $tax1Total = 0;
+        $tax2Total = 0;
+        $tax1Name = 'CGST';
+        $tax2Name = 'SGST';
+        $totalTaxableValue = 0;
+        $totalAmount = 0;
+        
+        foreach ($bill->items as $item) {
+            $taxableValue = ($item->qty * $item->rate) - ($item->discount_amount ?? 0);
+            $totalTaxableValue += $taxableValue;
+            $totalAmount += $item->total;
+            
+            $tax1Total += $item->tax_1_amount ?? 0;
+            $tax2Total += $item->tax_2_amount ?? 0;
+            
+            // Get tax names from first item that has them
+            if (!empty($item->tax_1_name) && $tax1Name === 'CGST') {
+                $tax1Name = $item->tax_1_name;
+            }
+            if (!empty($item->tax_2_name) && $tax2Name === 'SGST') {
+                $tax2Name = $item->tax_2_name;
+            }
+        }
+        
+        $hasTax1 = $tax1Total > 0;
+        $hasTax2 = $tax2Total > 0;
+        $totalTaxAmount = $tax1Total + $tax2Total;
+        
         $html = view('purchase::bill.pdf', compact(
             'bill', 'pdfSettings', 'vendorBank', 'amountInWords',
-            'companyName', 'companyAddress', 'companyPhone', 'companyEmail', 'companyGst', 'companyLogo'
+            'companyName', 'companyAddress', 'companyPhone', 'companyEmail', 'companyGst', 'companyLogo',
+            'hasTax1', 'hasTax2', 'tax1Name', 'tax2Name', 'tax1Total', 'tax2Total',
+            'totalTaxableValue', 'totalTaxAmount', 'totalAmount'
         ))->render();
         
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($html);
         $pdf->setPaper('A4', 'portrait');
         
-        return $pdf->download("invoice-{$bill->bill_number}.pdf");
+        // Check if download or view
+        if (request()->has('download')) {
+            return $pdf->download("invoice-{$bill->bill_number}.pdf");
+        }
+        
+        return $pdf->stream("invoice-{$bill->bill_number}.pdf");
     }
     
     // Payment Receipt PDF

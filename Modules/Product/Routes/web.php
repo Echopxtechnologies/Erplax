@@ -9,7 +9,7 @@ Route::prefix('admin/product')
     ->name('admin.product.')
     ->group(function () {
         Route::get('/', [ProductController::class, 'index'])->name('index');
-        Route::get('/data', [ProductController::class, 'dataTable'])->name('data');
+        Route::match(['get', 'post'], '/data', [ProductController::class, 'dataTable'])->name('data');
         Route::post('/bulk-delete', [ProductController::class, 'bulkDelete'])->name('bulk-delete');
         Route::get('/search', [ProductController::class, 'search'])->name('search');
         

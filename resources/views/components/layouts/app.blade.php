@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="csrf-token" content="{{ csrf_token() }}">
-        @php
-        $companyName = \App\Models\Option::companyName();
-        $companyLogo = \App\Models\Option::companyLogo();
-        $companyFavicon = \App\Models\Option::companyFavicon();
+    @php
+        $companyName = \App\Models\Option::where('key', 'company_name')->value('value') ?? config('app.name');
+        $companyLogo = \App\Models\Option::where('key', 'company_logo')->value('value');
+        $companyFavicon = \App\Models\Option::where('key', 'company_favicon')->value('value');
     @endphp
     
     <title>{{ $companyName }}</title>
@@ -911,6 +911,20 @@
     .toast-info .toast-close {
         color: #fff;
     }
+    .snack-action{
+    border: none;
+    background: rgba(255,255,255,0.2);
+    color: #fff;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.snack-action:hover{
+    background: rgba(255,255,255,0.28);
+}
+
 }
 
     </style>
@@ -1323,31 +1337,79 @@
         const Toast = {
             container: null,
             init() { this.container = document.getElementById('toastContainer'); },
-            show(type, message, title = null, duration = 5000) {
-                if (!this.container) this.init();
-                const toast = document.createElement('div');
-                toast.className = `toast toast-${type}`;
-                const icons = {
-                    success: '<path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>',
-                    error: '<path d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>',
-                    warning: '<path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>',
-                    info: '<path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>'
-                };
-                const titles = { success: 'Success', error: 'Error', warning: 'Warning', info: 'Info' };
-                toast.innerHTML = `
-                    <svg class="toast-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">${icons[type]}</svg>
-                    <div style="flex:1"><p class="toast-title">${title || titles[type]}</p><p class="toast-message">${message}</p></div>
-                    <button class="toast-close" onclick="Toast.dismiss(this.parentElement)"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"></path></svg></button>
-                    <div class="toast-progress"></div>
-                `;
-                this.container.appendChild(toast);
-                requestAnimationFrame(() => toast.classList.add('show'));
-                const progress = toast.querySelector('.toast-progress');
-                progress.style.transition = `transform ${duration}ms linear`;
-                requestAnimationFrame(() => progress.style.transform = 'scaleX(0)');
-                toast.dismissTimer = setTimeout(() => this.dismiss(toast), duration);
-                return toast;
-            },
+            show(type, message, title = null, duration = 4000, actionText = null, actionFn = null) {
+    if (!this.container) this.init();
+
+    const isMobile = window.innerWidth <= 768;
+
+    // Snackbar behavior on mobile: only one at a time
+    if (isMobile) {
+        this.container.querySelectorAll('.toast').forEach(t => this.dismiss(t));
+    }
+
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.setAttribute('role', 'status');
+    toast.setAttribute('aria-live', 'polite');
+
+    const icons = {
+        success: '<path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>',
+        error: '<path d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>',
+        warning: '<path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>',
+        info: '<path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>'
+    };
+    const titles = { success: 'Success', error: 'Error', warning: 'Warning', info: 'Info' };
+
+    // Desktop: keep your current layout
+    if (!isMobile) {
+        toast.innerHTML = `
+            <svg class="toast-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">${icons[type]}</svg>
+            <div style="flex:1">
+                <p class="toast-title">${title || titles[type]}</p>
+                <p class="toast-message">${message}</p>
+            </div>
+            <button class="toast-close" onclick="Toast.dismiss(this.parentElement)">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+            <div class="toast-progress"></div>
+        `;
+    } else {
+        // Mobile: snackbar style (simple, optional action)
+        toast.innerHTML = `
+            <svg class="toast-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">${icons[type]}</svg>
+            <div style="flex:1">
+                <p class="toast-title" style="margin:0">${message}</p>
+            </div>
+            ${
+                actionText
+                ? `<button class="snack-action" type="button">${actionText}</button>`
+                : ``
+            }
+        `;
+
+        const btn = toast.querySelector('.snack-action');
+        if (btn && typeof actionFn === 'function') {
+            btn.addEventListener('click', () => {
+                try { actionFn(); } finally { this.dismiss(toast); }
+            });
+        }
+    }
+
+    this.container.appendChild(toast);
+    requestAnimationFrame(() => toast.classList.add('show'));
+
+    // Progress only for desktop (your CSS already hides on mobile, but this keeps it clean)
+    const progress = toast.querySelector('.toast-progress');
+    if (progress && !isMobile) {
+        progress.style.transition = `transform ${duration}ms linear`;
+        requestAnimationFrame(() => progress.style.transform = 'scaleX(0)');
+    }
+
+    toast.dismissTimer = setTimeout(() => this.dismiss(toast), duration);
+    return toast;
+},
             dismiss(toast) {
                 if (!toast || toast.classList.contains('hide')) return;
                 if (toast.dismissTimer) clearTimeout(toast.dismissTimer);

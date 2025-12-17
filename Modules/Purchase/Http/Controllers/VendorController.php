@@ -7,9 +7,19 @@ use Modules\Purchase\Models\Vendor;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Response;
+use Modules\Core\Traits\DataTableTrait;
 
 class VendorController extends AdminController
 {
+    use DataTableTrait;
+    
+    // DataTable Configuration
+    protected $model = Vendor::class;
+    protected $searchable = ['name', 'vendor_code', 'contact_person', 'phone', 'gst_number', 'email'];
+    protected $sortable = ['id', 'name', 'vendor_code', 'status', 'created_at'];
+    protected $filterable = ['status'];
+    protected $exportTitle = 'Vendors Export';
+
     public function index()
     {
         $stats = [
@@ -22,104 +32,54 @@ class VendorController extends AdminController
         return $this->moduleView('purchase::vendor.index', compact('stats'));
     }
 
-    public function dataTable(Request $request): JsonResponse
+    /**
+     * DataTable row mapping for list view
+     */
+    protected function mapRow($item)
     {
-        $query = Vendor::query();
-
-        // Export selected IDs
-        if ($request->has('ids') && $request->has('export')) {
-            $ids = array_filter(explode(',', $request->input('ids')));
-            if (!empty($ids)) $query->whereIn('id', $ids);
-            return $this->export($query, $request->input('export'));
-        }
-
-        // Search
-        if ($search = $request->input('search')) {
-            $query->where(function($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('vendor_code', 'like', "%{$search}%")
-                  ->orWhere('contact_person', 'like', "%{$search}%")
-                  ->orWhere('phone', 'like', "%{$search}%")
-                  ->orWhere('gst_number', 'like', "%{$search}%");
-            });
-        }
-
-        // Filter
-        if ($status = $request->input('status')) {
-            $query->where('status', $status);
-        }
-
-        // Sort
-        $sortCol = $request->input('sort', 'id');
-        $sortDir = $request->input('dir', 'desc');
-        $query->orderBy($sortCol, $sortDir);
-
-        // Export all
-        if ($request->has('export')) {
-            return $this->export($query, $request->input('export'));
-        }
-
-        // Pagination
-        $data = $query->paginate($request->input('per_page', 15));
-
-        // Map data with URLs for dt-table
-        $items = collect($data->items())->map(function($item) {
-            return [
-                'id' => $item->id,
-                'vendor_code' => $item->vendor_code,
-                'name' => $item->name,
-                'contact_person' => $item->contact_person ?? '-',
-                'phone' => $item->phone ?? '-',
-                'gst_number' => $item->gst_number ?? '-',
-                'billing_city' => $item->billing_city ?? '-',
-                'status' => $item->status,
-                '_show_url' => route('admin.purchase.vendors.show', $item->id),
-                '_edit_url' => route('admin.purchase.vendors.edit', $item->id),
-            ];
-        });
-
-        return response()->json([
-            'data' => $items,
-            'total' => $data->total(),
-            'current_page' => $data->currentPage(),
-            'last_page' => $data->lastPage(),
-        ]);
-    }
-
-    protected function export($query, $format = 'csv')
-    {
-        $data = $query->get();
-        $filename = 'vendors_' . date('Y-m-d') . '.' . $format;
-        
-        $headers = [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => "attachment; filename={$filename}",
+        return [
+            'id' => $item->id,
+            'vendor_code' => $item->vendor_code,
+            'name' => $item->name,
+            'contact_person' => $item->contact_person ?? '-',
+            'phone' => $item->phone ?? '-',
+            'gst_number' => $item->gst_number ?? '-',
+            'billing_city' => $item->billing_city ?? '-',
+            'status' => $item->status,
+            '_show_url' => route('admin.purchase.vendors.show', $item->id),
+            '_edit_url' => route('admin.purchase.vendors.edit', $item->id),
         ];
-
-        $callback = function () use ($data) {
-            $file = fopen('php://output', 'w');
-            fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF)); // UTF-8 BOM
-            fputcsv($file, ['ID', 'Code', 'Name', 'Contact Person', 'Phone', 'Email', 'GST Number', 'City', 'Status']);
-            foreach ($data as $row) {
-                fputcsv($file, [
-                    $row->id, 
-                    $row->vendor_code, 
-                    $row->name, 
-                    $row->contact_person, 
-                    $row->phone, 
-                    $row->email, 
-                    $row->gst_number, 
-                    $row->billing_city, 
-                    $row->status
-                ]);
-            }
-            fclose($file);
-        };
-
-        return Response::stream($callback, 200, $headers);
     }
 
-    public function bulkDelete(Request $request): JsonResponse
+    /**
+     * DataTable row mapping for export
+     */
+    protected function mapExportRow($item)
+    {
+        return [
+            'ID' => $item->id,
+            'Code' => $item->vendor_code,
+            'Name' => $item->name,
+            'Contact Person' => $item->contact_person ?? '',
+            'Phone' => $item->phone ?? '',
+            'Email' => $item->email ?? '',
+            'GST Number' => $item->gst_number ?? '',
+            'PAN Number' => $item->pan_number ?? '',
+            'City' => $item->billing_city ?? '',
+            'State' => $item->billing_state ?? '',
+            'Status' => $item->status,
+        ];
+    }
+
+    /**
+     * DataTable endpoint
+     */
+    public function dataTable(Request $request)
+    {
+        return $this->handleData($request);
+    }
+
+    public function bulkDelete(Request $request)
     {
         $ids = $request->input('ids', []);
         if (empty($ids)) {

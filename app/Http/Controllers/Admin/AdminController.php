@@ -882,33 +882,40 @@ class AdminController extends Controller
     /**
      * General Settings Page
      */
-    public function settingsGeneral()
-    {
-        $data = [
-            'company_name' => Option::get('company_name', ''),
-            'company_email' => Option::get('company_email', ''),
-            'company_phone' => Option::get('company_phone', ''),
-            'company_address' => Option::get('company_address', ''),
-            'company_website' => Option::get('company_website', ''),
-            'company_gst' => Option::get('company_gst', ''),
-            'company_logo' => Option::get('company_logo', ''),
-            'company_favicon' => Option::get('company_favicon', ''),
-            'site_timezone' => Option::get('site_timezone', 'Asia/Kolkata'),
-            'date_format' => Option::get('date_format', 'd/m/Y'),
-            'time_format' => Option::get('time_format', 'h:i A'),
-            'currency_symbol' => Option::get('currency_symbol', '₹'),
-            'currency_code' => Option::get('currency_code', 'INR'),
-            'pagination_limit' => Option::get('pagination_limit', 10),
-            'company_city' => Option::get('company_city', ''),
-            'company_state' => Option::get('company_state', ''),
-            'company_country_code' => Option::get('company_country_code', ''),
-            'company_zip' => Option::get('company_zip', ''),
-            'company_pan' => Option::get('company_pan', ''),
-            'company_cin' => Option::get('company_cin', ''),
-        ];
+public function settingsGeneral()
+{
+    // Query DB directly - no cache issues
+    $options = \App\Models\Option::whereIn('key', [
+        'company_name', 'company_email', 'company_phone', 'company_address',
+        'company_website', 'company_gst', 'company_logo', 'company_favicon',
+        'site_timezone', 'date_format', 'time_format', 'currency_symbol',
+        'currency_code', 'pagination_limit', 'company_city', 'company_state',
+        'company_country_code', 'company_zip', 'company_pan', 'company_cin',
+    ])->pluck('value', 'key')->toArray();
 
-        return view('admin.settings.general', $data);
-    }
+    return view('admin.settings.general', [
+        'company_name' => $options['company_name'] ?? '',
+        'company_email' => $options['company_email'] ?? '',
+        'company_phone' => $options['company_phone'] ?? '',
+        'company_address' => $options['company_address'] ?? '',
+        'company_website' => $options['company_website'] ?? '',
+        'company_gst' => $options['company_gst'] ?? '',
+        'company_logo' => $options['company_logo'] ?? '',
+        'company_favicon' => $options['company_favicon'] ?? '',
+        'company_city' => $options['company_city'] ?? '',
+        'company_state' => $options['company_state'] ?? '',
+        'company_country_code' => $options['company_country_code'] ?? '',
+        'company_zip' => $options['company_zip'] ?? '',
+        'company_pan' => $options['company_pan'] ?? '',
+        'company_cin' => $options['company_cin'] ?? '',
+        'site_timezone' => $options['site_timezone'] ?? 'Asia/Kolkata',
+        'date_format' => $options['date_format'] ?? 'd/m/Y',
+        'time_format' => $options['time_format'] ?? 'h:i A',
+        'currency_symbol' => $options['currency_symbol'] ?? '₹',
+        'currency_code' => $options['currency_code'] ?? 'INR',
+        'pagination_limit' => $options['pagination_limit'] ?? 10,
+    ]);
+}
 
     /**
      * Save General Settings
@@ -916,7 +923,7 @@ class AdminController extends Controller
     public function saveSettingsGeneral(Request $request)
     {
         $request->validate([
-            'company_name' => 'required|string|max:255',
+            'company_name' => 'nullable|string|max:255',
             'company_email' => 'nullable|email|max:255',
             'company_phone' => 'nullable|string|max:50',
             'company_address' => 'nullable|string|max:500',

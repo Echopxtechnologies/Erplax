@@ -2,286 +2,460 @@
 
 namespace App\Http\Controllers\Admin\Customers;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Admin\AdminController;
 use App\Models\Customer;
+use App\Models\CustomerGroup;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
+use Exception;
 
-class Form extends Controller
+class Form extends AdminController
 {
-    // Validation rules configuration
-    protected $validationRules = [
-        // Basic Information
-        'name' => [
-            'rule' => 'required|string|min:2|max:100',
-            'message' => 'Name is required (2-100 characters)'
-        ],
-        'email' => [
-            'rule' => 'required|email|max:150',
-            'message' => 'Valid email is required (max 150 characters)'
-        ],
-        'phone' => [
-            'rule' => 'required|string|min:10|max:20',
-            'message' => 'Phone must be 10-20 characters'
-        ],
-        'customer_type' => [
-            'rule' => 'required|in:individual,company',
-            'message' => 'Customer type must be individual or company'
-        ],
-        'group_name' => [
-            'rule' => 'nullable|string|max:50',
-            'message' => 'Group name max 50 characters'
-        ],
+    /*
+    |--------------------------------------------------------------------------
+    | Private Properties (Getter/Setter Pattern)
+    |--------------------------------------------------------------------------
+    */
+    
+    private $customer = null;
 
-        // Company Details
-        'company' => [
-            'rule' => 'nullable|string|max:150',
-            'message' => 'Company name max 150 characters'
-        ],
-        'designation' => [
-            'rule' => 'nullable|string|max:100',
-            'message' => 'Designation max 100 characters'
-        ],
-        'website' => [
-            'rule' => 'nullable|url|max:200',
-            'message' => 'Website must be a valid URL (max 200 characters)'
-        ],
-        'gst_number' => [
-            'rule' => 'nullable|string|max:20',
-            'message' => 'GST number max 20 characters'
-        ],
-
-        // Billing Address
-        'address' => [
-            'rule' => 'nullable|string|max:500',
-            'message' => 'Address max 500 characters'
-        ],
-        'city' => [
-            'rule' => 'nullable|string|max:100',
-            'message' => 'City max 100 characters'
-        ],
-        'state' => [
-            'rule' => 'nullable|string|max:100',
-            'message' => 'State max 100 characters'
-        ],
-        'zip_code' => [
-            'rule' => 'nullable|string|max:20',
-            'message' => 'ZIP code max 20 characters'
-        ],
-        'country' => [
-            'rule' => 'nullable|string|max:100',
-            'message' => 'Country max 100 characters'
-        ],
-
-        // Shipping Address
-        'shipping_address' => [
-            'rule' => 'nullable|string|max:500',
-            'message' => 'Shipping address max 500 characters'
-        ],
-        'shipping_city' => [
-            'rule' => 'nullable|string|max:100',
-            'message' => 'Shipping city max 100 characters'
-        ],
-        'shipping_state' => [
-            'rule' => 'nullable|string|max:100',
-            'message' => 'Shipping state max 100 characters'
-        ],
-        'shipping_zip_code' => [
-            'rule' => 'nullable|string|max:20',
-            'message' => 'Shipping ZIP max 20 characters'
-        ],
-        'shipping_country' => [
-            'rule' => 'nullable|string|max:100',
-            'message' => 'Shipping country max 100 characters'
-        ],
-
-        // Notes
-        'notes' => [
-            'rule' => 'nullable|string|max:2000',
-            'message' => 'Notes max 2000 characters'
-        ],
-    ];
-
-    /**
-     * Get validation rules array
-     */
-    protected function getRules($customerId = null)
+    /*
+    |--------------------------------------------------------------------------
+    | GETTER - Fetch Single Customer
+    |--------------------------------------------------------------------------
+    */
+    
+    private function getCustomer($id)
     {
-        $rules = [];
-        foreach ($this->validationRules as $field => $config) {
-            $rules[$field] = $config['rule'];
+        try {
+            if (!$this->customer || $this->customer->id != $id) {
+                $this->customer = Customer::findOrFail($id);
+            }
+            return $this->customer;
+        } catch (Exception $e) {
+            report($e);
+            return null;
         }
-
-        // Add unique rules with exception for updates
-        if ($customerId) {
-            $rules['email'] .= ',unique:customers,email,' . $customerId;
-            $rules['company'] = 'nullable|string|max:150|unique:customers,company,' . $customerId;
-        } else {
-            $rules['email'] .= '|unique:customers,email';
-            $rules['company'] = 'nullable|string|max:150|unique:customers,company';
-        }
-
-        return $rules;
     }
 
-    /**
-     * Get custom error messages
-     */
-    protected function getMessages()
-    {
-        $messages = [];
-        foreach ($this->validationRules as $field => $config) {
-            $messages[$field . '.*'] = $config['message'];
-        }
-
-        // Add specific messages
-        $messages['email.unique'] = 'This email is already registered.';
-        $messages['email.email'] = 'Please enter a valid email address.';
-        $messages['company.unique'] = 'This company name already exists.';
-        $messages['website.url'] = 'Please enter a valid URL (e.g., https://example.com).';
-        $messages['phone.min'] = 'Phone number must be at least 10 digits.';
-        $messages['name.min'] = 'Name must be at least 2 characters.';
-
-        return $messages;
-    }
-
-    /**
-     * Show create form
-     */
-    public function create()
-    {
-        $customer = new Customer();
-        $groups = Customer::whereNotNull('group_name')
+    /*
+    |--------------------------------------------------------------------------
+    | CREATE
+    |--------------------------------------------------------------------------
+    */
+    
+public function create()
+{
+    try {
+        $customerGroups = DB::table('customer_groups')->orderBy('name')->pluck('name');
+        
+        // Get distinct company names
+        $existingCompanies = Customer::where('customer_type', 'company')
+            ->whereNotNull('company')
             ->distinct()
-            ->pluck('group_name')
-            ->filter()
-            ->values();
-
-        return view('admin.customers.create', compact('customer', 'groups'));
+            ->pluck('company')
+            ->toArray();
+        
+        $customerTypes = [
+            'individual' => 'Individual',
+            'company' => 'Company'
+        ];
+        
+        $directions = [
+            'ltr' => 'Left to Right',
+            'rtl' => 'Right to Left'
+        ];
+        
+        $countries = [
+            'India' => 'India',
+            'United States' => 'United States',
+            'United Kingdom' => 'United Kingdom',
+            'Canada' => 'Canada',
+            'Australia' => 'Australia',
+        ];
+        
+        return view('admin.customers.create', compact(
+            'customerGroups',
+            'customerTypes',
+            'directions',
+            'countries',
+            'existingCompanies'
+        ));
+        
+    } catch (Exception $e) {
+        report($e);
+        return back()->with('error', 'Failed to load form: ' . $e->getMessage());
     }
+}
 
-    /**
-     * Store new customer
-     */
+    /*
+    |--------------------------------------------------------------------------
+    | STORE
+    |--------------------------------------------------------------------------
+    */
+    
     public function store(Request $request)
     {
-        $validated = $request->validate($this->getRules(), $this->getMessages());
-
-        // Clean up data
-        $validated = $this->cleanData($validated);
-
-        // Additional validation for company type
-        if ($request->customer_type === 'company' && empty($validated['company'])) {
-            return back()->withInput()->withErrors(['company' => 'Company name is required for company type customers.']);
-        }
-
-        Customer::create($validated);
-
-        return redirect()->route('admin.customers.index')
-            ->with('success', 'Customer created successfully.');
-    }
-
-    /**
-     * Show customer details
-     */
-    public function show(Customer $customer)
-    {
-        $companyMembers = collect();
+        $rules = [
+            'customer_type' => 'required|in:individual,company',
+            'firstname' => 'required|string|max:191',
+            'lastname' => 'required|string|max:191',
+            'email' => 'required|email|max:100|unique:customers,email',
+            'phone' => 'nullable|string|max:100',
+            'designation' => 'nullable|string|max:100',
+            'group_name' => 'nullable|string|max:100',
+            'active' => 'nullable|boolean',
+            'company' => Rule::requiredIf($request->customer_type === 'company'),
+            'vat' => 'nullable|string|max:50',
+            'website' => 'nullable|url|max:150',
+        ];
         
-        if ($customer->customer_type === 'company' && $customer->company) {
-            $companyMembers = Customer::where('company', $customer->company)
-                ->where('id', '!=', $customer->id)
-                ->orderBy('name')
-                ->get(['id', 'name', 'email', 'designation', 'phone']);
-        }
-
-        return view('admin.customers.show', compact('customer', 'companyMembers'));
-    }
-
-    /**
-     * Show edit form
-     */
-    public function edit(Customer $customer)
-    {
-        $groups = Customer::whereNotNull('group_name')
-            ->distinct()
-            ->pluck('group_name')
-            ->filter()
-            ->values();
-
-        return view('admin.customers.edit', compact('customer', 'groups'));
-    }
-
-    /**
-     * Update customer
-     */
-    public function update(Request $request, Customer $customer)
-    {
-        $validated = $request->validate($this->getRules($customer->id), $this->getMessages());
-
-        // Clean up data
-        $validated = $this->cleanData($validated);
-
-        // Additional validation for company type
-        if ($request->customer_type === 'company' && empty($validated['company'])) {
-            return back()->withInput()->withErrors(['company' => 'Company name is required for company type customers.']);
-        }
-
-        $customer->update($validated);
-
-        return redirect()->route('admin.customers.index')
-            ->with('success', 'Customer updated successfully.');
-    }
-
-    /**
-     * Delete customer
-     */
-    public function destroy(Customer $customer)
-    {
-        $customer->delete();
-
-        // Return JSON for AJAX requests
-        if (request()->ajax() || request()->wantsJson()) {
-            return response()->json(['success' => true, 'message' => 'Customer deleted successfully.']);
-        }
-
-        return redirect()->route('admin.customers.index')
-            ->with('success', 'Customer deleted successfully.');
-    }
-
-    /**
-     * Clean and sanitize input data
-     */
-    protected function cleanData(array $data)
-    {
-        // Trim all string values
-        foreach ($data as $key => $value) {
-            if (is_string($value)) {
-                $data[$key] = trim($value);
-                // Convert empty strings to null
-                if ($data[$key] === '') {
-                    $data[$key] = null;
-                }
+        $validated = $request->validate($rules);
+        
+        try {
+            DB::beginTransaction();
+            
+            $data = [
+                'name' => trim($request->firstname . ' ' . $request->lastname),
+                'customer_type' => $request->customer_type,
+                'email' => $request->email,
+                'phone' => $request->phone,
+                'designation' => $request->designation,
+                'group_name' => $request->group_name,
+                //'active' => $request->has('active') ? 1 : ($request->active ?? 1),
+                'active' => (int) $request->input('active', 1),
+                'added_by' => Auth::id() ?? 0,
+            ];
+            
+            if ($request->customer_type === 'company') {
+                $data['company'] = $request->company;
+                $data['vat'] = $request->vat;
+                $data['website'] = $request->website;
             }
+            
+            $data['billing_street'] = $request->billing_street;
+            $data['billing_city'] = $request->billing_city;
+            $data['billing_state'] = $request->billing_state;
+            $data['billing_zip_code'] = $request->billing_zip_code;
+            $data['billing_country'] = $request->billing_country;
+            
+            $data['shipping_address'] = $request->shipping_address;
+            $data['shipping_city'] = $request->shipping_city;
+            $data['shipping_state'] = $request->shipping_state;
+            $data['shipping_zip_code'] = $request->shipping_zip_code;
+            $data['shipping_country'] = $request->shipping_country;
+            
+            $data['invoice_emails'] = $request->has('invoice_emails');
+            $data['estimate_emails'] = $request->has('estimate_emails');
+            $data['credit_note_emails'] = $request->has('credit_note_emails');
+            $data['contract_emails'] = $request->has('contract_emails');
+            $data['task_emails'] = $request->has('task_emails');
+            $data['project_emails'] = $request->has('project_emails');
+            $data['ticket_emails'] = $request->has('ticket_emails');
+            
+            $customer = Customer::create($data);
+            
+            DB::commit();
+            
+            return redirect()
+                ->route('admin.customers.show', $customer->id)
+                ->with('success', 'Customer created successfully');
+                
+        } catch (Exception $e) {
+            DB::rollBack();
+            report($e);
+            return back()->withInput()->with('error', 'Failed to create customer: ' . $e->getMessage());
         }
-
-        // Format phone number (remove spaces, dashes)
-        if (!empty($data['phone'])) {
-            $data['phone'] = preg_replace('/[^0-9+]/', '', $data['phone']);
-        }
-
-        // Format website URL
-        if (!empty($data['website'])) {
-            if (!preg_match('/^https?:\/\//', $data['website'])) {
-                $data['website'] = 'https://' . $data['website'];
-            }
-        }
-
-        // Uppercase GST number
-        if (!empty($data['gst_number'])) {
-            $data['gst_number'] = strtoupper($data['gst_number']);
-        }
-
-        return $data;
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | SHOW
+    |--------------------------------------------------------------------------
+    */
+    
+    public function show($id)
+    {
+        try {
+            $customer = $this->getCustomer($id);
+            
+            if (!$customer) {
+                return redirect()
+                    ->route('admin.customers.index')
+                    ->with('error', 'Customer not found');
+            }
+            
+            // If company, get all contacts
+            $contacts = null;
+            if ($customer->customer_type === 'company') {
+                $contacts = Customer::where('company', $customer->company)
+                    ->where('customer_type', 'company')
+                    ->orderBy('created_at', 'asc')
+                    ->get();
+            }
+            
+            return view('admin.customers.show', compact('customer', 'contacts'));
+            
+        } catch (Exception $e) {
+            report($e);
+            return back()->with('error', 'Failed to load customer: ' . $e->getMessage());
+        }
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | EDIT
+    |--------------------------------------------------------------------------
+    */
+    
+    public function edit($id)
+    {
+        try {
+            $customer = $this->getCustomer($id);
+            
+            if (!$customer) {
+                return back()->with('error', 'Customer not found');
+            }
+            
+            $customerGroups = DB::table('customer_groups')->orderBy('name')->pluck('name');
+            $customerTypes = ['individual' => 'Individual', 'company' => 'Company'];
+            $directions = ['ltr' => 'Left to Right', 'rtl' => 'Right to Left'];
+            $countries = [
+                'India' => 'India',
+                'United States' => 'United States',
+                'United Kingdom' => 'United Kingdom',
+                'Canada' => 'Canada',
+                'Australia' => 'Australia',
+            ];
+            
+            $contactCount = null;
+            if ($customer->customer_type === 'company') {
+                $contactCount = Customer::where('company', $customer->company)
+                    ->where('customer_type', 'company')
+                    ->count();
+            }
+            
+            $names = explode(' ', $customer->name, 2);
+            $firstname = $names[0] ?? '';
+            $lastname = $names[1] ?? '';
+            
+            return view('admin.customers.edit', compact(
+                'customer',
+                'customerGroups',
+                'customerTypes',
+                'directions',
+                'countries',
+                'firstname',
+                'lastname',
+                'contactCount'
+            ));
+            
+        } catch (Exception $e) {
+            report($e);
+            return back()->with('error', 'Failed to load edit form: ' . $e->getMessage());
+        }
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | UPDATE
+    |--------------------------------------------------------------------------
+    */
+    
+    public function update(Request $request, $id)
+    {
+        $customer = $this->getCustomer($id);
+        
+        if (!$customer) {
+            return back()->with('error', 'Customer not found');
+        }
+        
+        $rules = [
+            'customer_type' => 'required|in:individual,company',
+            'firstname' => 'required|string|max:191',
+            'lastname' => 'required|string|max:191',
+            'email' => ['required', 'email', 'max:100', Rule::unique('customers')->ignore($customer->id)],
+            'phone' => 'nullable|string|max:100',
+            'designation' => 'nullable|string|max:100',
+            'group_name' => 'nullable|string|max:100',
+            'active' => 'nullable|boolean',
+            'company' => Rule::requiredIf($request->customer_type === 'company'),
+            'vat' => 'nullable|string|max:50',
+            'website' => 'nullable|url|max:150',
+        ];
+        
+        $validated = $request->validate($rules);
+        
+        try {
+            DB::beginTransaction();
+            
+            if ($customer->customer_type === 'company') {
+                // Update ALL rows with same company
+                $companyData = [
+                    'company' => $request->company,
+                    'vat' => $request->vat,
+                    'website' => $request->website,
+                    'group_name' => $request->group_name,
+                   // 'active' => $request->has('active') ? 1 : ($request->active ?? $customer->active),
+                   'active' => (int) $request->input('active', $customer->active),
+                    'billing_street' => $request->billing_street,
+                    'billing_city' => $request->billing_city,
+                    'billing_state' => $request->billing_state,
+                    'billing_zip_code' => $request->billing_zip_code,
+                    'billing_country' => $request->billing_country,
+                    'shipping_address' => $request->shipping_address,
+                    'shipping_city' => $request->shipping_city,
+                    'shipping_state' => $request->shipping_state,
+                    'shipping_zip_code' => $request->shipping_zip_code,
+                    'shipping_country' => $request->shipping_country,
+                ];
+                
+                Customer::where('company', $customer->company)
+                    ->where('customer_type', 'company')
+                    ->update($companyData);
+                
+                // Update THIS contact's personal fields
+                $customer->update([
+                    'name' => trim($request->firstname . ' ' . $request->lastname),
+                    'email' => $request->email,
+                    'phone' => $request->phone,
+                    'designation' => $request->designation,
+                ]);
+                
+            } else {
+                // Individual: update only this row
+                $data = [
+                    'name' => trim($request->firstname . ' ' . $request->lastname),
+                    'customer_type' => $request->customer_type,
+                    'email' => $request->email,
+                    'phone' => $request->phone,
+                    'designation' => $request->designation,
+                    'group_name' => $request->group_name,
+                    //'active' => $request->has('active') ? 1 : ($request->active ?? $customer->active),
+                    'active' => (int) $request->input('active', $customer->active),
+                    'billing_street' => $request->billing_street,
+                    'billing_city' => $request->billing_city,
+                    'billing_state' => $request->billing_state,
+                    'billing_zip_code' => $request->billing_zip_code,
+                    'billing_country' => $request->billing_country,
+                    'shipping_address' => $request->shipping_address,
+                    'shipping_city' => $request->shipping_city,
+                    'shipping_state' => $request->shipping_state,
+                    'shipping_zip_code' => $request->shipping_zip_code,
+                    'shipping_country' => $request->shipping_country,
+                ];
+                
+                $data['invoice_emails'] = $request->has('invoice_emails');
+                $data['estimate_emails'] = $request->has('estimate_emails');
+                $data['credit_note_emails'] = $request->has('credit_note_emails');
+                $data['contract_emails'] = $request->has('contract_emails');
+                $data['task_emails'] = $request->has('task_emails');
+                $data['project_emails'] = $request->has('project_emails');
+                $data['ticket_emails'] = $request->has('ticket_emails');
+                
+                $customer->update($data);
+            }
+            
+            DB::commit();
+            
+            return redirect()
+                ->route('admin.customers.show', $customer->id)
+                ->with('success', 'Customer updated successfully');
+                
+        } catch (Exception $e) {
+            DB::rollBack();
+            report($e);
+            return back()->withInput()->with('error', 'Failed to update customer: ' . $e->getMessage());
+        }
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | DESTROY
+    |--------------------------------------------------------------------------
+    */
+    
+    public function destroy($id)
+    {
+        try {
+            $customer = $this->getCustomer($id);
+            
+            if (!$customer) {
+                return back()->with('error', 'Customer not found');
+            }
+            
+            $name = $customer->display_name;
+            
+            DB::beginTransaction();
+            
+            if ($customer->customer_type === 'company') {
+                // Delete ALL contacts of this company
+                Customer::where('company', $customer->company)
+                    ->where('customer_type', 'company')
+                    ->delete();
+            } else {
+                $customer->delete();
+            }
+            
+            DB::commit();
+            
+            return redirect()
+                ->route('admin.customers.index')
+                ->with('success', "Customer '{$name}' deleted successfully");
+                
+        } catch (Exception $e) {
+            DB::rollBack();
+            report($e);
+            return back()->with('error', 'Failed to delete customer: ' . $e->getMessage());
+        }
+    }
+
+
+    /*
+|--------------------------------------------------------------------------
+| AJAX - Get Company Details
+|--------------------------------------------------------------------------
+*/
+
+public function getCompanyDetails(Request $request)
+{
+    try {
+        $companyName = $request->input('company');
+        
+        // Get first customer record with this company name
+        $company = Customer::where('customer_type', 'company')
+            ->where('company', $companyName)
+            ->first();
+        
+        if (!$company) {
+            return response()->json(['error' => 'Company not found'], 404);
+        }
+        
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'company' => $company->company,
+                'vat' => $company->vat,
+                'website' => $company->website,
+                'group_name' => $company->group_name, 
+                'billing_street' => $company->billing_street,
+                'billing_city' => $company->billing_city,
+                'billing_state' => $company->billing_state,
+                'billing_zip_code' => $company->billing_zip_code,
+                'billing_country' => $company->billing_country,
+                'shipping_address' => $company->shipping_address,
+                'shipping_city' => $company->shipping_city,
+                'shipping_state' => $company->shipping_state,
+                'shipping_zip_code' => $company->shipping_zip_code,
+                'shipping_country' => $company->shipping_country,
+            ]
+        ]);
+        
+    } catch (Exception $e) {
+        report($e);
+        return response()->json(['error' => 'Failed to fetch company details'], 500);
+    }
+}
 }

@@ -15,9 +15,20 @@ use Modules\Inventory\Models\Product;
 use Modules\Inventory\Models\StockLevel;
 use Modules\Inventory\Models\StockMovement;
 use Modules\Inventory\Models\Lot;
+use Modules\Core\Traits\DataTableTrait;
 
 class GoodsReceiptNoteController extends AdminController
 {
+    use DataTableTrait;
+    
+    // DataTable Configuration
+    protected $model = GoodsReceiptNote::class;
+    protected $with = ['vendor', 'purchaseOrder', 'warehouse', 'creator'];
+    protected $searchable = ['grn_number', 'invoice_number', 'vendor.name', 'purchaseOrder.po_number'];
+    protected $sortable = ['id', 'grn_number', 'grn_date', 'status', 'created_at'];
+    protected $filterable = ['status', 'warehouse_id', 'vendor_id'];
+    protected $exportTitle = 'Goods Receipt Notes Export';
+
     /**
      * Display GRN listing
      */
@@ -34,75 +45,60 @@ class GoodsReceiptNoteController extends AdminController
     }
 
     /**
-     * DataTable data
+     * DataTable row mapping for list view
+     */
+    protected function mapRow($item)
+    {
+        return [
+            'id' => $item->id,
+            'grn_number' => $item->grn_number,
+            'grn_date' => $item->grn_date->format('d M Y'),
+            'po_number' => $item->purchaseOrder->po_number ?? '-',
+            'po_id' => $item->purchase_order_id,
+            'vendor_name' => $item->vendor->name ?? '-',
+            'vendor_id' => $item->vendor_id,
+            'warehouse_name' => $item->warehouse->name ?? '-',
+            'invoice_number' => $item->invoice_number ?? '-',
+            'total_qty' => number_format($item->total_qty, 2),
+            'accepted_qty' => number_format($item->accepted_qty, 2),
+            'rejected_qty' => number_format($item->rejected_qty, 2),
+            'status' => $item->status,
+            'status_badge' => $item->status_badge ?? $item->status,
+            'stock_updated' => $item->stock_updated,
+            'created_by' => $item->creator->name ?? '-',
+            'created_at' => $item->created_at->format('d M Y'),
+            '_show_url' => route('admin.purchase.grn.show', $item->id),
+            '_edit_url' => route('admin.purchase.grn.edit', $item->id),
+        ];
+    }
+
+    /**
+     * DataTable row mapping for export
+     */
+    protected function mapExportRow($item)
+    {
+        return [
+            'ID' => $item->id,
+            'GRN Number' => $item->grn_number,
+            'Date' => $item->grn_date->format('Y-m-d'),
+            'PO Number' => $item->purchaseOrder->po_number ?? '',
+            'Vendor' => $item->vendor->name ?? '',
+            'Warehouse' => $item->warehouse->name ?? '',
+            'Invoice No' => $item->invoice_number ?? '',
+            'Total Qty' => $item->total_qty,
+            'Accepted Qty' => $item->accepted_qty,
+            'Rejected Qty' => $item->rejected_qty,
+            'Stock Updated' => $item->stock_updated ? 'Yes' : 'No',
+            'Status' => $item->status,
+        ];
+    }
+
+    /**
+     * DataTable endpoint
      */
     public function dataTable(Request $request)
     {
-        $query = GoodsReceiptNote::with(['vendor', 'purchaseOrder', 'warehouse', 'creator']);
-
-        // Search
-        if ($search = $request->get('search')) {
-            $query->where(function($q) use ($search) {
-                $q->where('grn_number', 'like', "%{$search}%")
-                  ->orWhere('invoice_number', 'like', "%{$search}%")
-                  ->orWhereHas('vendor', fn($v) => $v->where('name', 'like', "%{$search}%"))
-                  ->orWhereHas('purchaseOrder', fn($p) => $p->where('po_number', 'like', "%{$search}%"));
-            });
-        }
-
-        // Status filter
-        if ($status = $request->get('status')) {
-            $query->where('status', $status);
-        }
-
-        // Date range
-        if ($from = $request->get('from_date')) {
-            $query->whereDate('grn_date', '>=', $from);
-        }
-        if ($to = $request->get('to_date')) {
-            $query->whereDate('grn_date', '<=', $to);
-        }
-
-        // Sorting
-        $sortField = $request->get('sort', 'id');
-        $sortDir = $request->get('dir', 'desc');
-        $query->orderBy($sortField, $sortDir);
-
-        // Pagination
-        $perPage = $request->get('per_page', 25);
-        $paginated = $query->paginate($perPage);
-
-        $items = collect($paginated->items())->map(function($grn) {
-            return [
-                'id' => $grn->id,
-                'grn_number' => $grn->grn_number,
-                'grn_date' => $grn->grn_date->format('d M Y'),
-                'po_number' => $grn->purchaseOrder->po_number ?? '-',
-                'po_id' => $grn->purchase_order_id,
-                'vendor_name' => $grn->vendor->name ?? '-',
-                'vendor_id' => $grn->vendor_id,
-                'warehouse_name' => $grn->warehouse->name ?? '-',
-                'invoice_number' => $grn->invoice_number ?? '-',
-                'total_qty' => number_format($grn->total_qty, 2),
-                'accepted_qty' => number_format($grn->accepted_qty, 2),
-                'rejected_qty' => number_format($grn->rejected_qty, 2),
-                'status' => $grn->status,
-                'status_badge' => $grn->status_badge,
-                'stock_updated' => $grn->stock_updated,
-                'created_by' => $grn->creator->name ?? '-',
-                'created_at' => $grn->created_at->format('d M Y'),
-                '_show_url' => route('admin.purchase.grn.show', $grn->id),
-                '_edit_url' => route('admin.purchase.grn.edit', $grn->id),
-            ];
-        });
-
-        return response()->json([
-            'data' => $items,
-            'total' => $paginated->total(),
-            'current_page' => $paginated->currentPage(),
-            'last_page' => $paginated->lastPage(),
-            'per_page' => $paginated->perPage(),
-        ]);
+        return $this->handleData($request);
     }
 
     /**
@@ -193,6 +189,14 @@ class GoodsReceiptNoteController extends AdminController
                     'accepted_qty' => $itemData['accepted_qty'],
                     'rejected_qty' => $itemData['rejected_qty'] ?? 0,
                     'rate' => $itemData['rate'] ?? $poItem->rate,
+                    'discount_percent' => $poItem->discount_percent ?? 0,
+                    // Inherit taxes from PO item
+                    'tax_1_id' => $poItem->tax_1_id,
+                    'tax_1_name' => $poItem->tax_1_name,
+                    'tax_1_rate' => $poItem->tax_1_rate ?? 0,
+                    'tax_2_id' => $poItem->tax_2_id,
+                    'tax_2_name' => $poItem->tax_2_name,
+                    'tax_2_rate' => $poItem->tax_2_rate ?? 0,
                     'lot_no' => $itemData['lot_no'] ?? null,
                     'batch_no' => $itemData['batch_no'] ?? null,
                     'manufacturing_date' => $itemData['manufacturing_date'] ?? null,
@@ -227,6 +231,7 @@ class GoodsReceiptNoteController extends AdminController
             'items.product',
             'items.unit',
             'items.lot',
+            'items.purchaseOrderItem',
             'creator',
             'receiver',
             'approver',
@@ -241,6 +246,25 @@ class GoodsReceiptNoteController extends AdminController
                 'vendor' => $grn->vendor,
                 'warehouse_id' => $grn->warehouse_id,
                 'items' => $grn->items->map(function($item) {
+                    // Get tax - first from GRN item, then fallback to PO item
+                    $tax1Id = $item->tax_1_id;
+                    $tax1Name = $item->tax_1_name;
+                    $tax1Rate = $item->tax_1_rate ?? 0;
+                    $tax2Id = $item->tax_2_id;
+                    $tax2Name = $item->tax_2_name;
+                    $tax2Rate = $item->tax_2_rate ?? 0;
+                    
+                    // Fallback to PO item if GRN doesn't have tax
+                    if (empty($tax1Id) && empty($tax1Rate) && $item->purchaseOrderItem) {
+                        $poItem = $item->purchaseOrderItem;
+                        $tax1Id = $poItem->tax_1_id;
+                        $tax1Name = $poItem->tax_1_name;
+                        $tax1Rate = $poItem->tax_1_rate ?? 0;
+                        $tax2Id = $poItem->tax_2_id;
+                        $tax2Name = $poItem->tax_2_name;
+                        $tax2Rate = $poItem->tax_2_rate ?? 0;
+                    }
+                    
                     return [
                         'id' => $item->id,
                         'product_id' => $item->product_id,
@@ -253,6 +277,14 @@ class GoodsReceiptNoteController extends AdminController
                         'accepted_qty' => $item->accepted_qty,
                         'rejected_qty' => $item->rejected_qty,
                         'rate' => $item->rate,
+                        'discount_percent' => $item->discount_percent ?? 0,
+                        // Tax fields
+                        'tax_1_id' => $tax1Id,
+                        'tax_1_name' => $tax1Name,
+                        'tax_1_rate' => $tax1Rate,
+                        'tax_2_id' => $tax2Id,
+                        'tax_2_name' => $tax2Name,
+                        'tax_2_rate' => $tax2Rate,
                     ];
                 }),
             ]);

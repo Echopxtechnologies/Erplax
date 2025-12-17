@@ -22,6 +22,10 @@ class PurchaseBillItem extends Model
         'discount_percent',
         'discount_amount',
         'total',
+        // Tax 1
+        'tax_1_id', 'tax_1_name', 'tax_1_rate', 'tax_1_amount',
+        // Tax 2
+        'tax_2_id', 'tax_2_name', 'tax_2_rate', 'tax_2_amount',
     ];
 
     protected $casts = [
@@ -31,6 +35,10 @@ class PurchaseBillItem extends Model
         'tax_amount' => 'decimal:2',
         'discount_percent' => 'decimal:2',
         'discount_amount' => 'decimal:2',
+        'tax_1_rate' => 'decimal:2',
+        'tax_1_amount' => 'decimal:2',
+        'tax_2_rate' => 'decimal:2',
+        'tax_2_amount' => 'decimal:2',
         'total' => 'decimal:2',
     ];
 
@@ -72,10 +80,20 @@ class PurchaseBillItem extends Model
     public function calculateTotal(): void
     {
         $lineTotal = $this->qty * $this->rate;
-        $this->discount_amount = $lineTotal * ($this->discount_percent / 100);
+        $this->discount_amount = $lineTotal * (($this->discount_percent ?? 0) / 100);
         $afterDiscount = $lineTotal - $this->discount_amount;
-        $this->tax_amount = $afterDiscount * ($this->tax_percent / 100);
-        $this->total = $afterDiscount + $this->tax_amount;
+        
+        // Calculate tax from tax_1 and tax_2
+        $tax1Rate = $this->tax_1_rate ?? 0;
+        $tax2Rate = $this->tax_2_rate ?? 0;
+        $tax1Amount = $afterDiscount * ($tax1Rate / 100);
+        $tax2Amount = $afterDiscount * ($tax2Rate / 100);
+        
+        $this->tax_1_amount = round($tax1Amount, 2);
+        $this->tax_2_amount = round($tax2Amount, 2);
+        $this->tax_percent = round($tax1Rate + $tax2Rate, 2);
+        $this->tax_amount = round($tax1Amount + $tax2Amount, 2);
+        $this->total = round($afterDiscount + $tax1Amount + $tax2Amount, 2);
         $this->save();
     }
 }

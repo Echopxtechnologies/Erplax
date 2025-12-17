@@ -8,9 +8,9 @@ Route::prefix('admin/todo')
     ->middleware([EnsureIsAdmin::class]) // ← NOT 'auth'!
     ->name('admin.todo.')
     ->group(function () {
-        // List & DataTable
+        // List & DataTable (GET for list/export, POST for import)
         Route::get('/', [TodoController::class, 'index'])->name('index');
-        Route::get('/data', [TodoController::class, 'dataTable'])->name('data');
+        Route::match(['get', 'post'], '/data', [TodoController::class, 'dataTable'])->name('data');
         
         // Bulk Operations
         Route::post('/bulk-delete', [TodoController::class, 'bulkDelete'])->name('bulk-delete');

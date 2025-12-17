@@ -3,9 +3,7 @@
 <div class="detail-page">
     <div class="detail-header">
         <div class="detail-header-left">
-            <a href="{{ route('admin.purchase.bills.index') }}" class="btn-back">
-                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7"></path></svg>
-            </a>
+            <a href="{{ route('admin.purchase.bills.index') }}" class="btn-back">←</a>
             <h1>
                 {{ $bill->bill_number }}
                 <span class="badge badge-{{ strtolower($bill->status) }} badge-lg">{{ $bill->status }}</span>
@@ -37,7 +35,8 @@
             @if($bill->canPay())
             <button type="button" class="btn btn-primary" onclick="showPaymentModal()">💰 Record Payment</button>
             @endif
-            <a href="{{ route('admin.purchase.bills.pdf', $bill->id) }}" class="btn btn-outline" target="_blank">📄 Invoice PDF</a>
+            <a href="{{ route('admin.purchase.bills.pdf', $bill->id) }}" class="btn btn-outline" target="_blank">👁️ View PDF</a>
+            <a href="{{ route('admin.purchase.bills.pdf', $bill->id) }}?download=1" class="btn btn-outline">📥 Download PDF</a>
         </div>
     </div>
 
@@ -114,7 +113,7 @@
                 <div class="detail-row"><div class="detail-label">GSTIN</div><div class="detail-value">{{ $bill->vendor->gst_number }}</div></div>
                 @endif
                 
-                @if($vendorBank)
+                @if(isset($vendorBank) && $vendorBank)
                 <div style="margin-top: 16px;">
                     <div class="bank-card">
                         <div class="bank-title">🏦 Bank Details</div>
@@ -145,58 +144,94 @@
                             <th>Unit</th>
                             <th class="text-end">Qty</th>
                             <th class="text-end">Rate</th>
-                            <th class="text-end">Tax</th>
+                            <th class="text-end">Tax 1</th>
+                            <th class="text-end">Tax 2</th>
                             <th class="text-end">Discount</th>
                             <th class="text-end">Total</th>
                         </tr>
                     </thead>
                     <tbody>
+                        @php
+                            $totalTax1 = 0;
+                            $totalTax2 = 0;
+                        @endphp
                         @foreach($bill->items as $idx => $item)
+                        @php
+                            $totalTax1 += $item->tax_1_amount ?? 0;
+                            $totalTax2 += $item->tax_2_amount ?? 0;
+                        @endphp
                         <tr>
                             <td>{{ $idx + 1 }}</td>
                             <td>
-                                <div class="product-name">{{ $item->product->name ?? 'N/A' }}</div>
+                                <div class="product-name">{{ $item->product->name ?? $item->description ?? 'N/A' }}</div>
                                 <div class="product-sku">{{ $item->product->sku ?? '' }}</div>
                             </td>
                             <td>{{ $item->product->hsn_code ?? '-' }}</td>
                             <td>{{ $item->unit->short_name ?? $item->unit->name ?? '-' }}</td>
                             <td class="text-end">{{ number_format($item->qty, 3) }}</td>
                             <td class="text-end">₹{{ number_format($item->rate, 2) }}</td>
-                            <td class="text-end">₹{{ number_format($item->tax_amount, 2) }} <small>({{ $item->tax_percent }}%)</small></td>
-                            <td class="text-end">₹{{ number_format($item->discount_amount, 2) }}</td>
+                            <td class="text-end">
+                                @if($item->tax_1_name)
+                                <span class="tax-badge">{{ $item->tax_1_name }}</span><br>
+                                <small>₹{{ number_format($item->tax_1_amount ?? 0, 2) }}</small>
+                                @else
+                                -
+                                @endif
+                            </td>
+                            <td class="text-end">
+                                @if($item->tax_2_name)
+                                <span class="tax-badge">{{ $item->tax_2_name }}</span><br>
+                                <small>₹{{ number_format($item->tax_2_amount ?? 0, 2) }}</small>
+                                @else
+                                -
+                                @endif
+                            </td>
+                            <td class="text-end">₹{{ number_format($item->discount_amount ?? 0, 2) }}</td>
                             <td class="text-end"><strong>₹{{ number_format($item->total, 2) }}</strong></td>
                         </tr>
                         @endforeach
                     </tbody>
                     <tfoot>
                         <tr>
-                            <td colspan="8" class="text-end"><strong>Subtotal</strong></td>
+                            <td colspan="9" class="text-end"><strong>Subtotal</strong></td>
                             <td class="text-end">₹{{ number_format($bill->subtotal, 2) }}</td>
                         </tr>
+                        @if($totalTax1 > 0)
                         <tr>
-                            <td colspan="8" class="text-end">Tax</td>
+                            <td colspan="9" class="text-end">Tax 1 (CGST/IGST)</td>
+                            <td class="text-end">₹{{ number_format($totalTax1, 2) }}</td>
+                        </tr>
+                        @endif
+                        @if($totalTax2 > 0)
+                        <tr>
+                            <td colspan="9" class="text-end">Tax 2 (SGST)</td>
+                            <td class="text-end">₹{{ number_format($totalTax2, 2) }}</td>
+                        </tr>
+                        @endif
+                        <tr>
+                            <td colspan="9" class="text-end">Total Tax</td>
                             <td class="text-end">₹{{ number_format($bill->tax_amount, 2) }}</td>
                         </tr>
                         @if($bill->discount_amount > 0)
                         <tr>
-                            <td colspan="8" class="text-end">Discount</td>
+                            <td colspan="9" class="text-end">Discount</td>
                             <td class="text-end">-₹{{ number_format($bill->discount_amount, 2) }}</td>
                         </tr>
                         @endif
                         @if($bill->shipping_charge > 0)
                         <tr>
-                            <td colspan="8" class="text-end">Shipping</td>
+                            <td colspan="9" class="text-end">Shipping</td>
                             <td class="text-end">₹{{ number_format($bill->shipping_charge, 2) }}</td>
                         </tr>
                         @endif
                         @if($bill->adjustment != 0)
                         <tr>
-                            <td colspan="8" class="text-end">Adjustment</td>
+                            <td colspan="9" class="text-end">Adjustment</td>
                             <td class="text-end">{{ $bill->adjustment >= 0 ? '+' : '' }}₹{{ number_format($bill->adjustment, 2) }}</td>
                         </tr>
                         @endif
                         <tr class="total-row">
-                            <td colspan="8" class="text-end"><strong>Grand Total</strong></td>
+                            <td colspan="9" class="text-end"><strong>Grand Total</strong></td>
                             <td class="text-end"><strong>₹{{ number_format($bill->grand_total, 2) }}</strong></td>
                         </tr>
                     </tfoot>
@@ -210,95 +245,60 @@
         <div class="detail-card-header">
             <h5 class="detail-card-title">💳 Payment History</h5>
         </div>
-        <div class="detail-card-body">
+        <div class="detail-card-body" style="padding:0;">
             @if($bill->payments->count() > 0)
-            <div class="table-responsive">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Payment #</th>
-                            <th>Date</th>
-                            <th>Method</th>
-                            <th>Reference</th>
-                            <th class="text-end">Amount</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($bill->payments as $payment)
-                        <tr>
-                            <td><strong>{{ $payment->payment_number }}</strong></td>
-                            <td>{{ $payment->payment_date->format('d M Y') }}</td>
-                            <td>{{ $payment->paymentMethod->name ?? 'N/A' }}</td>
-                            <td>
-                                {{ $payment->reference_no ?? '-' }}
-                                @if($payment->cheque_no)
-                                <br><small>Cheque: {{ $payment->cheque_no }}</small>
-                                @endif
-                            </td>
-                            <td class="text-end"><strong class="text-success">₹{{ number_format($payment->amount, 2) }}</strong></td>
-                            <td><span class="badge badge-{{ strtolower($payment->status) }}">{{ $payment->status }}</span></td>
-                            <td>
-                                <a href="{{ route('admin.purchase.bills.payment.receipt', $payment->id) }}" class="btn btn-sm btn-outline" target="_blank">🧾 Receipt</a>
-                            </td>
-                        </tr>
-                        @if($payment->notes)
-                        <tr>
-                            <td></td>
-                            <td colspan="6" style="padding-top:0;"><small class="text-muted">Note: {{ $payment->notes }}</small></td>
-                        </tr>
-                        @endif
-                        @endforeach
-                    </tbody>
-                    <tfoot>
-                        <tr>
-                            <td colspan="4" class="text-end"><strong>Total Paid</strong></td>
-                            <td class="text-end"><strong class="text-success">₹{{ number_format($bill->paid_amount, 2) }}</strong></td>
-                            <td colspan="2"></td>
-                        </tr>
-                        <tr>
-                            <td colspan="4" class="text-end"><strong>Balance Due</strong></td>
-                            <td class="text-end"><strong class="text-danger">₹{{ number_format($bill->balance_due, 2) }}</strong></td>
-                            <td colspan="2"></td>
-                        </tr>
-                    </tfoot>
-                </table>
-            </div>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Payment #</th>
+                        <th>Date</th>
+                        <th>Method</th>
+                        <th>Reference</th>
+                        <th class="text-end">Amount</th>
+                        <th>By</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($bill->payments as $payment)
+                    <tr>
+                        <td><strong>{{ $payment->payment_number }}</strong></td>
+                        <td>{{ $payment->payment_date->format('d M Y') }}</td>
+                        <td>{{ $payment->paymentMethod->name ?? '-' }}</td>
+                        <td>{{ $payment->reference_no ?? '-' }}</td>
+                        <td class="text-end"><strong class="text-success">₹{{ number_format($payment->amount, 2) }}</strong></td>
+                        <td>{{ $payment->creator->name ?? '-' }}</td>
+                        <td>
+                            <a href="{{ route('admin.purchase.bills.payment.receipt', [$bill->id, $payment->id]) }}" class="btn btn-outline btn-sm" target="_blank">🧾</a>
+                        </td>
+                    </tr>
+                    @endforeach
+                </tbody>
+            </table>
             @else
             <div class="empty-state">
-                <p>💸 No payments recorded yet</p>
-                @if($bill->canPay())
-                <button type="button" class="btn btn-primary" onclick="showPaymentModal()">💰 Record First Payment</button>
-                @endif
+                💸 No payments recorded yet
             </div>
             @endif
         </div>
     </div>
 
-    @if($bill->notes)
-    <div class="detail-card">
-        <div class="detail-card-header">
-            <h5 class="detail-card-title">📝 Notes</h5>
+    <!-- Notes & Audit -->
+    <div class="grid-2">
+        @if($bill->notes)
+        <div class="detail-card">
+            <div class="detail-card-header"><h5 class="detail-card-title">📝 Notes</h5></div>
+            <div class="detail-card-body">{{ $bill->notes }}</div>
         </div>
-        <div class="detail-card-body">
-            <p style="margin:0;white-space:pre-wrap;color:var(--text-primary);">{{ $bill->notes }}</p>
-        </div>
-    </div>
-    @endif
-
-    <!-- Audit Info -->
-    <div class="detail-card">
-        <div class="detail-card-header">
-            <h5 class="detail-card-title">🕐 Audit Information</h5>
-        </div>
-        <div class="detail-card-body">
-            <div class="grid-4">
-                <div class="detail-row" style="display:block;border:none;"><div class="detail-label">Created By</div><div class="detail-value">{{ $bill->creator->name ?? '-' }}</div></div>
-                <div class="detail-row" style="display:block;border:none;"><div class="detail-label">Created At</div><div class="detail-value">{{ $bill->created_at->format('d M Y, h:i A') }}</div></div>
+        @endif
+        <div class="detail-card">
+            <div class="detail-card-header"><h5 class="detail-card-title">🕐 Audit Information</h5></div>
+            <div class="detail-card-body">
+                <div class="detail-row"><div class="detail-label">Created By</div><div class="detail-value">{{ $bill->creator->name ?? '-' }}</div></div>
+                <div class="detail-row"><div class="detail-label">Created At</div><div class="detail-value">{{ $bill->created_at->format('d M Y, h:i A') }}</div></div>
                 @if($bill->approved_at)
-                <div class="detail-row" style="display:block;border:none;"><div class="detail-label">Approved By</div><div class="detail-value">{{ $bill->approver->name ?? '-' }}</div></div>
-                <div class="detail-row" style="display:block;border:none;"><div class="detail-label">Approved At</div><div class="detail-value">{{ $bill->approved_at->format('d M Y, h:i A') }}</div></div>
+                <div class="detail-row"><div class="detail-label">Approved By</div><div class="detail-value">{{ $bill->approver->name ?? '-' }}</div></div>
+                <div class="detail-row"><div class="detail-label">Approved At</div><div class="detail-value">{{ $bill->approved_at->format('d M Y, h:i A') }}</div></div>
                 @endif
             </div>
         </div>
@@ -396,31 +396,31 @@
 </div>
 
 <style>
-.payment-summary-bar {
-    display: flex;
-    align-items: center;
-    gap: 24px;
-    background: var(--card-bg);
-    border: 1px solid var(--card-border);
-    border-radius: 12px;
-    padding: 16px 24px;
-    margin-bottom: 20px;
-}
+.payment-summary-bar { display: flex; align-items: center; gap: 24px; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 12px; padding: 16px 24px; margin-bottom: 20px; flex-wrap: wrap; }
 .payment-stat { text-align: center; }
 .payment-stat-label { font-size: 12px; color: var(--text-muted); display: block; }
 .payment-stat-value { font-size: 18px; font-weight: 700; color: var(--text-primary); }
-.payment-progress-container { flex: 1; }
+.payment-progress-container { flex: 1; min-width: 200px; }
 .payment-progress { height: 12px; background: var(--body-bg); border-radius: 6px; overflow: hidden; }
-.payment-progress-bar { height: 100%; background: linear-gradient(90deg, #10b981, #34d399); transition: width 0.3s; }
+.payment-progress-bar { height: 100%; background: linear-gradient(90deg, #10b981, #34d399); }
 .payment-progress-text { font-size: 12px; color: var(--text-muted); margin-top: 4px; display: block; text-align: center; }
 .text-success { color: #10b981 !important; }
 .text-danger { color: #ef4444 !important; }
-.empty-state { text-align: center; padding: 40px 20px; color: var(--text-muted); }
-.empty-state p { font-size: 16px; margin-bottom: 16px; }
-.total-row { background: var(--body-bg); }
+.total-row td { font-weight: 600; background: var(--body-bg) !important; }
+.empty-state { text-align: center; padding: 40px; color: var(--text-muted); }
 .payment-info-box { display: flex; gap: 20px; background: var(--body-bg); padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; }
 .payment-info-box > div { flex: 1; text-align: center; }
 .payment-info-box span { font-size: 12px; color: var(--text-muted); display: block; }
+.cheque-fields { display: none; }
+.cheque-fields.show { display: block; }
+.rejection-box { background: #fee2e2; border: 1px solid #fecaca; border-radius: 8px; padding: 16px; margin-bottom: 20px; }
+.rejection-box h6 { margin: 0 0 8px; color: #dc2626; }
+.rejection-box p { margin: 0; color: #991b1b; }
+.bank-card { background: var(--body-bg); border-radius: 8px; padding: 12px 16px; }
+.bank-title { font-weight: 600; margin-bottom: 10px; color: var(--text-primary); }
+.bank-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 0.875rem; }
+.bank-label { color: var(--text-muted); }
+.bank-value { color: var(--text-primary); font-weight: 500; }
 .btn-sm { padding: 4px 10px; font-size: 12px; }
 </style>
 

@@ -9,9 +9,20 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Response;
+use Modules\Core\Traits\DataTableTrait;
 
 class PurchaseRequestController extends AdminController
 {
+    use DataTableTrait;
+    
+    // DataTable Configuration
+    protected $model = PurchaseRequest::class;
+    protected $with = ['requester:id,name'];
+    protected $searchable = ['pr_number', 'department', 'purpose'];
+    protected $sortable = ['id', 'pr_number', 'pr_date', 'priority', 'status', 'created_at'];
+    protected $filterable = ['status', 'priority'];
+    protected $exportTitle = 'Purchase Requests Export';
+
     public function index()
     {
         $stats = [
@@ -25,101 +36,48 @@ class PurchaseRequestController extends AdminController
         return $this->moduleView('purchase::purchase-request.index', compact('stats'));
     }
 
-    public function dataTable(Request $request): JsonResponse
+    /**
+     * DataTable row mapping for list view
+     */
+    protected function mapRow($item)
     {
-        $query = PurchaseRequest::with(['requester:id,name'])->withCount('items');
-
-        // Export selected IDs
-        if ($request->has('ids') && $request->has('export')) {
-            $ids = array_filter(explode(',', $request->input('ids')));
-            if (!empty($ids)) $query->whereIn('id', $ids);
-            return $this->export($query, $request->input('export'));
-        }
-
-        // Search
-        if ($search = $request->input('search')) {
-            $query->where(function($q) use ($search) {
-                $q->where('pr_number', 'like', "%{$search}%")
-                  ->orWhere('department', 'like', "%{$search}%")
-                  ->orWhere('purpose', 'like', "%{$search}%");
-            });
-        }
-
-        // Filter
-        if ($status = $request->input('status')) {
-            $query->where('status', $status);
-        }
-        if ($priority = $request->input('priority')) {
-            $query->where('priority', $priority);
-        }
-
-        // Sort
-        $sortCol = $request->input('sort', 'id');
-        $sortDir = $request->input('dir', 'desc');
-        $query->orderBy($sortCol, $sortDir);
-
-        // Export all
-        if ($request->has('export')) {
-            return $this->export($query, $request->input('export'));
-        }
-
-        // Pagination
-        $data = $query->paginate($request->input('per_page', 15));
-
-        // Map data with URLs for dt-table
-        $items = collect($data->items())->map(function($item) {
-            return [
-                'id' => $item->id,
-                'pr_number' => $item->pr_number,
-                'pr_date' => $item->pr_date->format('Y-m-d'),
-                'department' => $item->department ?? '-',
-                'items_count' => $item->items_count,
-                'priority' => $item->priority,
-                'requester_name' => $item->requester->name ?? '-',
-                'status' => $item->status,
-                '_show_url' => route('admin.purchase.requests.show', $item->id),
-                '_edit_url' => route('admin.purchase.requests.edit', $item->id),
-            ];
-        });
-
-        return response()->json([
-            'data' => $items,
-            'total' => $data->total(),
-            'current_page' => $data->currentPage(),
-            'last_page' => $data->lastPage(),
-        ]);
+        return [
+            'id' => $item->id,
+            'pr_number' => $item->pr_number,
+            'pr_date' => $item->pr_date->format('Y-m-d'),
+            'department' => $item->department ?? '-',
+            'items_count' => $item->items_count ?? $item->items()->count(),
+            'priority' => $item->priority,
+            'requester_name' => $item->requester->name ?? '-',
+            'status' => $item->status,
+            '_show_url' => route('admin.purchase.requests.show', $item->id),
+            '_edit_url' => route('admin.purchase.requests.edit', $item->id),
+        ];
     }
 
-    protected function export($query, $format = 'csv')
+    /**
+     * DataTable row mapping for export
+     */
+    protected function mapExportRow($item)
     {
-        $data = $query->get();
-        $filename = 'purchase_requests_' . date('Y-m-d') . '.' . $format;
-        
-        $headers = [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => "attachment; filename={$filename}",
+        return [
+            'ID' => $item->id,
+            'PR Number' => $item->pr_number,
+            'Date' => $item->pr_date->format('Y-m-d'),
+            'Department' => $item->department ?? '',
+            'Priority' => $item->priority,
+            'Items Count' => $item->items_count ?? $item->items()->count(),
+            'Requester' => $item->requester->name ?? '',
+            'Status' => $item->status,
         ];
+    }
 
-        $callback = function () use ($data) {
-            $file = fopen('php://output', 'w');
-            fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF)); // UTF-8 BOM
-            fputcsv($file, ['ID', 'PR Number', 'Date', 'Department', 'Priority', 'Items', 'Status', 'Requester']);
-            foreach ($data as $row) {
-                fputcsv($file, [
-                    $row->id, 
-                    $row->pr_number, 
-                    $row->pr_date->format('Y-m-d'), 
-                    $row->department, 
-                    $row->priority, 
-                    $row->items_count ?? $row->items()->count(), 
-                    $row->status,
-                    $row->requester->name ?? '-'
-                ]);
-            }
-            fclose($file);
-        };
-
-        return Response::stream($callback, 200, $headers);
+    /**
+     * DataTable endpoint
+     */
+    public function dataTable(Request $request)
+    {
+        return $this->handleData($request);
     }
 
     public function bulkDelete(Request $request): JsonResponse

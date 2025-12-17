@@ -52,6 +52,16 @@ return new class extends Migration
             $table->decimal('accepted_qty', 15, 3)->default(0);
             $table->decimal('rejected_qty', 15, 3)->default(0);
             $table->decimal('rate', 15, 2)->default(0);
+            $table->decimal('discount_percent', 8, 2)->default(0);
+            // Tax 1
+            $table->unsignedBigInteger('tax_1_id')->nullable();
+            $table->string('tax_1_name', 100)->nullable();
+            $table->decimal('tax_1_rate', 8, 2)->default(0);
+            // Tax 2
+            $table->unsignedBigInteger('tax_2_id')->nullable();
+            $table->string('tax_2_name', 100)->nullable();
+            $table->decimal('tax_2_rate', 8, 2)->default(0);
+            // Other fields
             $table->string('rejection_reason', 255)->nullable();
             // Lot/Batch fields
             $table->string('lot_no', 100)->nullable();

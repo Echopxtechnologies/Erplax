@@ -14,10 +14,23 @@ use App\Http\Controllers\Admin\RolePermissionController;
 use App\Http\Controllers\Admin\CronJobController;
 use App\Http\Controllers\Admin\Customers\Index as CustomersIndexController;
 use App\Http\Controllers\Admin\Customers\Form as CustomersFormController;
-use App\Http\Controllers\Admin\Customers\CustomerController;
+use App\Http\Controllers\Admin\Customers\ContactsForm as ContactsFormController;
+use App\Http\Controllers\Admin\Customers\CustomerGroupsForm as CustomerGroupsFormController;
 use App\Http\Controllers\Admin\ClientUserController;
 use App\Http\Controllers\Admin\Auth\AdminRegisterController;
 use App\Http\Controllers\Admin\Auth\ForgotPasswordOtpController;
+
+use App\Http\Controllers\Admin\Sales\SalesIndexController;
+use App\Http\Controllers\Admin\Sales\ProposalsIndexController;
+use App\Http\Controllers\Admin\Sales\ProposalsFormController;
+use App\Http\Controllers\Admin\Sales\ProposalsController;
+use App\Http\Controllers\Admin\Sales\EstimationsIndexController;
+use App\Http\Controllers\Admin\Sales\EstimationsFormController;
+use App\Http\Controllers\Admin\Sales\EstimationsController;
+use App\Http\Controllers\Admin\Sales\InvoicesIndexController;
+use App\Http\Controllers\Admin\Sales\InvoicesFormController;
+use App\Http\Controllers\Admin\Sales\InvoicesController;
+use App\Http\Controllers\Admin\Sales\PaymentsIndexController;
 
 
 Route::get('/admin', [AdminLoginController::class, 'showLoginForm'])->name('login');
@@ -40,16 +53,14 @@ Route::prefix('admin')->name('admin.')->group(function () {
         ->name('forgot-password.form');
 
     Route::post('/forgot-password', [ForgotPasswordOtpController::class, 'sendOtp'])
-        ->name('forgot-password.send');
-        // ->middleware('throttle:5,10');
+        ->middleware('throttle:5,10')->name('forgot-password.send');
 
     // Verify OTP
     Route::get('/verify-otp', [ForgotPasswordOtpController::class, 'showOtpForm'])
         ->name('verify-otp.form');
 
     Route::post('/verify-otp', [ForgotPasswordOtpController::class, 'verifyOtp'])
-        ->name('verify-otp.check');
-        // ->middleware('throttle:5,10');
+        ->middleware('throttle:5,10')->name('verify-otp.check');
 
     // Reset Password (after OTP verified)
     Route::get('/reset-password', [ForgotPasswordOtpController::class, 'showResetForm'])
@@ -201,174 +212,215 @@ Route::prefix('timezones')->name('timezones.')->group(function () {
             Route::delete('/logs/clear', [CronJobController::class, 'clearLogs'])->name('clear-logs');
         });
 
-        Route::prefix('customers')->name('customers.')->group(function () {
-
-    Route::get('/',        [CustomersIndexController::class, 'index'])->name('index');
-    Route::get('/data',    [CustomersIndexController::class, 'data'])->name('data');
-    Route::get('/template', [CustomersIndexController::class, 'template'])->name('template');  // ← ADD THIS
-    Route::post('/import', [CustomersIndexController::class, 'import'])->name('import');
-    Route::post('/bulk-delete', [CustomerController::class, 'bulkDelete'])->name('bulkDelete');
-
-
-    Route::get('/',        [CustomersIndexController::class, 'index'])->name('index');
-    Route::get('/data',    [CustomersIndexController::class, 'data'])->name('data');
-
-    // Static routes FIRST
-    Route::get('/search-company', [CustomerController::class, 'searchCompany'])->name('searchCompany');
-    Route::post('/add-group', [CustomerController::class, 'addGroup'])->name('addGroup');
-    Route::post('/bulk-delete', [CustomerController::class, 'bulkDelete'])->name('bulkDelete');  // ← ADD HERE
-
-    Route::get('/create',  [CustomersFormController::class, 'create'])->name('create');
-    Route::post('/',       [CustomersFormController::class, 'store'])->name('store');
-
-    // Dynamic routes with {customer} LAST
+  // ============================================
+// CUSTOMERS ROUTES (Main)
+// ============================================
+Route::prefix('customers')->name('customers.')->group(function () {
+    // List & DataTable
+    Route::get('/', [CustomersIndexController::class, 'index'])->name('index');
+    Route::get('/data', [CustomersIndexController::class, 'data'])->name('data');
+    
+    // AJAX Helpers (MUST BE BEFORE {customer} ROUTES)
+    Route::get('/search-company', [CustomersFormController::class, 'searchCompany'])->name('searchCompany');
+    Route::post('/add-group', [CustomersFormController::class, 'addGroup'])->name('addGroup');
+    Route::post('/get-company-details', [CustomersFormController::class, 'getCompanyDetails'])->name('getCompanyDetails');
+    
+    // Bulk Actions
+    Route::post('/bulk-delete', [CustomersIndexController::class, 'bulkDelete'])->name('bulk-delete');
+    
+    // Create Customer (Individual OR Company with first contact)
+    Route::get('/create', [CustomersFormController::class, 'create'])->name('create');
+    Route::post('/', [CustomersFormController::class, 'store'])->name('store');
+    
+    // Toggle Status (BEFORE dynamic {customer} routes)
+    Route::patch('/{id}/toggle-status', [CustomersIndexController::class, 'toggleStatus'])->name('toggle-status');
+    
+    // View, Edit, Update, Delete Customer
     Route::get('/{customer}', [CustomersFormController::class, 'show'])->name('show');
     Route::get('/{customer}/edit', [CustomersFormController::class, 'edit'])->name('edit');
-    Route::put('/{customer}',      [CustomersFormController::class, 'update'])->name('update');
-    Route::delete('/{customer}',   [CustomersFormController::class, 'destroy'])->name('destroy');
-});
-
-// Notification Routes
-Route::prefix('notifications')->name('notifications.')->group(function () {
-    Route::delete('/clear-all', [App\Http\Controllers\Admin\NotificationController::class, 'clearAll'])->name('clear-all');
-    Route::delete('/{id}', [App\Http\Controllers\Admin\NotificationController::class, 'destroy'])->name('destroy')->where('id', '[0-9]+');
-});
-   //testing 
-
-// Route::prefix('debug')->name('debug.')->group(function () {
+    Route::put('/{customer}', [CustomersFormController::class, 'update'])->name('update');
+    Route::delete('/{customer}', [CustomersFormController::class, 'destroy'])->name('destroy');
     
-//     // Test current logged-in admin
-//     Route::get('/user', function () {
-//         $admin = Auth::guard('admin')->user();
-//         dd([
-//             'admin' => $admin,
-//             'id' => $admin?->id,
-//             'name' => $admin?->name,
-//             'email' => $admin?->email,
-//             'roles' => $admin?->roles?->pluck('name'),
-//             'permissions' => $admin?->getAllPermissions()?->pluck('name'),
-//         ]);
-//     });
-//     Route::get('/mail-status', function () {
-//     dd(\App\Services\Admin\MailService::getStatus());
-//     });
-//     Route::get('/send_mail', function () {
-//     $result = dd(\App\Services\Admin\MailService::sendTest('googleteam2@echopx.com'));
-//     dd($result);
-//     });
-//     // Test all options/settings
-//     Route::get('/options', function () {
-//         $options = \App\Models\Option::all();
-//         dd([
-//             'all_options' => $options->toArray(),
-//             'by_group' => $options->groupBy('group'),
-//         ]);
-//     });
-
-//     // Test specific settings groups
-//     Route::get('/settings/general', function () {
-//         dd([
-//             'company_name' => \App\Models\Option::get('company_name', ''),
-//             'company_email' => \App\Models\Option::get('company_email', ''),
-//             'company_phone' => \App\Models\Option::get('company_phone', ''),
-//             'company_address' => \App\Models\Option::get('company_address', ''),
-//             'company_website' => \App\Models\Option::get('company_website', ''),
-//             'company_gst' => \App\Models\Option::get('company_gst', ''),
-//             'company_logo' => \App\Models\Option::get('company_logo', ''),
-//             'company_favicon' => \App\Models\Option::get('company_favicon', ''),
-//             'site_timezone' => \App\Models\Option::get('site_timezone', 'Asia/Kolkata'),
-//             'date_format' => \App\Models\Option::get('date_format', 'd/m/Y'),
-//             'time_format' => \App\Models\Option::get('time_format', 'h:i A'),
-//             'currency_symbol' => \App\Models\Option::get('currency_symbol', '₹'),
-//             'currency_code' => \App\Models\Option::get('currency_code', 'INR'),
-//             'pagination_limit' => \App\Models\Option::get('pagination_limit', 10),
-//         ]);
-//     });
-
-//     // Test email settings
-//     Route::get('/settings/email', function () {
-//         dd([
-//             'mail_mailer' => \App\Models\Option::get('mail_mailer', 'smtp'),
-//             'mail_host' => \App\Models\Option::get('mail_host', ''),
-//             'mail_port' => \App\Models\Option::get('mail_port', 587),
-//             'mail_username' => \App\Models\Option::get('mail_username', ''),
-//             'mail_password' => '***hidden***',
-//             'mail_encryption' => \App\Models\Option::get('mail_encryption', 'tls'),
-//             'mail_from_address' => \App\Models\Option::get('mail_from_address', ''),
-//             'mail_from_name' => \App\Models\Option::get('mail_from_name', ''),
-//         ]);
-//     });
-
-//     // Test roles
-//     Route::get('/roles', function () {
-//         $roles = \Spatie\Permission\Models\Role::with('permissions')->get();
-//         dd([
-//             'roles' => $roles->map(fn($r) => [
-//                 'id' => $r->id,
-//                 'name' => $r->name,
-//                 'guard' => $r->guard_name,
-//                 'permissions' => $r->permissions->pluck('name'),
-//             ]),
-//         ]);
-//     });
-
-//     // Test permissions
-//     Route::get('/permissions', function () {
-//         $permissions = \Spatie\Permission\Models\Permission::all();
-//         dd([
-//             'count' => $permissions->count(),
-//             'permissions' => $permissions->map(fn($p) => [
-//                 'id' => $p->id,
-//                 'name' => $p->name,
-//                 'guard' => $p->guard_name,
-//             ]),
-//         ]);
-//     });
-
-//     // Test admins
-//     Route::get('/admins', function () {
-//         $admins = \App\Models\Admin::with('roles')->get();
-//         dd([
-//             'admins' => $admins->map(fn($a) => [
-//                 'id' => $a->id,
-//                 'name' => $a->name,
-//                 'email' => $a->email,
-//                 'is_active' => $a->is_active,
-//                 'roles' => $a->roles->pluck('name'),
-//             ]),
-//         ]);
-//     });
-
-//     // Test menus
-//     Route::get('/menus', function () {
-//         $menus = \App\Models\Menu::with('children')->whereNull('parent_id')->get();
-//         dd([
-//             'menus' => $menus->toArray(),
-//         ]);
-//     });
-
-//     // Test modules
-//     Route::get('/modules', function () {
-//         $modules = \App\Models\Module::all();
-//         dd([
-//             'modules' => $modules->toArray(),
-//         ]);
-//     });
-
-//     // Test database tables
-//     Route::get('/tables', function () {
-//         $tables = \DB::select('SHOW TABLES');
-//         $key = 'Tables_in_' . env('DB_DATABASE');
-//         dd([
-//             'tables' => collect($tables)->pluck($key),
-//         ]);
-//     });
-// });
-
-
-
-        });
+    // ✨ NEW: Add Contact to Company (nested routes)
+    Route::prefix('{customerId}/contacts')->name('contacts.')->group(function () {
+        Route::get('/create', [ContactsFormController::class, 'create'])->name('create');
+        Route::post('/', [ContactsFormController::class, 'store'])->name('store');
     });
-// });
+});
 
-// Remove the duplicate route at the top: Route::get('/admin', ...)
+// ============================================
+// CONTACTS ROUTES (Direct access for edit/delete)
+// ============================================
+Route::prefix('contacts')->name('contacts.')->group(function () {
+    Route::get('/{id}/edit', [ContactsFormController::class, 'edit'])->name('edit');
+    Route::put('/{id}', [ContactsFormController::class, 'update'])->name('update');
+    Route::delete('/{id}', [ContactsFormController::class, 'destroy'])->name('destroy');
+    Route::post('/bulk-delete', [CustomersIndexController::class, 'bulkDelete'])->name('bulk-delete');
+});
+
+// ============================================
+// CUSTOMER GROUPS ROUTES ⬅️ ADD THIS WHOLE SECTION
+// ============================================
+Route::prefix('customer-groups')->name('customer-groups.')->group(function () {
+    Route::get('/', [CustomerGroupsFormController::class, 'index'])->name('index');
+    Route::get('/create', [CustomerGroupsFormController::class, 'create'])->name('create');
+    Route::post('/', [CustomerGroupsFormController::class, 'store'])->name('store');
+    Route::get('/{id}', [CustomerGroupsFormController::class, 'show'])->name('show');
+    Route::get('/{id}/edit', [CustomerGroupsFormController::class, 'edit'])->name('edit');
+    Route::put('/{id}', [CustomerGroupsFormController::class, 'update'])->name('update');
+    Route::delete('/{id}', [CustomerGroupsFormController::class, 'destroy'])->name('destroy');
+    Route::get('/all/list', [CustomerGroupsFormController::class, 'getAll'])->name('all');
+});
+
+
+
+Route::get('/sales', [SalesIndexController::class, 'index'])->name('sales.index');
+
+/*
+|--------------------------------------------------------------------------
+| Proposals
+|--------------------------------------------------------------------------
+*/
+Route::prefix('sales/proposals')->name('sales.proposals.')->group(function () {
+    // List & DataTable
+    Route::get('/',       [ProposalsIndexController::class, 'index'])->name('index');
+    Route::get('/data',   [ProposalsIndexController::class, 'data'])->name('data');
+    Route::get('/export', [ProposalsIndexController::class, 'export'])->name('export');
+
+    // Create / Store
+    Route::get('/create', [ProposalsFormController::class, 'create'])->name('create');
+    Route::post('/',      [ProposalsFormController::class, 'store'])->name('store');
+
+    // Bulk actions
+    Route::post('/store-user',   [ProposalsController::class, 'storeUser'])->name('storeUser');
+    Route::post('/bulk-delete',  [ProposalsController::class, 'bulkDelete'])->name('bulkDelete');
+
+    // API endpoints (form helpers)
+    Route::get('/products/search',     [ProposalsController::class, 'searchProducts'])->name('products.search');
+    Route::get('/products/{product}',  [ProposalsController::class, 'getProduct'])->name('products.get');
+    Route::get('/taxes',               [ProposalsController::class, 'getTaxes'])->name('taxes');
+    Route::get('/customer/{customer}', [ProposalsController::class, 'getCustomerDetails'])->name('customer');
+
+    // Single proposal (CRUD + print)
+    Route::get('/{proposal}',        [ProposalsFormController::class, 'show'])->name('show');
+    Route::get('/{proposal}/edit',   [ProposalsFormController::class, 'edit'])->name('edit');
+    Route::put('/{proposal}',        [ProposalsFormController::class, 'update'])->name('update');
+    Route::delete('/{proposal}',     [ProposalsFormController::class, 'destroy'])->name('destroy');
+    Route::get('/{proposal}/print',  [ProposalsFormController::class, 'print'])->name('print');
+
+    // Actions
+    Route::post('/{proposal}/duplicate',       [ProposalsController::class, 'duplicate'])->name('duplicate');
+    Route::post('/{proposal}/status',          [ProposalsController::class, 'updateStatus'])->name('updateStatus');
+    Route::post('/{proposal}/send',            [ProposalsController::class, 'send'])->name('send');
+    Route::post('/{proposal}/convert-invoice', [ProposalsController::class, 'convertToInvoice'])->name('convertToInvoice');
+});
+
+/*
+|--------------------------------------------------------------------------
+| Estimations
+|--------------------------------------------------------------------------
+*/
+Route::prefix('sales/estimations')->name('sales.estimations.')->group(function () {
+    // List & DataTable
+    Route::get('/',      [EstimationsIndexController::class, 'index'])->name('index');
+    Route::get('/data',  [EstimationsIndexController::class, 'data'])->name('data');
+    Route::post('/import',[EstimationsIndexController::class, 'import'])->name('import');
+
+    // Create / Store
+    Route::get('/create', [EstimationsFormController::class, 'create'])->name('create');
+    Route::post('/',      [EstimationsFormController::class, 'store'])->name('store');
+
+    // Bulk
+    Route::post('/bulk-delete', [EstimationsFormController::class, 'bulkDestroy'])->name('bulkDestroy');
+
+    // Helpers
+    Route::get('/products/search',     [EstimationsFormController::class, 'searchProducts'])->name('searchProducts');
+    Route::get('/customer/{customer}', [EstimationsFormController::class, 'getCustomer'])->name('customer');
+
+    // Create from Proposal
+    Route::post('/from-proposal/{proposal}', [EstimationsFormController::class, 'fromProposal'])->name('fromProposal');
+
+    // Single estimation (CRUD)
+    Route::get('/{estimation}',      [EstimationsFormController::class, 'show'])->name('show');
+    Route::get('/{estimation}/edit', [EstimationsFormController::class, 'edit'])->name('edit');
+    Route::put('/{estimation}',      [EstimationsFormController::class, 'update'])->name('update');
+    Route::delete('/{estimation}',   [EstimationsFormController::class, 'destroy'])->name('destroy');
+    // Actions
+    Route::get('/{estimation}/duplicate', [EstimationsFormController::class, 'duplicate'])->name('duplicate');
+Route::post('/{estimation}/status',   [EstimationsController::class, 'updateStatus'])->name('updateStatus');});
+/*
+|--------------------------------------------------------------------------
+| Taxes (JSON)
+|--------------------------------------------------------------------------
+*/
+Route::get('/sales/taxes', function () {
+    return response()->json(
+        \App\Models\Tax::where('active', 1)
+            ->where('rate', '>', 0)  // Exclude "No Tax" from multi-select
+            ->orderBy('name')
+            ->get()
+    );
+})->name('sales.taxes');
+
+/*
+|--------------------------------------------------------------------------
+| Invoices
+|--------------------------------------------------------------------------
+*/
+Route::prefix('sales/invoices')->name('sales.invoices.')->group(function () {
+Route::get('/search-products', [InvoicesFormController::class, 'searchProducts'])->name('searchProducts');
+
+
+
+ Route::get('/taxes', [TaxesController::class, 'index'])->name('taxes.index');
+    Route::post('/taxes', [TaxesController::class, 'store'])->name('taxes.store');
+    Route::put('/taxes/{tax}', [TaxesController::class, 'update'])->name('taxes.update');
+    Route::delete('/taxes/{tax}', [TaxesController::class, 'destroy'])->name('taxes.destroy');
+    // Inside admin sales routes
+    // List & DataTable
+    Route::get('/',      [InvoicesIndexController::class, 'index'])->name('index');
+    Route::get('/data',  [InvoicesIndexController::class, 'data'])->name('data');
+    Route::post('/import',[InvoicesIndexController::class, 'import'])->name('import');
+
+    // Create / Store
+    Route::get('/create', [InvoicesFormController::class, 'create'])->name('create');
+    Route::post('/',      [InvoicesFormController::class, 'store'])->name('store');
+
+    // Bulk
+    Route::post('/bulk-delete', [InvoicesController::class, 'bulkDestroy'])->name('bulkDestroy');
+
+    // Helpers
+    Route::get('/product/{product}',  [InvoicesController::class, 'getProduct'])->name('getProduct');
+    Route::get('/customer/{customer}',[InvoicesFormController::class, 'getCustomer'])->name('customer');
+
+    // Create from Estimation
+    Route::post('/from-estimation/{estimation}', [InvoicesController::class, 'createFromEstimation'])->name('fromEstimation');
+
+    // Single invoice (CRUD)
+    Route::get('/{invoice}',      [InvoicesFormController::class, 'show'])->name('show');
+    Route::get('/{invoice}/edit', [InvoicesFormController::class, 'edit'])->name('edit');
+    Route::put('/{invoice}',      [InvoicesFormController::class, 'update'])->name('update');
+    Route::delete('/{invoice}',   [InvoicesFormController::class, 'destroy'])->name('destroy');
+
+    // Payments (pick one controller + one route name, avoid duplicates)
+    Route::post('/{invoice}/payment', [InvoicesController::class, 'recordPayment'])->name('recordPayment');
+
+    // Actions
+    Route::get('/{invoice}/duplicate', [InvoicesController::class, 'duplicate'])->name('duplicate');
+    Route::post('/{invoice}/status',   [InvoicesController::class, 'updateStatus'])->name('updateStatus');
+    });
+
+/*
+|--------------------------------------------------------------------------
+| Admin Payments
+|--------------------------------------------------------------------------
+*/
+    Route::prefix('admin/sales/payments')->name('admin.sales.payments.')->group(function () {
+        Route::get('/',          [PaymentsIndexController::class, 'index'])->name('index');
+        Route::get('/data',      [PaymentsIndexController::class, 'data'])->name('data');
+        Route::get('/{payment}', [PaymentsIndexController::class, 'show'])->name('show');
+        Route::delete('/{payment}', [PaymentsIndexController::class, 'destroy'])->name('destroy');
+        });
+
+    });
+});

@@ -2,14 +2,8 @@
 
 <div style="padding: 20px;">
     <div class="page-header">
-        <h1>
-            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
-            Goods Receipt Notes
-        </h1>
-        <a href="{{ route('admin.purchase.grn.create') }}" class="btn-add">
-            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4"></path></svg>
-            Create GRN
-        </a>
+        <h1>Goods Receipt Notes</h1>
+        <a href="{{ route('admin.purchase.grn.create') }}" class="btn-add">+ Create GRN</a>
     </div>
 
     @if(session('success'))
@@ -21,29 +15,26 @@
 
     <div class="stats-grid">
         <div class="stat-card">
-            <div class="stat-icon total"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg></div>
+            <div class="stat-icon total">📦</div>
             <div><div class="stat-value">{{ $stats['total'] }}</div><div class="stat-label">Total GRN</div></div>
         </div>
         <div class="stat-card">
-            <div class="stat-icon draft"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg></div>
+            <div class="stat-icon draft">📝</div>
             <div><div class="stat-value">{{ $stats['draft'] }}</div><div class="stat-label">Draft</div></div>
         </div>
         <div class="stat-card">
-            <div class="stat-icon inspecting"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg></div>
+            <div class="stat-icon inspecting">🔍</div>
             <div><div class="stat-value">{{ $stats['inspecting'] }}</div><div class="stat-label">Inspecting</div></div>
         </div>
         <div class="stat-card">
-            <div class="stat-icon approved"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div>
+            <div class="stat-icon approved">✅</div>
             <div><div class="stat-value">{{ $stats['approved'] }}</div><div class="stat-label">Approved</div></div>
         </div>
     </div>
 
     <div class="table-card">
         <div class="table-card-header">
-            <div class="table-card-title">
-                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 6h16M4 10h16M4 14h16M4 18h16"></path></svg>
-                GRN List
-            </div>
+            <div class="table-card-title">GRN List</div>
             <div class="filter-group">
                 <select class="filter-select" data-dt-filter="status">
                     <option value="">All Status</option>

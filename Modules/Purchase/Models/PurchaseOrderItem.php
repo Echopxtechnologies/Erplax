@@ -9,7 +9,11 @@ class PurchaseOrderItem extends Model
     protected $fillable = [
         'purchase_order_id', 'purchase_request_item_id', 'product_id', 'variation_id', 
         'unit_id', 'qty', 'received_qty', 'rate', 'discount_percent', 'discount_amount',
-        'tax_percent', 'tax_amount', 'total', 'description'
+        'tax_percent', 'tax_amount', 'total', 'description',
+        // Tax 1
+        'tax_1_id', 'tax_1_name', 'tax_1_rate', 'tax_1_amount',
+        // Tax 2
+        'tax_2_id', 'tax_2_name', 'tax_2_rate', 'tax_2_amount',
     ];
 
     protected $casts = [
@@ -20,6 +24,10 @@ class PurchaseOrderItem extends Model
         'discount_amount' => 'decimal:2',
         'tax_percent' => 'decimal:2',
         'tax_amount' => 'decimal:2',
+        'tax_1_rate' => 'decimal:2',
+        'tax_1_amount' => 'decimal:2',
+        'tax_2_rate' => 'decimal:2',
+        'tax_2_amount' => 'decimal:2',
         'total' => 'decimal:2',
     ];
 
@@ -58,7 +66,7 @@ class PurchaseOrderItem extends Model
     {
         $subtotal = $this->qty * $this->rate;
         
-        // Calculate discount - ensure never null
+        // Calculate discount
         $discountPercent = $this->discount_percent ?? 0;
         $discountAmount = $discountPercent > 0 
             ? ($subtotal * $discountPercent / 100) 
@@ -66,13 +74,18 @@ class PurchaseOrderItem extends Model
         
         $afterDiscount = $subtotal - $discountAmount;
         
-        // Calculate tax - ensure never null
-        $taxPercent = $this->tax_percent ?? 0;
-        $taxAmount = $taxPercent > 0 ? ($afterDiscount * $taxPercent / 100) : 0;
+        // Calculate tax from tax_1 and tax_2
+        $tax1Rate = $this->tax_1_rate ?? 0;
+        $tax2Rate = $this->tax_2_rate ?? 0;
+        $tax1Amount = $afterDiscount * ($tax1Rate / 100);
+        $tax2Amount = $afterDiscount * ($tax2Rate / 100);
         
         $this->discount_amount = round($discountAmount, 2);
-        $this->tax_amount = round($taxAmount, 2);
-        $this->total = round($afterDiscount + $taxAmount, 2);
+        $this->tax_1_amount = round($tax1Amount, 2);
+        $this->tax_2_amount = round($tax2Amount, 2);
+        $this->tax_percent = round($tax1Rate + $tax2Rate, 2);
+        $this->tax_amount = round($tax1Amount + $tax2Amount, 2);
+        $this->total = round($afterDiscount + $tax1Amount + $tax2Amount, 2);
         $this->save();
     }
 }

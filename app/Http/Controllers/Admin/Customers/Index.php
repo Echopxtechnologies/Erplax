@@ -4,363 +4,589 @@ namespace App\Http\Controllers\Admin\Customers;
 
 use App\Http\Controllers\Admin\AdminController;
 use App\Models\Customer;
+use App\Models\CustomerGroup;
 use Illuminate\Http\Request;
-use App\Traits\DataTable; 
+use App\Traits\DataTable;
+use Exception;
 
 class Index extends AdminController
 {
     use DataTable;
 
-    protected $model;
-    protected $searchable = ['name', 'email', 'phone', 'company'];
-    protected $sortable   = ['id', 'name', 'email', 'phone', 'company', 'customer_type'];
-    protected $exportable = [
-        'id', 
-        'name', 
-        'email', 
-        'phone', 
-        'customer_type',
-        'company', 
-        'designation', 
-        'website', 
-        'gst_number',
-        'group_name',
-        'address', 
-        'city', 
-        'state', 
-        'zip_code', 
-        'country',
-        'shipping_address', 
-        'shipping_city', 
-        'shipping_state', 
-        'shipping_zip_code', 
-        'shipping_country',
-        'notes',
-        'created_at',
-        'updated_at'
-    ];
+    /*
+    |--------------------------------------------------------------------------
+    | Properties for DataTable
+    |--------------------------------------------------------------------------
+    */
+    
+    protected $model = Customer::class;
+    protected $searchable = ['name', 'email', 'phone', 'company', 'designation'];
+    protected $exportable = ['id', 'name', 'email', 'phone', 'company', 'customer_type', 'group_name', 'active'];
+    protected $routePrefix = 'admin.customers';
+    protected $importable = [
+    // Customer Type
+    'customer_type'        => 'required|in:individual,company',
+    
+    // Contact Information
+    'firstname'            => 'required|string|max:100',
+    'lastname'             => 'required|string|max:100',
+    'email'                => 'required|email|max:191|unique:customers,email',
+    'phone'                => 'nullable|string|max:20',
+    'designation'          => 'nullable|string|max:100',
+    'group_name'           => 'nullable|string|max:100',
+    
+    // Company Information (required only for company type)
+    'company'              => 'nullable|string|max:191',
+    'vat'                  => 'nullable|string|max:50',
+    'website'              => 'nullable|url|max:255',
+    
+    // Billing Address
+    'billing_street'       => 'nullable|string|max:500',
+    'billing_city'         => 'nullable|string|max:100',
+    'billing_state'        => 'nullable|string|max:100',
+    'billing_zip_code'     => 'nullable|string|max:20',
+    'billing_country'      => 'nullable|string|max:100',
+    
+    // Shipping Address
+    'shipping_address'     => 'nullable|string|max:500',
+    'shipping_city'        => 'nullable|string|max:100',
+    'shipping_state'       => 'nullable|string|max:100',
+    'shipping_zip_code'    => 'nullable|string|max:20',
+    'shipping_country'     => 'nullable|string|max:100',
+    
+    // Email Notifications (boolean 0/1)
+    'invoice_emails'       => 'nullable|boolean',
+    'estimate_emails'      => 'nullable|boolean',
+    'credit_note_emails'   => 'nullable|boolean',
+    'contract_emails'      => 'nullable|boolean',
+    'task_emails'          => 'nullable|boolean',
+    'project_emails'       => 'nullable|boolean',
+    'ticket_emails'        => 'nullable|boolean',
+    
+    // Account Settings
+    'active'               => 'nullable|boolean',
+];
 
-    // Template columns for import (without id, created_at, updated_at)
-    protected $templateColumns = [
-        'name', 
-        'email', 
-        'phone', 
-        'customer_type',
-        'company', 
-        'designation', 
-        'website', 
-        'gst_number',
-        'group_name',
-        'address', 
-        'city', 
-        'state', 
-        'zip_code', 
-        'country',
-        'shipping_address', 
-        'shipping_city', 
-        'shipping_state', 
-        'shipping_zip_code', 
-        'shipping_country',
-        'notes'
-    ];
 
-    public function index()
+
+    /*
+    |--------------------------------------------------------------------------
+    | Private Properties (Getter/Setter Pattern)
+    |--------------------------------------------------------------------------
+    */
+    
+    private $customer = null;
+
+    /*
+    |--------------------------------------------------------------------------
+    | GETTER - Fetch Single Customer
+    |--------------------------------------------------------------------------
+    */
+    
+    private function getCustomer($id)
     {
-        return view('admin.customers.index');
+        try {
+            if (!$this->customer || $this->customer->id != $id) {
+                $this->customer = Customer::findOrFail($id);
+            }
+            return $this->customer;
+        } catch (Exception $e) {
+            report($e);
+            return null;
+        }
     }
 
-    public function template()
-    {
-        $filename = 'customers_import_template.csv';
-        
-        $headers = [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => "attachment; filename={$filename}",
+    /*
+    |--------------------------------------------------------------------------
+    | INDEX - Main List Page
+    |--------------------------------------------------------------------------
+    */
+    
+    // public function index(Request $request)
+    // {
+    //     try {
+    //         // Statistics
+    //         $stats = [
+    //             'total_customers' => Customer::select('company')
+    //                 ->where('customer_type', 'company')
+    //                 ->distinct()
+    //                 ->count() + Customer::where('customer_type', 'individual')->count(),
+    //             'active_customers' => Customer::where('active', 1)->count(),
+    //             'individual_customers' => Customer::where('customer_type', 'individual')->count(),
+    //             'company_customers' => Customer::select('company')
+    //                 ->where('customer_type', 'company')
+    //                 ->distinct()
+    //                 ->count(),
+    //             'total_contacts' => Customer::count(),
+    //             'active_contacts' => Customer::where('active', 1)->count(),
+    //         ];
+            
+    //         $customerTypes = [
+    //             'individual' => 'Individual',
+    //             'company' => 'Company',
+    //         ];
+            
+    //         $customerGroups = CustomerGroup::orderBy('name')->get();
+            
+    //         return view('admin.customers.index', compact('stats', 'customerTypes', 'customerGroups'));
+            
+    //     } catch (Exception $e) {
+    //         report($e);
+    //         return back()->with('error', 'Failed to load customers: ' . $e->getMessage());
+    //     }
+    // }
+
+
+public function index(Request $request)
+{
+    try {
+        // Statistics - Count ALL contacts
+        $stats = [
+            'total_customers' => Customer::count(), // Total rows
+            'active_customers' => Customer::where('active', 1)->count(),
+            'individual_customers' => Customer::where('customer_type', 'individual')->count(),
+            'company_customers' => Customer::where('customer_type', 'company')->count(),
+            
+            // Optional: Unique companies count
+            'unique_companies' => Customer::where('customer_type', 'company')
+                ->distinct('company')
+                ->count('company'),
         ];
-
-        $callback = function () {
-            $file = fopen('php://output', 'w');
-            
-            // Header row
-            fputcsv($file, $this->templateColumns);
-            
-            // Sample data rows
-            $sampleData = [
-                [
-                    'John Doe',
-                    'john.doe@example.com',
-                    '9876543210',
-                    'individual',
-                    '',
-                    '',
-                    '',
-                    '',
-                    'VIP',
-                    '123 Main Street',
-                    'Mumbai',
-                    'Maharashtra',
-                    '400001',
-                    'India',
-                    '123 Main Street',
-                    'Mumbai',
-                    'Maharashtra',
-                    '400001',
-                    'India',
-                    'Sample individual customer'
-                ],
-                [
-                    'Jane Smith',
-                    'jane.smith@techcorp.com',
-                    '9876543211',
-                    'company',
-                    'TechCorp Solutions',
-                    'Manager',
-                    'https://techcorp.com',
-                    '29ABCDE1234F1Z5',
-                    'Corporate',
-                    '456 Business Park',
-                    'Bangalore',
-                    'Karnataka',
-                    '560001',
-                    'India',
-                    '789 Warehouse Road',
-                    'Bangalore',
-                    'Karnataka',
-                    '560002',
-                    'India',
-                    'Sample company customer'
-                ],
-            ];
-            
-            foreach ($sampleData as $row) {
-                fputcsv($file, $row);
-            }
-            
-            fclose($file);
-        };
-
-        return response()->stream($callback, 200, $headers);
+        
+        $customerTypes = [
+            'individual' => 'Individual',
+            'company' => 'Company',
+        ];
+        
+        $customerGroups = CustomerGroup::orderBy('name')->pluck('name');
+        
+        return view('admin.customers.index', compact('stats', 'customerTypes', 'customerGroups'));
+        
+    } catch (Exception $e) {
+        report($e);
+        return back()->with('error', 'Failed to load customers: ' . $e->getMessage());
     }
+}
 
-    public function data(Request $request)
-    {
-        $query = Customer::query();
 
-        // EXPORT (all or selected)
+
+
+
+
+
+
+
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | DATA - DataTable AJAX Endpoint
+    |--------------------------------------------------------------------------
+    */
+    
+// public function data(Request $request)
+// {
+//     try {
+//         // EXPORT
+//         if ($request->has('export')) {
+//             return $this->dtExport($request);
+//         }
+
+//         $search = $request->get('search');
+//         $customerType = $request->get('customer_type');
+//         $groupName = $request->get('group_name');
+//         $active = $request->get('active');
+        
+//         // Build base query
+//         $query = Customer::query();
+        
+//         // Apply customer type filter first
+//         if ($customerType === 'individual') {
+//             // Only individuals
+//             $query->where('customer_type', 'individual');
+            
+//         } elseif ($customerType === 'company') {
+//             // Only companies - get first contact per company
+//             $subquery = Customer::selectRaw('MIN(id) as min_id')
+//                 ->where('customer_type', 'company')
+//                 ->groupBy('company');
+            
+//             $query->whereIn('id', $subquery->pluck('min_id'));
+            
+//         } else {
+//             // Both types - get all individuals + first contact per company
+//             $companyIds = Customer::selectRaw('MIN(id) as min_id')
+//                 ->where('customer_type', 'company')
+//                 ->groupBy('company')
+//                 ->pluck('min_id');
+            
+//             $query->where(function($q) use ($companyIds) {
+//                 $q->where('customer_type', 'individual')
+//                   ->orWhereIn('id', $companyIds);
+//             });
+//         }
+        
+//         // Apply search
+//         if ($search) {
+//             $query->where(function ($q) use ($search) {
+//                 $q->where('name', 'LIKE', "%{$search}%")
+//                   ->orWhere('email', 'LIKE', "%{$search}%")
+//                   ->orWhere('phone', 'LIKE', "%{$search}%")
+//                   ->orWhere('company', 'LIKE', "%{$search}%")
+//                   ->orWhere('designation', 'LIKE', "%{$search}%");
+//             });
+//         }
+        
+//         // Apply group filter
+//         if ($groupName) {
+//             $query->where('group_name', $groupName);
+//         }
+        
+//         // Apply status filter
+//         if ($active !== null && $active !== '') {
+//             $query->where('active', $active);
+//         }
+        
+//         // Sorting
+//         $sortCol = $request->get('sort', 'id');
+//         $sortDir = $request->get('dir', 'desc');
+        
+//         $allowedSorts = ['id', 'name', 'email', 'phone', 'customer_type', 'created_at'];
+//         if (!in_array($sortCol, $allowedSorts)) {
+//             $sortCol = 'id';
+//         }
+//         if (!in_array($sortDir, ['asc', 'desc'])) {
+//             $sortDir = 'desc';
+//         }
+        
+//         $query->orderBy($sortCol, $sortDir);
+        
+//         // Pagination
+//         $perPage = (int) $request->get('per_page', 10);
+//         if ($perPage <= 0 || $perPage > 100) {
+//             $perPage = 10;
+//         }
+        
+//         $data = $query->paginate($perPage);
+//         $startSno = ($data->currentPage() - 1) * $perPage;
+        
+//         // Format data
+//         $items = $data->getCollection()->map(function ($customer, $index) use ($startSno) {
+//             // For companies, count total contacts
+//             $contactCount = null;
+//             if ($customer->customer_type === 'company') {
+//                 $contactCount = Customer::where('company', $customer->company)
+//                     ->where('customer_type', 'company')
+//                     ->count();
+//             }
+            
+//             return [
+//                 'id' => $customer->id,
+//                 'sno' => $startSno + $index + 1,
+//                 'customer_type' => $customer->customer_type,
+                
+//                 // For display
+//                 'name' => $customer->name,
+//                 'company' => $customer->company,
+//                 'full_name' => $customer->display_name,
+                
+//                 'email' => $customer->email,
+//                 'phone' => $customer->phone ?? '-',
+//                 'designation' => $customer->designation ?? '-',
+//                 'group_name' => $customer->group_name ?? '-',
+//                 'contact_count' => $contactCount,
+                
+//                 'active' => $customer->active ? 1 : 0,
+//                 'status_badge' => $customer->status_badge,
+//                 'type_badge' => $customer->type_badge,
+                
+//                 'created_at' => $customer->created_at ? $customer->created_at->format('d M Y') : '-',
+                
+//                 // URLs
+//                 '_show_url' => route('admin.customers.show', $customer->id),
+//                 '_edit_url' => route('admin.customers.edit', $customer->id),
+//                 '_delete_url' => route('admin.customers.destroy', $customer->id),
+//             ];
+//         })->values();
+        
+//         return response()->json([
+//             'data' => $items,
+//             'total' => $data->total(),
+//             'current_page' => $data->currentPage(),
+//             'last_page' => $data->lastPage(),
+//         ]);
+        
+//     } catch (Exception $e) {
+//         report($e);
+//         return response()->json([
+//             'data' => [],
+//             'total' => 0,
+//             'current_page' => 1,
+//             'last_page' => 1,
+//             'error' => 'Failed to load data: ' . $e->getMessage(),
+//         ], 500);
+//     }
+// }
+
+
+
+
+
+public function data(Request $request)
+{
+    try {
+        // EXPORT
         if ($request->has('export')) {
-            if ($request->filled('ids')) {
-                $ids = $request->get('ids');
-
-                if (!is_array($ids)) {
-                    $ids = explode(',', $ids);
-                }
-
-                $ids = array_filter($ids);
-                if (!empty($ids)) {
-                    $query->whereIn('id', $ids);
-                }
-            }
-
-            return $this->dtExport($query, $request->get('export'));
+            return $this->dtExport($request);
         }
 
-        // Search
-        if ($search = $request->get('search')) {
+        $search = $request->get('search');
+        $customerType = $request->get('customer_type');
+        $groupName = $request->get('group_name');
+        $active = $request->get('active');
+        
+        // Build base query - SHOW ALL CONTACTS (no grouping)
+        $query = Customer::query();
+        
+        // Apply customer type filter - NO MIN(id) grouping
+        if ($customerType === 'individual') {
+            $query->where('customer_type', 'individual');
+        } elseif ($customerType === 'company') {
+            $query->where('customer_type', 'company'); // Show ALL company contacts
+        }
+        // else: show both types (all individuals + all company contacts)
+        
+        // Apply search
+        if ($search) {
             $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%")
-                  ->orWhere('phone', 'like', "%{$search}%")
-                  ->orWhere('company', 'like', "%{$search}%");
+                $q->where('name', 'LIKE', "%{$search}%")
+                  ->orWhere('email', 'LIKE', "%{$search}%")
+                  ->orWhere('phone', 'LIKE', "%{$search}%")
+                  ->orWhere('company', 'LIKE', "%{$search}%")
+                  ->orWhere('designation', 'LIKE', "%{$search}%");
             });
         }
-
-        // Sorting
-        $sortCol = $request->get('sort', 'id');
-        $sortDir = $request->get('dir', 'desc');
-
-        if (! in_array($sortCol, ['id', 'name', 'email', 'phone', 'company', 'customer_type'])) {
-            $sortCol = 'id';
+        
+        // Apply group filter
+        if ($groupName) {
+            $query->where('group_name', $groupName);
         }
-        if (! in_array($sortDir, ['asc', 'desc'])) {
-            $sortDir = 'desc';
+        
+        // Apply status filter
+        if ($active !== null && $active !== '') {
+            $query->where('active', $active);
         }
-
-        $query->orderBy($sortCol, $sortDir);
-
+        
+        // Sorting - Group company contacts together
+        $sortCol = $request->get('sort', 'company');
+        $sortDir = $request->get('dir', 'asc');
+        
+        $allowedSorts = ['id', 'name', 'email', 'phone', 'customer_type', 'created_at', 'company'];
+        if (!in_array($sortCol, $allowedSorts)) {
+            $sortCol = 'company';
+        }
+        if (!in_array($sortDir, ['asc', 'desc'])) {
+            $sortDir = 'asc';
+        }
+        
+        // Sort by company name first (groups contacts together), then by name
+        if ($sortCol === 'company' || $sortCol === 'id') {
+            $query->orderByRaw('CASE WHEN customer_type = "company" THEN company ELSE name END ' . $sortDir)
+                  ->orderBy('name', 'asc')
+                  ->orderBy('id', 'asc');
+        } else {
+            $query->orderBy($sortCol, $sortDir);
+        }
+        
         // Pagination
         $perPage = (int) $request->get('per_page', 10);
-        if ($perPage <= 0) {
+        if ($perPage <= 0 || $perPage > 100) {
             $perPage = 10;
         }
-
+        
         $data = $query->paginate($perPage);
-
-        // Calculate starting serial number for current page
         $startSno = ($data->currentPage() - 1) * $perPage;
-
-        $items = $data->getCollection()->map(function (Customer $customer, $index) use ($startSno) {
-            // Customer type badge with CSS class for dark mode support
-            $typeLabel = $customer->customer_type === 'company' 
-                ? '<span class="badge-type badge-company">Company</span>'
-                : '<span class="badge-type badge-individual">Individual</span>';
-
+        
+        // Format data
+        $items = $data->getCollection()->map(function ($customer, $index) use ($startSno) {
+            // For companies, count total contacts (optional display info)
+            $contactCount = null;
+            if ($customer->customer_type === 'company' && $customer->company) {
+                $contactCount = Customer::where('company', $customer->company)
+                    ->where('customer_type', 'company')
+                    ->count();
+            }
+            
             return [
-                'id'                  => $customer->id,
-                'sno'                 => $startSno + $index + 1,
-                'name'                => $customer->name ?? '-',
-                'email'               => $customer->email ?? '-',
-                'phone'               => $customer->phone ?? '-',
-                'company'             => $customer->company ?? '-',
-                'customer_type'       => $typeLabel,
+    'id' => $customer->id,
+    'sno' => $startSno + $index + 1,
+    'customer_type' => $customer->customer_type,
+    
+    // ✅ NEW: Format name as clickable HTML
+    'name' => $customer->customer_type === 'company' && $customer->company
+        ? '<a href="' . route('admin.customers.show', $customer->id) . '" style="text-decoration:none;color:inherit;"><div style="font-weight:600;color:#1e293b;font-size:14px;">' . e($customer->company) . '</div><div style="font-size:12px;color:#64748b;margin-top:3px;">' . e($customer->name) . '</div></a>'
+        : '<a href="' . route('admin.customers.show', $customer->id) . '" style="text-decoration:none;color:inherit;"><div style="font-weight:600;color:#1e293b;font-size:14px;">' . e($customer->name) . '</div></a>',
+    
+    'company' => $customer->company,
+    'full_name' => $customer->customer_type === 'company' && $customer->company
+        ? $customer->name . ' • ' . $customer->company
+        : $customer->name,
+                
+                'email' => $customer->email,
+                'phone' => $customer->phone ?? '-',
+                'designation' => $customer->designation ?? '-',
+                'group_name' => $customer->group_name ?? '-',
+                'contact_count' => $contactCount,
+                
+                //'active' => $customer->active ? 1 : 0,
 
-                '_show_url'   => route('admin.customers.show', $customer->id),
-                '_edit_url'   => route('admin.customers.edit', $customer->id),
+
+                                'active' => '<div style="display:flex;align-items:center;gap:8px;">
+                    <label class="status-toggle ' . ($customer->active ? 'toggle-active' : 'toggle-inactive') . '">
+                        <input type="checkbox" ' . ($customer->active ? 'checked' : '') . ' onchange="toggleStatus(' . $customer->id . ', this)">
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <span class="dt-badge ' . ($customer->active ? 'dt-badge-success' : 'dt-badge-secondary') . '">' . ($customer->active ? 'Active' : 'Inactive') . '</span>
+                </div>',
+                
+                'status_badge' => $customer->status_badge,
+                'type_badge' => $customer->type_badge,
+                
+                'created_at' => $customer->created_at ? $customer->created_at->format('d M Y') : '-',
+                
+                // URLs
+                '_show_url' => route('admin.customers.show', $customer->id),
+                '_edit_url' => route('admin.customers.edit', $customer->id),
                 '_delete_url' => route('admin.customers.destroy', $customer->id),
             ];
         })->values();
-
+        
         return response()->json([
-            'data'         => $items,
-            'total'        => $data->total(),
+            'data' => $items,
+            'total' => $data->total(),
             'current_page' => $data->currentPage(),
-            'last_page'    => $data->lastPage(),
+            'last_page' => $data->lastPage(),
         ]);
+        
+    } catch (Exception $e) {
+        report($e);
+        return response()->json([
+            'data' => [],
+            'total' => 0,
+            'current_page' => 1,
+            'last_page' => 1,
+            'error' => 'Failed to load data: ' . $e->getMessage(),
+        ], 500);
     }
+}
 
-    public function import(Request $request)
+    /*
+    |--------------------------------------------------------------------------
+    | BULK DELETE
+    |--------------------------------------------------------------------------
+    */
+    
+    public function bulkDelete(Request $request)
     {
-        $request->validate([
-            'file' => 'required|file|mimes:xlsx,xls,csv|max:10240'
-        ]);
-
         try {
-            $file = $request->file('file');
-            $extension = $file->getClientOriginalExtension();
+            $ids = $request->input('ids', []);
             
-            $data = [];
-            
-            if ($extension === 'csv') {
-                // Parse CSV
-                $handle = fopen($file->getPathname(), 'r');
-                $headers = fgetcsv($handle);
-                $headers = array_map('trim', $headers);
-                $headers = array_map('strtolower', $headers);
-                
-                while (($row = fgetcsv($handle)) !== false) {
-                    $data[] = array_combine($headers, $row);
-                }
-                fclose($handle);
-            } else {
-                // Parse Excel using PhpSpreadsheet
-                $reader = \PhpOffice\PhpSpreadsheet\IOFactory::createReaderForFile($file->getPathname());
-                $spreadsheet = $reader->load($file->getPathname());
-                $worksheet = $spreadsheet->getActiveSheet();
-                $rows = $worksheet->toArray();
-                
-                if (count($rows) > 0) {
-                    $headers = array_map('trim', $rows[0]);
-                    $headers = array_map('strtolower', $headers);
-                    
-                    for ($i = 1; $i < count($rows); $i++) {
-                        $row = $rows[$i];
-                        if (array_filter($row)) { // Skip empty rows
-                            $data[] = array_combine($headers, $row);
-                        }
-                    }
-                }
+            if (empty($ids)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No items selected'
+                ], 400);
             }
 
-            // Column mapping (file column => database column)
-            $columnMap = [
-                'name' => 'name',
-                'email' => 'email',
-                'phone' => 'phone',
-                'customer_type' => 'customer_type',
-                'company' => 'company',
-                'designation' => 'designation',
-                'website' => 'website',
-                'gst_number' => 'gst_number',
-                'gst number' => 'gst_number',
-                'group_name' => 'group_name',
-                'group' => 'group_name',
-                'address' => 'address',
-                'city' => 'city',
-                'state' => 'state',
-                'zip_code' => 'zip_code',
-                'zip' => 'zip_code',
-                'zipcode' => 'zip_code',
-                'country' => 'country',
-                'shipping_address' => 'shipping_address',
-                'shipping address' => 'shipping_address',
-                'shipping_city' => 'shipping_city',
-                'shipping city' => 'shipping_city',
-                'shipping_state' => 'shipping_state',
-                'shipping state' => 'shipping_state',
-                'shipping_zip_code' => 'shipping_zip_code',
-                'shipping zip' => 'shipping_zip_code',
-                'shipping_country' => 'shipping_country',
-                'shipping country' => 'shipping_country',
-                'notes' => 'notes',
-            ];
+            $customers = Customer::whereIn('id', $ids)->get();
+            $count = 0;
 
-            $imported = 0;
-            $skipped = 0;
-            $errors = [];
-
-            foreach ($data as $index => $row) {
-                $rowNum = $index + 2; // Account for header row
-                
-                // Map columns
-                $customerData = [];
-                foreach ($row as $key => $value) {
-                    $key = strtolower(trim($key));
-                    if (isset($columnMap[$key])) {
-                        $customerData[$columnMap[$key]] = trim($value);
-                    }
-                }
-
-                // Skip if no name or email
-                if (empty($customerData['name']) || empty($customerData['email'])) {
-                    $skipped++;
-                    continue;
-                }
-
-                // Set default customer_type if not provided
-                if (empty($customerData['customer_type'])) {
-                    $customerData['customer_type'] = 'individual';
-                }
-
-                // Check if email already exists
-                $existing = Customer::where('email', $customerData['email'])->first();
-                
-                if ($existing) {
-                    // Update existing record
-                    $existing->update($customerData);
+            foreach ($customers as $customer) {
+                if ($customer->customer_type === 'company') {
+                    // Delete all contacts of this company
+                    Customer::where('company', $customer->company)
+                        ->where('customer_type', 'company')
+                        ->delete();
                 } else {
-                    // Create new record
-                    Customer::create($customerData);
+                    $customer->delete();
                 }
-                
-                $imported++;
-            }
-
-            $message = "{$imported} records imported successfully.";
-            if ($skipped > 0) {
-                $message .= " {$skipped} rows skipped (missing name or email).";
+                $count++;
             }
 
             return response()->json([
                 'success' => true,
-                'message' => $message,
-                'imported' => $imported,
-                'skipped' => $skipped
+                'message' => $count . ' customer(s) deleted successfully'
             ]);
-
-        } catch (\Exception $e) {
+            
+        } catch (Exception $e) {
+            report($e);
             return response()->json([
                 'success' => false,
-                'message' => 'Import failed: ' . $e->getMessage()
+                'message' => 'Delete failed: ' . $e->getMessage()
             ], 500);
         }
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | TOGGLE STATUS
+    |--------------------------------------------------------------------------
+    */
+    
+    public function toggleStatus(Request $request, $id)
+    {
+        try {
+            $customer = $this->getCustomer($id);
+            
+            if (!$customer) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Customer not found'
+                ], 404);
+            }
+            
+            $customer->active = $request->input('active', 0);
+            $customer->save();
+            
+            // If company, update all contacts
+            if ($customer->customer_type === 'company') {
+                Customer::where('company', $customer->company)
+                    ->where('customer_type', 'company')
+                    ->update(['active' => $customer->active]);
+            }
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Status updated successfully'
+            ]);
+            
+        } catch (Exception $e) {
+            report($e);
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update status: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | EXPORT MAPPING
+    |--------------------------------------------------------------------------
+    */
+    
+    protected function mapExportRow($customer)
+    {
+        return [
+            'ID' => $customer->id,
+            'Name' => $customer->name,
+            'Email' => $customer->email,
+            'Phone' => $customer->phone ?? '-',
+            'Company' => $customer->company ?? '-',
+            'Type' => ucfirst($customer->customer_type),
+            'Group' => $customer->group_name ?? '-',
+            'Active' => $customer->active ? 'Yes' : 'No',
+            'Created Date' => $customer->created_at ? $customer->created_at->format('Y-m-d H:i:s') : '-',
+        ];
+   }
 }

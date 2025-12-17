@@ -104,7 +104,7 @@
 
                     <div class="form-row">
                         <div class="form-group">
-                            <label class="form-label">Company Name *</label>
+                            <label class="form-label">Company Name </label>
                             <input type="text" name="company_name" class="form-input" value="{{ old('company_name', $company_name) }}" required>
                             @error('company_name') <div class="form-error">{{ $message }}</div> @enderror
                         </div>

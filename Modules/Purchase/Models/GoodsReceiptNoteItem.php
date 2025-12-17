@@ -18,6 +18,11 @@ class GoodsReceiptNoteItem extends Model
         'accepted_qty',
         'rejected_qty',
         'rate',
+        'discount_percent',
+        // Tax 1
+        'tax_1_id', 'tax_1_name', 'tax_1_rate',
+        // Tax 2
+        'tax_2_id', 'tax_2_name', 'tax_2_rate',
         'rejection_reason',
         'lot_no',
         'batch_no',
@@ -34,6 +39,9 @@ class GoodsReceiptNoteItem extends Model
         'accepted_qty' => 'decimal:3',
         'rejected_qty' => 'decimal:3',
         'rate' => 'decimal:2',
+        'discount_percent' => 'decimal:2',
+        'tax_1_rate' => 'decimal:2',
+        'tax_2_rate' => 'decimal:2',
         'manufacturing_date' => 'date',
         'expiry_date' => 'date',
     ];
@@ -90,5 +98,10 @@ class GoodsReceiptNoteItem extends Model
     public function getIsFullyReceivedAttribute(): bool
     {
         return $this->received_qty >= $this->ordered_qty;
+    }
+    
+    public function getTotalTaxRateAttribute(): float
+    {
+        return ($this->tax_1_rate ?? 0) + ($this->tax_2_rate ?? 0);
     }
 }

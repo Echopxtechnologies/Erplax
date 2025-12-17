@@ -156,12 +156,12 @@
                             <div class="address-name">{{ $bill->vendor->name }}</div>
                             <div class="address-text">
                                 @if($bill->vendor->billing_address){{ $bill->vendor->billing_address }}<br>@endif
-                                @if($bill->vendor->billing_city || $bill->vendor->billing_state)
-                                {{ $bill->vendor->billing_city }}{{ $bill->vendor->billing_state ? ', ' . $bill->vendor->billing_state : '' }}{{ $bill->vendor->billing_pincode ? ' - ' . $bill->vendor->billing_pincode : '' }}<br>
-                                @endif
-                                @if($bill->vendor->phone)Tel: {{ $bill->vendor->phone }}@endif
+                                @if($bill->vendor->billing_city){{ $bill->vendor->billing_city }}@endif
+                                @if($bill->vendor->billing_state), {{ $bill->vendor->billing_state }}@endif
+                                @if($bill->vendor->billing_pincode) - {{ $bill->vendor->billing_pincode }}@endif
+                                @if($bill->vendor->phone)<br>Tel: {{ $bill->vendor->phone }}@endif
                             </div>
-                            @if($pdfSettings['show_gst'] && $bill->vendor->gst_number)
+                            @if($bill->vendor->gst_number)
                             <div class="address-gst">GSTIN: {{ $bill->vendor->gst_number }}</div>
                             @endif
                         </div>
@@ -172,20 +172,17 @@
                     <div class="address-box">
                         <div class="address-header">Ship To</div>
                         <div class="address-body">
-                            @php $warehouse = $bill->grn?->warehouse ?? $bill->warehouse; @endphp
-                            @if($warehouse)
-                            <div class="address-name">{{ $warehouse->name }}</div>
+                            @if($bill->warehouse)
+                            <div class="address-name">{{ $bill->warehouse->name ?? 'Main Warehouse' }}</div>
                             <div class="address-text">
-                                @if($warehouse->address){{ $warehouse->address }}<br>@endif
-                                @if($warehouse->city || $warehouse->state){{ $warehouse->city }}{{ $warehouse->state ? ', ' . $warehouse->state : '' }}<br>@endif
-                                @if($warehouse->phone)Tel: {{ $warehouse->phone }}@endif
+                                @if($bill->warehouse->address){{ $bill->warehouse->address }}<br>@endif
+                                @if($bill->warehouse->city){{ $bill->warehouse->city }}@endif
+                                @if($bill->warehouse->state), {{ $bill->warehouse->state }}@endif
+                                @if($bill->warehouse->phone)<br>Tel: {{ $bill->warehouse->phone }}@endif
                             </div>
                             @else
                             <div class="address-name">{{ $companyName }}</div>
                             <div class="address-text">{{ $companyAddress }}</div>
-                            @if($pdfSettings['show_gst'] && $companyGst)
-                            <div class="address-gst">GSTIN: {{ $companyGst }}</div>
-                            @endif
                             @endif
                         </div>
                     </div>
@@ -194,60 +191,30 @@
         </table>
     </div>
 
-    <!-- Items Table with GST Breakdown -->
-    @php
-        $totalTaxableValue = 0;
-        $totalCgst = 0;
-        $totalSgst = 0;
-        $totalAmount = 0;
-    @endphp
+    <!-- Items Table -->
     <table class="items-table">
         <thead>
             <tr>
-                <th style="width:20px;">Sl.</th>
+                <th style="width:20px;">SL.</th>
                 <th style="width:auto;">Product Description</th>
-                <th style="width:35px;">HSN</th>
-                <th style="width:30px;">Qty</th>
-                <th style="width:40px;">Rate</th>
-                <th style="width:50px;">Taxable<br>Value</th>
-                <th colspan="2" style="width:60px;">CGST</th>
-                <th colspan="2" style="width:60px;">SGST</th>
+                <th style="width:40px;">HSN</th>
+                <th style="width:30px;">QTY</th>
+                <th style="width:50px;">Rate</th>
+                <th style="width:55px;">Taxable</th>
+                @if($hasTax1)<th style="width:50px;">{{ $tax1Name }}</th>@endif
+                @if($hasTax2)<th style="width:50px;">{{ $tax2Name }}</th>@endif
                 <th style="width:55px;">Total</th>
-            </tr>
-            <tr>
-                <th></th>
-                <th></th>
-                <th></th>
-                <th></th>
-                <th></th>
-                <th></th>
-                <th style="width:25px;">%</th>
-                <th style="width:35px;">Amt</th>
-                <th style="width:25px;">%</th>
-                <th style="width:35px;">Amt</th>
-                <th></th>
             </tr>
         </thead>
         <tbody>
             @foreach($bill->items as $i => $item)
             @php
                 $taxableValue = ($item->qty * $item->rate) - ($item->discount_amount ?? 0);
-                $taxPercent = $item->tax_percent ?? 0;
-                $cgstPercent = $taxPercent / 2;
-                $sgstPercent = $taxPercent / 2;
-                $cgstAmount = $taxableValue * ($cgstPercent / 100);
-                $sgstAmount = $taxableValue * ($sgstPercent / 100);
-                $itemTotal = $taxableValue + $cgstAmount + $sgstAmount;
-                
-                $totalTaxableValue += $taxableValue;
-                $totalCgst += $cgstAmount;
-                $totalSgst += $sgstAmount;
-                $totalAmount += $itemTotal;
             @endphp
             <tr>
                 <td>{{ $i + 1 }}</td>
                 <td class="l">
-                    <span class="item-name">{{ $item->product->name ?? 'N/A' }}</span>
+                    <span class="item-name">{{ $item->product->name ?? $item->description ?? 'N/A' }}</span>
                     @if($item->product && $item->product->sku)
                     <span class="item-sku">{{ $item->product->sku }}</span>
                     @endif
@@ -256,11 +223,9 @@
                 <td>{{ number_format($item->qty, 0) }}</td>
                 <td class="r">{{ number_format($item->rate, 2) }}</td>
                 <td class="r">{{ number_format($taxableValue, 2) }}</td>
-                <td>{{ $cgstPercent > 0 ? number_format($cgstPercent, 0) : '-' }}</td>
-                <td class="r">{{ number_format($cgstAmount, 2) }}</td>
-                <td>{{ $sgstPercent > 0 ? number_format($sgstPercent, 0) : '-' }}</td>
-                <td class="r">{{ number_format($sgstAmount, 2) }}</td>
-                <td class="r"><strong>{{ number_format($itemTotal, 2) }}</strong></td>
+                @if($hasTax1)<td class="r">{{ $item->tax_1_amount ? number_format($item->tax_1_amount, 2) : '-' }}</td>@endif
+                @if($hasTax2)<td class="r">{{ $item->tax_2_amount ? number_format($item->tax_2_amount, 2) : '-' }}</td>@endif
+                <td class="r"><strong>{{ number_format($item->total, 2) }}</strong></td>
             </tr>
             @endforeach
         </tbody>
@@ -270,10 +235,8 @@
                 <td>{{ number_format($bill->items->sum('qty'), 0) }}</td>
                 <td></td>
                 <td class="r">{{ number_format($totalTaxableValue, 2) }}</td>
-                <td></td>
-                <td class="r">{{ number_format($totalCgst, 2) }}</td>
-                <td></td>
-                <td class="r">{{ number_format($totalSgst, 2) }}</td>
+                @if($hasTax1)<td class="r">{{ number_format($tax1Total, 2) }}</td>@endif
+                @if($hasTax2)<td class="r">{{ number_format($tax2Total, 2) }}</td>@endif
                 <td class="r">{{ number_format($totalAmount, 2) }}</td>
             </tr>
         </tfoot>
@@ -318,17 +281,21 @@
                             <td class="lbl">Total Amount before Tax</td>
                             <td class="val">{{ number_format($totalTaxableValue, 2) }}</td>
                         </tr>
+                        @if($hasTax1 && $tax1Total > 0)
                         <tr>
-                            <td class="lbl">Add: CGST</td>
-                            <td class="val">{{ number_format($totalCgst, 2) }}</td>
+                            <td class="lbl">Add: {{ $tax1Name }}</td>
+                            <td class="val">{{ number_format($tax1Total, 2) }}</td>
                         </tr>
+                        @endif
+                        @if($hasTax2 && $tax2Total > 0)
                         <tr>
-                            <td class="lbl">Add: SGST</td>
-                            <td class="val">{{ number_format($totalSgst, 2) }}</td>
+                            <td class="lbl">Add: {{ $tax2Name }}</td>
+                            <td class="val">{{ number_format($tax2Total, 2) }}</td>
                         </tr>
+                        @endif
                         <tr>
                             <td class="lbl">Total Tax Amount</td>
-                            <td class="val">{{ number_format($totalCgst + $totalSgst, 2) }}</td>
+                            <td class="val">{{ number_format($totalTaxAmount, 2) }}</td>
                         </tr>
                         @if($bill->shipping_charge > 0)
                         <tr>
