@@ -29,6 +29,7 @@ Route::prefix('admin/purchase')->middleware(['web', 'auth:admin'])->group(functi
 
     // Purchase Requests
     Route::get('requests/data', [PurchaseRequestController::class, 'dataTable'])->name('admin.purchase.requests.data');
+    Route::get('requests/search-products', [PurchaseRequestController::class, 'searchProducts'])->name('admin.purchase.requests.search-products');
     Route::post('requests/bulk-delete', [PurchaseRequestController::class, 'bulkDelete'])->name('admin.purchase.requests.bulk-delete');
     Route::post('requests/{id}/submit', [PurchaseRequestController::class, 'submit'])->name('admin.purchase.requests.submit');
     Route::post('requests/{id}/approve', [PurchaseRequestController::class, 'approve'])->name('admin.purchase.requests.approve');
@@ -46,6 +47,7 @@ Route::prefix('admin/purchase')->middleware(['web', 'auth:admin'])->group(functi
 
     // Purchase Orders
     Route::get('orders/data', [PurchaseOrderController::class, 'dataTable'])->name('admin.purchase.orders.data');
+    Route::get('orders/search-products', [PurchaseOrderController::class, 'searchProducts'])->name('admin.purchase.orders.search-products');
     Route::post('orders/bulk-delete', [PurchaseOrderController::class, 'bulkDelete'])->name('admin.purchase.orders.bulk-delete');
     Route::post('orders/{id}/send', [PurchaseOrderController::class, 'send'])->name('admin.purchase.orders.send');
     Route::post('orders/{id}/confirm', [PurchaseOrderController::class, 'confirm'])->name('admin.purchase.orders.confirm');

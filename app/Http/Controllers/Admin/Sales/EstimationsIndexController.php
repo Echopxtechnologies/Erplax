@@ -2,12 +2,12 @@
 
 namespace App\Http\Controllers\Admin\Sales;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Admin\AdminController;
 use App\Models\Estimation;
 use App\Traits\DataTable;
 use Illuminate\Http\Request;
 
-class EstimationsIndexController extends Controller
+class EstimationsIndexController extends AdminController
 {
     use DataTable;
 

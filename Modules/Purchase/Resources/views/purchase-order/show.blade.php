@@ -132,13 +132,39 @@
                     </thead>
                     <tbody>
                         @forelse($po->items as $idx => $item)
+                        @php 
+                            $imageUrl = null;
+                            if ($item->variation && $item->variation->image_path) {
+                                $imageUrl = asset('storage/' . $item->variation->image_path);
+                            } elseif ($item->product && $item->product->primaryImage) {
+                                $imageUrl = asset('storage/' . $item->product->primaryImage->image_path);
+                            }
+                        @endphp
                         <tr>
                             <td>{{ $idx + 1 }}</td>
                             <td>
-                                <div class="product-name">{{ $item->product->name ?? 'N/A' }}</div>
-                                <div class="product-meta">
-                                    @if($item->product?->sku)<span>SKU: {{ $item->product->sku }}</span>@endif
-                                    @if($item->product?->hsn_code)<span style="margin-left:10px;">HSN: {{ $item->product->hsn_code }}</span>@endif
+                                <div class="product-cell">
+                                    @if($imageUrl)
+                                        <img src="{{ $imageUrl }}" alt="" class="product-thumb">
+                                    @else
+                                        <div class="product-thumb no-img">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                                                <circle cx="8.5" cy="8.5" r="1.5"/>
+                                                <path d="M21 15l-5-5L5 21"/>
+                                            </svg>
+                                        </div>
+                                    @endif
+                                    <div class="product-info">
+                                        <div class="product-name">{{ $item->product->name ?? 'N/A' }}</div>
+                                        <div class="product-meta">
+                                            @if($item->variation)
+                                            <span class="var-badge">{{ $item->variation->variation_name ?: $item->variation->sku }}</span>
+                                            @endif
+                                            @if($item->product?->sku)<span class="sku">SKU: {{ $item->product->sku }}</span>@endif
+                                            @if($item->product?->hsn_code)<span class="sku" style="margin-left:8px;">HSN: {{ $item->product->hsn_code }}</span>@endif
+                                        </div>
+                                    </div>
                                 </div>
                             </td>
                             <td>{{ $item->unit->short_name ?? $item->unit->name ?? '-' }}</td>

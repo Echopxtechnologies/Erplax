@@ -1,4 +1,5 @@
-<x-layouts.app>
+
+
 <style>
     .page-header {
         display: flex;
@@ -354,4 +355,3 @@ function resetFilters() {
 </script>
 
 @include('core::datatable')
-</x-layouts.app>

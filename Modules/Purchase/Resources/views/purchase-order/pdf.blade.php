@@ -126,6 +126,7 @@
                 <td>{{ $i + 1 }}</td>
                 <td>
                     <strong>{{ $item->product->name ?? 'N/A' }}</strong>
+                    @if($item->variation)<br><span style="color:#8b5cf6;font-size:8px">{{ $item->variation->variation_name ?: $item->variation->sku }}</span>@endif
                     @if($item->product && $item->product->sku)<br><span style="color:#666;font-size:8px">SKU: {{ $item->product->sku }}</span>@endif
                     @if($item->discount_percent > 0)<br><span style="color:#059669;font-size:8px">Discount: {{ $item->discount_percent }}%</span>@endif
                 </td>

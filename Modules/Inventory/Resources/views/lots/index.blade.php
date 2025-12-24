@@ -1,4 +1,5 @@
-<x-layouts.app>
+
+
 <style>
     .page-header {
         display: flex;
@@ -402,7 +403,7 @@ window.dtRenders.lot = function(value, row) {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PRODUCT CELL RENDERER (with image)
+// PRODUCT CELL RENDERER (with image and variation)
 // ─────────────────────────────────────────────────────────────────────────────
 window.dtRenders.product = function(value, row) {
     var imageHtml = '';
@@ -414,11 +415,17 @@ window.dtRenders.product = function(value, row) {
         imageHtml = '<div class="product-image-placeholder"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg></div>';
     }
     
+    var variationHtml = '';
+    if (row.variation_name) {
+        variationHtml = '<div class="product-variation" style="font-size: 11px; color: #8b5cf6; margin-top: 2px;">⬥ ' + row.variation_name + '</div>';
+    }
+    
     return '<div class="product-cell">' +
         imageHtml +
         '<div class="product-info">' +
             '<div class="product-name">' + (row.product_name || '-') + '</div>' +
             '<div class="product-sku">' + (row.product_sku || '') + '</div>' +
+            variationHtml +
         '</div>' +
     '</div>';
 };
@@ -494,4 +501,3 @@ window.dtRenders.actions = function(value, row) {
 
 {{-- Include DataTable Component --}}
 @include('core::datatable')
-</x-layouts.app>

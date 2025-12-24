@@ -1,4 +1,3 @@
-<x-layouts.app>
     <x-slot name="header">
         <h1 class="page-title">Dashboard</h1>
     </x-slot>
@@ -152,4 +151,3 @@
             </div>
         </div>
     </div>
-</x-layouts.app>

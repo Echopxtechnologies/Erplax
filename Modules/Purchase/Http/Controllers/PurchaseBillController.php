@@ -38,7 +38,7 @@ class PurchaseBillController extends AdminController
             'balance_due' => PurchaseBill::where('status', 'APPROVED')->sum('balance_due'),
         ];
         
-        return $this->moduleView('purchase::bill.index', compact('stats'));
+        return view('purchase::bill.index', compact('stats'));
     }
 
     /**
@@ -117,7 +117,7 @@ class PurchaseBillController extends AdminController
             ->orderBy('grn_date', 'desc')
             ->get();
         
-        return $this->moduleView('purchase::bill.create', compact('billNumber', 'vendors', 'grns', 'warehouses', 'taxes'));
+        return view('purchase::bill.create', compact('billNumber', 'vendors', 'grns', 'warehouses', 'taxes'));
     }
 
     public function store(Request $request)
@@ -255,7 +255,7 @@ class PurchaseBillController extends AdminController
     {
         $bill = PurchaseBill::with([
             'vendor', 'purchaseOrder', 'grn.warehouse', 'warehouse',
-            'items.product', 'items.unit',
+            'items.product', 'items.variation', 'items.unit',
             'payments.creator', 'payments.paymentMethod', 'creator', 'approver'
         ])->findOrFail($id);
         
@@ -278,12 +278,12 @@ class PurchaseBillController extends AdminController
                 ->first();
         }
         
-        return $this->moduleView('purchase::bill.show', compact('bill', 'paymentMethods', 'vendorBank'));
+        return view('purchase::bill.show', compact('bill', 'paymentMethods', 'vendorBank'));
     }
 
     public function edit($id)
     {
-        $bill = PurchaseBill::with(['items.product', 'items.unit'])->findOrFail($id);
+        $bill = PurchaseBill::with(['items.product', 'items.variation', 'items.unit'])->findOrFail($id);
         
         if (!$bill->canEdit()) {
             return redirect()->route('admin.purchase.bills.show', $id)->with('error', 'Cannot edit this bill.');
@@ -308,7 +308,7 @@ class PurchaseBillController extends AdminController
             $taxes = DB::table('taxes')->where('is_active', true)->orderBy('name')->get(['id', 'name', 'rate']);
         }
         
-        return $this->moduleView('purchase::bill.edit', compact('bill', 'vendors', 'products', 'warehouses', 'taxes'));
+        return view('purchase::bill.edit', compact('bill', 'vendors', 'products', 'warehouses', 'taxes'));
     }
 
     public function update(Request $request, $id)

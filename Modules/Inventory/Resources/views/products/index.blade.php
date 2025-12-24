@@ -1,4 +1,5 @@
-<x-layouts.app>
+
+
 <style>
     .inventory-container {
         padding: 20px;
@@ -474,4 +475,3 @@ window.dtRenders.variants = function(data, row) {
 </script>
 
 @include('core::datatable')
-</x-layouts.app>

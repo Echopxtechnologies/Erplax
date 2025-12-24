@@ -34,7 +34,7 @@ class SettingsController extends AdminController
             'po_terms' => PurchaseSetting::getValue('po_terms', "1. Goods once sold will not be taken back.\n2. Delivery within specified time.\n3. Payment as per agreed terms."),
         ];
         
-        return $this->moduleView('purchase::settings.index', compact('settings'));
+        return view('purchase::settings.index', compact('settings'));
     }
     
     public function update(Request $request)

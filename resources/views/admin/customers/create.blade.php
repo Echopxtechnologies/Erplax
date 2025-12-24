@@ -1,5 +1,4 @@
-<x-layouts.app>
-    <x-slot name="header">
+
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
             <div>
                 <h1 style="margin:0 0 4px 0;font-size:24px;font-weight:700;color:var(--text-primary);">Create New Customer</h1>
@@ -12,7 +11,7 @@
                 Back to List
             </a>
         </div>
-    </x-slot>
+   
 
     <style>
         /* Modern Button Styles */
@@ -48,6 +47,7 @@
         
         /* Progress Indicator */
         .progress-steps {
+            
             display:flex;
             justify-content:space-between;
             margin-bottom:32px;
@@ -55,6 +55,7 @@
             position:relative;
         }
         .progress-line {
+            
             position:absolute;
             top:20px;
             left:0;
@@ -158,9 +159,9 @@
             gap:16px;
         }
         .type-btn { 
-            padding:24px;
-            border:3px solid #e5e7eb;
-            border-radius:16px;
+            padding:10px;
+            border:2px solid #e5e7eb;
+            border-radius:12px;
             background:white;
             cursor:pointer;
             text-align:center;
@@ -196,18 +197,18 @@
             display:none;
         }
         .type-icon { 
-            font-size:48px;
-            margin-bottom:12px;
+            font-size:36px;
+            margin-bottom:10px;
             display:block;
         }
         .type-label { 
             font-weight:700;
-            font-size:16px;
+            font-size:14px;
             color:#1e293b;
             display:block;
         }
         .type-desc {
-            font-size:13px;
+            font-size:12px;
             color:#64748b;
             margin-top:4px;
         }
@@ -375,11 +376,227 @@
                 display:none;
             }
         }
+
+
+        /* Add New Button */
+.btn-add-new {
+    width:48px;
+    height:48px;
+    background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);
+    color:white;
+    border:none;
+    border-radius:10px;
+    font-size:24px;
+    font-weight:700;
+    cursor:pointer;
+    transition:all 0.2s;
+    flex-shrink:0;
+}
+.btn-add-new:hover {
+    background:linear-gradient(135deg,#5568d3 0%,#63408a 100%);
+    transform:translateY(-2px);
+    box-shadow:0 4px 12px rgba(102,126,234,0.4);
+}
+
+/* Modal */
+.modal {
+    position:fixed;
+    top:0;
+    left:0;
+    width:100%;
+    height:100%;
+    z-index:9999;
+    display:none;
+    align-items:center;
+    justify-content:center;
+}
+.modal.show { display:flex; }
+.modal-overlay {
+    position:absolute;
+    inset:0;
+    background:rgba(0,0,0,0.5);
+    backdrop-filter:blur(4px);
+}
+.modal-dialog {
+    position:relative;
+    z-index:10000;
+    width:90%;
+    max-width:500px;
+    animation:slideIn 0.3s ease;
+}
+@keyframes slideIn {
+    from { opacity:0; transform:translateY(-50px); }
+    to { opacity:1; transform:translateY(0); }
+}
+.modal-content {
+    background:white;
+    border-radius:16px;
+    box-shadow:0 20px 60px rgba(0,0,0,0.3);
+    overflow:hidden;
+}
+.modal-header {
+    background:linear-gradient(135deg,#f8fafc 0%,#f1f5f9 100%);
+    padding:20px 24px;
+    border-bottom:2px solid #e5e7eb;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+}
+.modal-title {
+    font-size:18px;
+    font-weight:700;
+    color:#1e293b;
+    margin:0;
+}
+.modal-close {
+    width:32px;
+    height:32px;
+    border:none;
+    background:white;
+    border-radius:8px;
+    font-size:24px;
+    color:#64748b;
+    cursor:pointer;
+    line-height:1;
+    transition:all 0.2s;
+}
+.modal-close:hover {
+    background:#f1f5f9;
+    color:#1e293b;
+}
+.modal-body { padding:24px; }
+
+
+
+
+
+
+/* Radio Button Group */
+.radio-group {
+    display: flex;
+    gap: 30px;
+    align-items: center;
+}
+
+.radio-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 500;
+    color: #1e293b;
+}
+
+.radio-input {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    accent-color: #667eea;
+}
+
+.radio-text {
+    user-select: none;
+}
+
+
+
+
+
+/* Groups List Styles */
+.group-item {
+    padding: 16px;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    margin-bottom: 12px;
+    background: white;
+    transition: all 0.2s;
+}
+.group-item:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+.group-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+.group-item-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1e293b;
+}
+.group-item-count {
+    display: inline-block;
+    padding: 2px 8px;
+    background: #dbeafe;
+    color: #1e40af;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-left: 8px;
+}
+.group-item-desc {
+    font-size: 13px;
+    color: #64748b;
+    margin-bottom: 8px;
+}
+.group-item-actions {
+    display: flex;
+    gap: 8px;
+}
+.btn-group-action {
+    padding: 6px 12px;
+    font-size: 12px;
+    border-radius: 6px;
+    border: 1px solid #e5e7eb;
+    background: white;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-weight: 500;
+}
+.btn-group-action:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+}
+.btn-group-action.delete {
+    color: #ef4444;
+}
+.btn-group-action.delete:hover {
+    background: #fef2f2;
+    border-color: #fecaca;
+}
+.btn-group-action:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+.empty-groups {
+    text-align: center;
+    padding: 40px 20px;
+    color: #94a3b8;
+}
+
+
     </style>
 
     <div class="cform">
+
+        {{-- <div style="padding: 20px; max-width: 1400px; margin: 0 auto;">
+    <div style="display: flex; justify-content: space-between;">
+        
+        
+        <a href="{{ route('admin.customers.index') }}" class="btn-modern btn-light">
+            ← Back to coustomers
+        </a>
+    </div>
+    
+</div> --}}
+<br>
+<br>
+
         <!-- Progress Steps -->
-        <div class="progress-steps">
+        {{-- <div class="progress-steps">
             <div class="progress-line"></div>
             <div class="step active">
                 <div class="step-circle">1</div>
@@ -397,13 +614,13 @@
                 <div class="step-circle">4</div>
                 <div class="step-label">Settings</div>
             </div>
-        </div>
+        </div> --}}
 
         <form action="{{ route('admin.customers.store') }}" method="POST">
             @csrf
 
             <!-- Customer Type Selector -->
-            <div class="modern-card">
+            {{-- <div class="modern-card">
                 <div class="card-header">
                     <div class="card-icon" style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;">
                         🎯
@@ -427,7 +644,35 @@
                         </label>
                     </div>
                 </div>
-            </div>
+            </div> --}}
+
+
+
+
+
+
+            <!-- Customer Type Selector -->
+<div class="modern-card">
+    <div class="card-header">
+        <div class="card-icon" style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;">
+            🎯
+        </div>
+        <h2 class="card-title">Customer Type</h2>
+        <span class="card-badge">Step 1 of 4</span>
+    </div>
+    <div class="card-body">
+        <div class="radio-group">
+            <label class="radio-label">
+                <input type="radio" name="customer_type" value="individual" class="radio-input" {{ old('customer_type', 'individual') === 'individual' ? 'checked' : '' }} onchange="setCustomerType('individual')">
+                <span class="radio-text">Individual</span>
+            </label>
+            <label class="radio-label">
+                <input type="radio" name="customer_type" value="company" class="radio-input" {{ old('customer_type') === 'company' ? 'checked' : '' }} onchange="setCustomerType('company')">
+                <span class="radio-text">Company</span>
+            </label>
+        </div>
+    </div>
+</div>
 
             <!-- Contact Information -->
             <div class="modern-card">
@@ -468,17 +713,33 @@
                             <input name="designation" class="finput" value="{{ old('designation') }}" placeholder="Job title">
                         </div>
                         <div class="fcol">
-                            <label class="flbl">Customer Group</label>
-                            <select name="group_name" id="group_name_select" class="finput">
-                                <option value="">-- Select Group --</option>
-                                @foreach($customerGroups as $group)
-                                    <option value="{{ $group }}" {{ old('group_name') === $group ? 'selected' : '' }}>{{ $group }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                    </div>
-                </div>
-            </div>
+     <label class="flbl">Customer Group/Edit/Delete</label>
+    <div style="display:flex;gap:8px;align-items:stretch;">
+        <select name="group_name" id="group_name_select" class="finput" style="flex:1;">
+            <option value="">-- Select Group --</option>
+            @foreach($customerGroups as $group)
+                <option value="{{ $group }}" {{ old('group_name') === $group ? 'selected' : '' }}>{{ $group }}</option>
+            @endforeach
+        </select>
+        <button type="button" onclick="openGroupModal()" class="btn-add-new" title="Add New Customer Group">+</button>
+    </div>
+<!-- Customer Groups Button - Right below the + button -->
+        <div style="margin-top:12px;">
+          <button type="button" onclick="openManageGroupsModal()" class="btn-modern btn-light" style="display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:8px;text-decoration:none;font-size:13px;font-weight:500;color:white;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);border:none;transition:all 0.2s;width:60%;justify-content:center;">
+                <svg style="width:14px;height:14px;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+                </svg>
+                Edit/Delete
+            </a>
+        </div>
+    </div>
+</div> 
+
+
+
+
+
+
 
             <!-- Company Information (Hidden by default) -->
             <div class="modern-card company-section" id="companySection">
@@ -688,6 +949,111 @@
                 </button>
             </div>
         </form>
+
+
+
+        <!-- Add New Customer Group Modal -->
+        <div id="addGroupModal" class="modal">
+            <div class="modal-overlay" onclick="closeGroupModal()"></div>
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3 class="modal-title">Add New Customer Group</h3>
+                        <button type="button" class="modal-close" onclick="closeGroupModal()">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="addGroupForm" onsubmit="saveNewGroup(event)">
+                            <div style="margin-bottom:16px;">
+                                <label class="flbl">Group Name <span class="req">*</span></label>
+                                <input type="text" id="new_group_name" class="finput" required placeholder="e.g., VIP Clients">
+                                <div class="ferr" id="group_name_error" style="display:none;"></div>
+                            </div>
+                            
+                            <div style="margin-bottom:20px;">
+                                <label class="flbl">Description</label>
+                                <textarea id="new_group_description" class="finput" rows="3" placeholder="Optional"></textarea>
+                            </div>
+                            
+                            <div style="display:flex;justify-content:flex-end;gap:12px;">
+                                <button type="button" class="btn-modern btn-light" onclick="closeGroupModal()">Cancel</button>
+                                <button type="submit" class="btn-modern btn-primary" id="saveGroupBtn">
+                                    <svg style="width:14px;height:14px;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <path d="M5 13l4 4L19 7"></path>
+                                    </svg>
+                                    Save
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+
+<!-- Manage Customer Groups Modal -->
+<div id="manageGroupsModal" class="modal">
+    <div class="modal-overlay" onclick="closeManageGroupsModal()"></div>
+    <div class="modal-dialog" style="max-width:700px;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Manage Customer Groups</h3>
+                <button type="button" class="modal-close" onclick="closeManageGroupsModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="groupsList" style="max-height:400px;overflow-y:auto;">
+                    <div style="text-align:center;padding:20px;color:#94a3b8;">Loading...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Group Modal -->
+<div id="editGroupModal" class="modal">
+    <div class="modal-overlay" onclick="closeEditGroupModal()"></div>
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Edit Customer Group</h3>
+                <button type="button" class="modal-close" onclick="closeEditGroupModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="editGroupForm" onsubmit="updateGroup(event)">
+                    <input type="hidden" id="edit_group_id">
+                    <input type="hidden" id="edit_group_old_name">
+                    
+                    <div style="margin-bottom:16px;">
+                        <label class="flbl">Group Name <span class="req">*</span></label>
+                        <input type="text" id="edit_group_name" class="finput" required placeholder="Group name">
+                        <div class="ferr" id="edit_group_name_error" style="display:none;"></div>
+                    </div>
+                    
+                    <div style="margin-bottom:20px;">
+                        <label class="flbl">Description</label>
+                        <textarea id="edit_group_description" class="finput" rows="3" placeholder="Optional"></textarea>
+                    </div>
+                    
+                    <div style="display:flex;justify-content:flex-end;gap:12px;">
+                        <button type="button" class="btn-modern btn-light" onclick="closeEditGroupModal()">Cancel</button>
+                        <button type="submit" class="btn-modern btn-primary" id="updateGroupBtn">
+                            <svg style="width:14px;height:14px;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path d="M5 13l4 4L19 7"></path>
+                            </svg>
+                            Update
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+
     </div>
 
 <script>
@@ -879,5 +1245,310 @@
             });
         }
     });
+
+
+
+
+
+
+
+
+
+// ====== ADD NEW CUSTOMER GROUP FUNCTIONS ======
+
+// Open Modal
+function openGroupModal() {
+    document.getElementById('addGroupModal').classList.add('show');
+    document.getElementById('new_group_name').focus();
+}
+
+// Close Modal
+function closeGroupModal() {
+    document.getElementById('addGroupModal').classList.remove('show');
+    document.getElementById('addGroupForm').reset();
+    document.getElementById('group_name_error').style.display = 'none';
+}
+
+// Close on Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeGroupModal();
+});
+
+// Save New Group via AJAX
+function saveNewGroup(event) {
+    event.preventDefault();
+    
+    const name = document.getElementById('new_group_name').value.trim();
+    const description = document.getElementById('new_group_description').value.trim();
+    const errorDiv = document.getElementById('group_name_error');
+    const submitBtn = document.getElementById('saveGroupBtn');
+    
+    if (!name) {
+        errorDiv.textContent = 'Group name is required';
+        errorDiv.style.display = 'block';
+        return;
+    }
+    
+    // Loading state
+    const originalText = submitBtn.innerHTML;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '⏳ Saving...';
+    
+    // AJAX Request
+    fetch('{{ route("admin.customer-groups.store") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+            'Accept': 'application/json'
+        },
+        body: JSON.stringify({ name, description })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Add to dropdown
+            const select = document.getElementById('group_name_select');
+            const option = new Option(data.data.name, data.data.name, true, true);
+            select.add(option);
+            
+            // Success message
+            if (typeof Toast !== 'undefined') {
+                Toast.success(data.message || 'Customer group created!');
+            } else {
+                alert('Group created successfully!');
+            }
+            
+            closeGroupModal();
+        } else {
+            errorDiv.textContent = data.message || 'Failed to create group';
+            errorDiv.style.display = 'block';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        errorDiv.textContent = 'An error occurred';
+        errorDiv.style.display = 'block';
+    })
+    .finally(() => {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+    });
+}
+
+
+
+
+
+
+// ====== MANAGE GROUPS MODAL FUNCTIONS ======
+
+// Open Manage Groups Modal
+function openManageGroupsModal() {
+    loadGroupsList();
+    document.getElementById('manageGroupsModal').classList.add('show');
+}
+
+// Close Manage Groups Modal
+function closeManageGroupsModal() {
+    document.getElementById('manageGroupsModal').classList.remove('show');
+}
+
+// Load Groups List
+async function loadGroupsList() {
+    const groupsList = document.getElementById('groupsList');
+    groupsList.innerHTML = '<div style="text-align:center;padding:20px;color:#94a3b8;">Loading...</div>';
+    
+    try {
+        const response = await fetch('{{ route("admin.customer-groups.index") }}', {
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.groups && data.groups.length > 0) {
+            let html = '';
+            data.groups.forEach(group => {
+                html += `
+                    <div class="group-item">
+                        <div class="group-item-header">
+                            <div>
+                                <span class="group-item-name">${escapeHtml(group.name)}</span>
+                                <span class="group-item-count">${group.customers_count} customer${group.customers_count !== 1 ? 's' : ''}</span>
+                            </div>
+                            <div class="group-item-actions">
+                                <button onclick="openEditGroup(${group.id}, '${escapeHtml(group.name)}', '${escapeHtml(group.description || '')}')" class="btn-group-action">Edit</button>
+                                <button onclick="deleteGroup(${group.id}, '${escapeHtml(group.name)}', ${group.customers_count})" class="btn-group-action delete" ${group.customers_count > 0 ? 'disabled title="Cannot delete group with customers"' : ''}>Delete</button>
+                            </div>
+                        </div>
+                        ${group.description ? `<div class="group-item-desc">${escapeHtml(group.description)}</div>` : ''}
+                    </div>
+                `;
+            });
+            groupsList.innerHTML = html;
+        } else {
+            groupsList.innerHTML = '<div class="empty-groups">📁<br><br>No customer groups yet</div>';
+        }
+    } catch (error) {
+        console.error('Error loading groups:', error);
+        groupsList.innerHTML = '<div class="empty-groups" style="color:#ef4444;">Error loading groups</div>';
+    }
+}
+
+// Escape HTML
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML.replace(/'/g, "\\'");
+}
+
+// Open Edit Group Modal
+function openEditGroup(id, name, description) {
+    document.getElementById('edit_group_id').value = id;
+    document.getElementById('edit_group_old_name').value = name;
+    document.getElementById('edit_group_name').value = name;
+    document.getElementById('edit_group_description').value = description;
+    document.getElementById('edit_group_name_error').style.display = 'none';
+    document.getElementById('editGroupModal').classList.add('show');
+}
+
+// Close Edit Group Modal
+function closeEditGroupModal() {
+    document.getElementById('editGroupModal').classList.remove('show');
+}
+
+// Update Group
+async function updateGroup(event) {
+    event.preventDefault();
+    
+    const id = document.getElementById('edit_group_id').value;
+    const oldName = document.getElementById('edit_group_old_name').value;
+    const name = document.getElementById('edit_group_name').value.trim();
+    const description = document.getElementById('edit_group_description').value.trim();
+    const errorDiv = document.getElementById('edit_group_name_error');
+    const submitBtn = document.getElementById('updateGroupBtn');
+    
+    if (!name) {
+        errorDiv.textContent = 'Group name is required';
+        errorDiv.style.display = 'block';
+        return;
+    }
+    
+    const originalText = submitBtn.innerHTML;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '⏳ Updating...';
+    
+    try {
+        const response = await fetch(`/admin/customer-groups/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ name, description })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Update dropdown if name changed
+            const select = document.getElementById('group_name_select');
+            const options = Array.from(select.options);
+            const option = options.find(opt => opt.value === oldName);
+            
+            if (option) {
+                option.value = name;
+                option.textContent = name;
+                if (select.value === oldName) {
+                    select.value = name;
+                }
+            }
+            
+            if (typeof Toast !== 'undefined') {
+                Toast.success(data.message || 'Group updated successfully');
+            } else {
+                alert('Group updated successfully!');
+            }
+            
+            closeEditGroupModal();
+            loadGroupsList(); // Refresh the list
+        } else {
+            errorDiv.textContent = data.message || 'Failed to update group';
+            errorDiv.style.display = 'block';
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        errorDiv.textContent = 'An error occurred';
+        errorDiv.style.display = 'block';
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+    }
+}
+
+// Delete Group
+async function deleteGroup(id, name, customersCount) {
+    if (customersCount > 0) {
+        alert('Cannot delete group with assigned customers');
+        return;
+    }
+    
+    if (!confirm(`Delete "${name}"? This action cannot be undone.`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/admin/customer-groups/${id}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Accept': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Remove from dropdown
+            const select = document.getElementById('group_name_select');
+            const option = Array.from(select.options).find(opt => opt.value === name);
+            if (option) {
+                option.remove();
+            }
+            
+            if (typeof Toast !== 'undefined') {
+                Toast.success(data.message || 'Group deleted successfully');
+            } else {
+                alert('Group deleted successfully!');
+            }
+            
+            loadGroupsList(); // Refresh the list
+        } else {
+            alert(data.message || 'Failed to delete group');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('An error occurred');
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 </script>
-</x-layouts.app>
+

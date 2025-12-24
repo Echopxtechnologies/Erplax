@@ -1,370 +1,614 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Proposal - {{ $proposal->proposal_number }}</title>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <title>Proposal {{ $proposal->proposal_number }}</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'DejaVu Sans', sans-serif;
             font-size: 12px;
-            line-height: 1.5;
             color: #333;
+            line-height: 1.4;
             padding: 20px;
         }
-        
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
+        .content-wrapper {
+            padding-bottom: 80px;
         }
-        
+        /* Header */
         .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
+            display: table;
+            width: 100%;
             margin-bottom: 30px;
+            border-bottom: 2px solid #8b5cf6;
             padding-bottom: 20px;
-            border-bottom: 2px solid #3b82f6;
         }
-        
-        .company-info h1 {
-            font-size: 24px;
-            color: #3b82f6;
-            margin-bottom: 5px;
+        .header-left {
+            display: table-cell;
+            width: 50%;
+            vertical-align: top;
         }
-        
-        .proposal-title {
+        .header-right {
+            display: table-cell;
+            width: 50%;
+            vertical-align: top;
             text-align: right;
         }
-        
-        .proposal-title h2 {
-            font-size: 20px;
+        .company-name {
+            font-size: 24px;
+            font-weight: bold;
+            color: #6d28d9;
+            margin-bottom: 8px;
+        }
+        .company-details {
+            font-size: 11px;
+            color: #666;
+            line-height: 1.6;
+        }
+        .proposal-title {
+            font-size: 32px;
+            font-weight: bold;
+            color: #8b5cf6;
             margin-bottom: 5px;
         }
-        
         .proposal-number {
             font-size: 14px;
             color: #666;
+            margin-bottom: 10px;
+        }
+        .proposal-meta {
+            font-size: 11px;
+            color: #666;
+        }
+        .proposal-meta table {
+            margin-left: auto;
+        }
+        .proposal-meta td {
+            padding: 3px 0;
+        }
+        .proposal-meta td:first-child {
+            text-align: right;
+            padding-right: 10px;
+            color: #888;
+        }
+        .proposal-meta td:last-child {
+            font-weight: 600;
+            color: #333;
         }
         
-        .info-section {
-            display: flex;
-            justify-content: space-between;
+        /* Status Badge */
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-top: 8px;
+        }
+        .status-draft { background: #f3f4f6; color: #6b7280; }
+        .status-sent { background: #dbeafe; color: #1d4ed8; }
+        .status-accepted { background: #dcfce7; color: #15803d; }
+        .status-declined { background: #fee2e2; color: #dc2626; }
+        .status-expired { background: #fef3c7; color: #d97706; }
+        .status-revised { background: #e0e7ff; color: #4f46e5; }
+        
+        /* Billing Section */
+        .billing-section {
+            display: table;
+            width: 100%;
             margin-bottom: 30px;
         }
-        
-        .info-block {
-            width: 48%;
+        .billing-box {
+            display: table-cell;
+            width: 50%;
+            vertical-align: top;
+            padding-right: 20px;
         }
-        
-        .info-block h3 {
-            font-size: 12px;
+        .billing-box:last-child {
+            padding-right: 0;
+            padding-left: 20px;
+        }
+        .billing-title {
+            font-size: 10px;
+            font-weight: bold;
+            color: #8b5cf6;
             text-transform: uppercase;
-            color: #666;
+            letter-spacing: 1px;
             margin-bottom: 10px;
             padding-bottom: 5px;
-            border-bottom: 1px solid #ddd;
+            border-bottom: 1px solid #e5e7eb;
         }
-        
-        .info-row {
-            display: flex;
+        .billing-name {
+            font-size: 14px;
+            font-weight: bold;
+            color: #1f2937;
             margin-bottom: 5px;
         }
-        
-        .info-label {
-            width: 100px;
-            font-weight: 600;
+        .billing-details {
+            font-size: 11px;
             color: #666;
+            line-height: 1.6;
         }
         
-        .info-value {
-            flex: 1;
-        }
-        
+        /* Items Table */
         .items-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
         }
-        
-        .items-table thead th {
-            background: #f8f9fa;
-            padding: 10px;
+        .items-table th {
+            background: #8b5cf6;
+            color: white;
+            padding: 10px 12px;
             text-align: left;
-            font-weight: 600;
-            border-bottom: 2px solid #ddd;
-            font-size: 11px;
+            font-size: 10px;
+            font-weight: bold;
             text-transform: uppercase;
-            color: #666;
+            letter-spacing: 0.5px;
         }
-        
-        .items-table tbody td {
-            padding: 10px;
-            border-bottom: 1px solid #eee;
+        .items-table th:nth-child(1) { width: 5%; text-align: center; }
+        .items-table th:nth-child(2) { width: 40%; }
+        .items-table th:nth-child(3) { width: 10%; text-align: center; }
+        .items-table th:nth-child(4) { width: 15%; text-align: right; }
+        .items-table th:nth-child(5) { width: 15%; text-align: center; }
+        .items-table th:nth-child(6) { width: 15%; text-align: right; }
+        .items-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #e5e7eb;
             vertical-align: top;
         }
-        
-        .items-table tbody tr.section-row {
-            background: #e3f2fd;
+        .items-table td:nth-child(1) { text-align: center; color: #888; }
+        .items-table td:nth-child(3) { text-align: center; }
+        .items-table td:nth-child(4) { text-align: right; }
+        .items-table td:nth-child(5) { text-align: center; }
+        .items-table td:nth-child(6) { text-align: right; font-weight: 600; }
+        .items-table tbody tr:nth-child(even) {
+            background: #f9fafb;
         }
-        
-        .items-table tbody tr.section-row td {
+        .item-name {
             font-weight: 600;
-            color: #1976d2;
+            color: #1f2937;
         }
-        
-        .items-table tbody tr.note-row {
-            background: #fff8e1;
-        }
-        
-        .items-table tbody tr.note-row td {
-            font-style: italic;
-            color: #666;
-        }
-        
-        .long-desc {
-            font-size: 11px;
+        .item-desc {
+            font-size: 10px;
             color: #666;
             margin-top: 3px;
         }
         
+        /* Section Row */
+        .section-row {
+            background: #f5f3ff !important;
+        }
+        .section-row td {
+            font-weight: bold;
+            color: #6d28d9;
+            font-size: 11px;
+            padding: 8px 12px;
+        }
+        
+        /* Note Row */
+        .note-row {
+            background: #fffbeb !important;
+        }
+        .note-row td {
+            font-style: italic;
+            color: #92400e;
+            font-size: 10px;
+            padding: 8px 12px;
+        }
+        
+        /* Tax Badge */
+        .tax-badge {
+            display: inline-block;
+            padding: 2px 6px;
+            background: #fef3f2;
+            border: 1px solid #fecaca;
+            border-radius: 3px;
+            font-size: 8px;
+            color: #991b1b;
+            margin: 1px;
+        }
+        
+        /* Totals Section */
         .totals-section {
-            display: flex;
-            justify-content: flex-end;
+            display: table;
+            width: 100%;
             margin-bottom: 30px;
         }
-        
-        .totals-table {
-            width: 300px;
+        .totals-left {
+            display: table-cell;
+            width: 60%;
+            vertical-align: top;
         }
-        
-        .totals-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid #eee;
+        .totals-right {
+            display: table-cell;
+            width: 40%;
+            vertical-align: top;
         }
-        
-        .totals-row.total {
-            font-weight: 700;
-            font-size: 14px;
-            border-top: 2px solid #333;
-            border-bottom: none;
-            margin-top: 5px;
-            padding-top: 10px;
-        }
-        
-        .content-section {
-            margin-bottom: 30px;
+        .totals-box {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
             padding: 15px;
-            background: #f8f9fa;
-            border-radius: 5px;
+        }
+        .totals-row {
+            display: table;
+            width: 100%;
+            padding: 6px 0;
+            border-bottom: 1px dashed #e5e7eb;
+        }
+        .totals-row:last-child {
+            border-bottom: none;
+        }
+        .totals-row.grand {
+            border-top: 2px solid #8b5cf6;
+            margin-top: 10px;
+            padding-top: 12px;
+        }
+        .totals-label {
+            display: table-cell;
+            width: 60%;
+            color: #666;
+            font-size: 11px;
+        }
+        .totals-value {
+            display: table-cell;
+            width: 40%;
+            text-align: right;
+            font-weight: 600;
+            color: #333;
+            font-size: 11px;
+        }
+        .totals-row.grand .totals-label {
+            font-size: 14px;
+            font-weight: bold;
+            color: #1f2937;
+        }
+        .totals-row.grand .totals-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #8b5cf6;
         }
         
-        .content-section h3 {
-            font-size: 12px;
+        /* Tax Breakdown */
+        .tax-breakdown {
+            margin-top: 10px;
+            padding: 10px;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+        }
+        .tax-breakdown-title {
+            font-size: 9px;
+            font-weight: bold;
+            color: #666;
             text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+        .tax-breakdown-item {
+            display: table;
+            width: 100%;
+            padding: 4px 0;
+            font-size: 10px;
+        }
+        .tax-breakdown-name {
+            display: table-cell;
             color: #666;
-            margin-bottom: 10px;
+        }
+        .tax-breakdown-amount {
+            display: table-cell;
+            text-align: right;
+            color: #10b981;
+            font-weight: 600;
         }
         
+        /* Notes Section */
+        .notes-section {
+            margin-bottom: 30px;
+        }
+        .notes-title {
+            font-size: 10px;
+            font-weight: bold;
+            color: #8b5cf6;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+        .notes-content {
+            font-size: 11px;
+            color: #666;
+            padding: 12px;
+            background: #f9fafb;
+            border-radius: 6px;
+            border-left: 3px solid #8b5cf6;
+        }
+        
+        /* Footer */
         .footer {
-            margin-top: 50px;
-            padding-top: 20px;
-            border-top: 1px solid #ddd;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 15px 20px;
+            border-top: 1px solid #e5e7eb;
             text-align: center;
-            color: #666;
+            background: white;
+        }
+        .footer-text {
+            font-size: 10px;
+            color: #888;
+            margin-bottom: 5px;
+        }
+        .footer-company {
             font-size: 11px;
+            font-weight: bold;
+            color: #8b5cf6;
         }
         
-        .signature-section {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 50px;
-        }
-        
-        .signature-block {
-            width: 45%;
+        /* Amount Due Box */
+        .amount-due-box {
+            background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
             text-align: center;
+            margin-bottom: 15px;
+        }
+        .amount-due-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            opacity: 0.9;
+        }
+        .amount-due-value {
+            font-size: 24px;
+            font-weight: bold;
+            margin-top: 5px;
         }
         
-        .signature-line {
-            border-top: 1px solid #333;
-            margin-top: 50px;
-            padding-top: 10px;
-            font-size: 11px;
-            color: #666;
-        }
-        
-        @media print {
-            body { padding: 0; }
-            .no-print { display: none; }
-        }
+        /* Utilities */
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+        .text-success { color: #10b981; }
+        .text-danger { color: #ef4444; }
+        .font-bold { font-weight: bold; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="no-print" style="margin-bottom: 20px;">
-            <button onclick="window.print()" style="padding: 10px 20px; background: #3b82f6; color: #fff; border: none; border-radius: 5px; cursor: pointer;">
-                Print Proposal
-            </button>
-            <button onclick="window.close()" style="padding: 10px 20px; background: #6c757d; color: #fff; border: none; border-radius: 5px; cursor: pointer; margin-left: 10px;">
-                Close
-            </button>
-        </div>
-
-        <div class="header">
-            <div class="company-info">
-                <h1>{{ \App\Models\Option::companyName() ?? 'Company Name' }}</h1>
-                <p>{{ \App\Models\Option::get('company_address') ?? '' }}</p>
-            </div>
-            <div class="proposal-title">
-                <h2>PROPOSAL</h2>
-                <div class="proposal-number">{{ $proposal->proposal_number }}</div>
-            </div>
-        </div>
-
-        <div class="info-section">
-            <div class="info-block">
-                <h3>Proposal To</h3>
-                @if($proposal->customer)
-                    <p><strong>{{ $proposal->customer->company ?? $proposal->customer->name }}</strong></p>
+    <!-- Header -->
+    <div class="header">
+        <div class="header-left">
+            @if(!empty($company['logo']))
+                @if(str_starts_with($company['logo'], 'data:image'))
+                    {{-- Base64 image --}}
+                    <img src="{{ $company['logo'] }}" alt="Logo" style="max-height: 60px; margin-bottom: 10px;">
+                @else
+                    {{-- File path --}}
+                    <img src="{{ public_path('storage/' . $company['logo']) }}" alt="Logo" style="max-height: 60px; margin-bottom: 10px;">
                 @endif
-                @if($proposal->address)
-                    <p>{{ $proposal->address }}</p>
-                @endif
-                @if($proposal->city || $proposal->state || $proposal->zip_code)
-                    <p>{{ implode(', ', array_filter([$proposal->city, $proposal->state, $proposal->zip_code])) }}</p>
-                @endif
-                @if($proposal->country)
-                    <p>{{ $proposal->country }}</p>
-                @endif
-                @if($proposal->email)
-                    <p>Email: {{ $proposal->email }}</p>
-                @endif
-                @if($proposal->phone)
-                    <p>Phone: {{ $proposal->phone }}</p>
-                @endif
-            </div>
-            <div class="info-block">
-                <h3>Proposal Details</h3>
-                <div class="info-row">
-                    <span class="info-label">Date:</span>
-                    <span class="info-value">{{ $proposal->date ? $proposal->date->format('M d, Y') : '-' }}</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Valid Until:</span>
-                    <span class="info-value">{{ $proposal->open_till ? $proposal->open_till->format('M d, Y') : '-' }}</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Currency:</span>
-                    <span class="info-value">{{ $proposal->currency }}</span>
-                </div>
-                @if($proposal->assignedUser)
-                <div class="info-row">
-                    <span class="info-label">Sales Rep:</span>
-                    <span class="info-value">{{ $proposal->assignedUser->name }}</span>
-                </div>
-                @endif
+            @endif
+            <div class="company-name">{{ $company['name'] }}</div>
+            <div class="company-details">
+                @if($company['address']){{ $company['address'] }}<br>@endif
+                @if($company['phone'])Phone: {{ $company['phone'] }}<br>@endif
+                @if($company['email'])Email: {{ $company['email'] }}<br>@endif
+                @if($company['gst'])GST: {{ $company['gst'] }}@endif
             </div>
         </div>
-
-        <h3 style="margin-bottom: 10px;">{{ $proposal->subject }}</h3>
-
-        @if($proposal->items->count() > 0)
-        <table class="items-table">
-            <thead>
-                <tr>
-                    <th style="width: 40px;">#</th>
-                    <th>Description</th>
-                    <th style="width: 60px;">Qty</th>
-                    <th style="width: 80px;">Rate</th>
-                    <th style="width: 80px;">Tax</th>
-                    <th style="width: 100px; text-align: right;">Amount</th>
-                </tr>
-            </thead>
-            <tbody>
-                @php $itemNum = 0; @endphp
-                @foreach($proposal->items as $item)
-                    @if($item->item_type === 'section')
-                        <tr class="section-row">
-                            <td colspan="6">{{ $item->description }}</td>
-                        </tr>
-                    @elseif($item->item_type === 'note')
-                        <tr class="note-row">
-                            <td colspan="6">📝 {{ $item->description }}</td>
-                        </tr>
-                    @else
-                        @php $itemNum++; @endphp
-                        <tr>
-                            <td>{{ $itemNum }}</td>
-                            <td>
-                                <strong>{{ $item->description }}</strong>
-                                @if($item->long_description)
-                                    <div class="long-desc">{{ $item->long_description }}</div>
-                                @endif
-                            </td>
-                            <td>{{ number_format($item->quantity, 2) }} {{ $item->unit }}</td>
-                            <td>{{ $proposal->currency }} {{ number_format($item->rate, 2) }}</td>
-                            <td>{{ $item->tax_name ?: '-' }}</td>
-                            <td style="text-align: right;">{{ $proposal->currency }} {{ number_format($item->amount, 2) }}</td>
-                        </tr>
+        <div class="header-right">
+            <div class="proposal-title">PROPOSAL</div>
+            <div class="proposal-number">#{{ $proposal->proposal_number }}</div>
+            <div class="proposal-meta">
+                <table>
+                    <tr>
+                        <td>Proposal Date:</td>
+                        <td>{{ $proposal->date ? $proposal->date->format('d M Y') : '-' }}</td>
+                    </tr>
+                    <tr>
+                        <td>Valid Until:</td>
+                        <td>{{ $proposal->valid_until ? $proposal->valid_until->format('d M Y') : '-' }}</td>
+                    </tr>
+                </table>
+            </div>
+            <span class="status-badge status-{{ $proposal->status }}">{{ ucfirst($proposal->status) }}</span>
+        </div>
+    </div>
+    
+    <!-- Billing Section -->
+    <div class="billing-section">
+        <div class="billing-box">
+            <div class="billing-title">Prepared For</div>
+            @if($proposal->customer)
+                <div class="billing-name">
+                    {{ $proposal->customer->customer_type === 'company' ? $proposal->customer->company : $proposal->customer->name }}
+                </div>
+                <div class="billing-details">
+                    @if($proposal->customer->customer_type === 'company' && $proposal->customer->name)
+                        Attn: {{ $proposal->customer->name }}<br>
                     @endif
-                @endforeach
-            </tbody>
-        </table>
-        @endif
-
-        <div class="totals-section">
-            <div class="totals-table">
-                <div class="totals-row">
-                    <span>Sub Total:</span>
-                    <span>{{ $proposal->currency }} {{ number_format($proposal->subtotal, 2) }}</span>
+                    @if($proposal->address){{ $proposal->address }}<br>@endif
+                    @if($proposal->city || $proposal->state){{ $proposal->city }}{{ $proposal->city && $proposal->state ? ', ' : '' }}{{ $proposal->state }}<br>@endif
+                    @if($proposal->country){{ $proposal->country }} {{ $proposal->zip_code }}<br>@endif
+                    @if($proposal->email)Email: {{ $proposal->email }}<br>@endif
+                    @if($proposal->phone)Phone: {{ $proposal->phone }}@endif
                 </div>
-                @if($proposal->discount_amount > 0)
+            @else
+                <div class="billing-details">No customer assigned</div>
+            @endif
+        </div>
+        <div class="billing-box">
+            <div class="billing-title">Proposal Details</div>
+            <div class="billing-details">
+                <strong>Currency:</strong> {{ $proposal->currency ?? 'INR' }}<br>
+                <strong>Status:</strong> {{ ucfirst($proposal->status ?? 'draft') }}<br>
+                <strong>Total Value:</strong> <span class="text-success font-bold">
+                    {{ $proposal->currency ?? 'INR' }} {{ number_format($proposal->total, 2) }}
+                </span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Subject -->
+    @if($proposal->subject)
+    <div style="margin-bottom: 20px; padding: 10px 15px; background: #f5f3ff; border-left: 3px solid #8b5cf6; border-radius: 4px;">
+        <strong style="color: #6d28d9;">Subject:</strong> 
+        <span style="color: #334155;">{{ $proposal->subject }}</span>
+    </div>
+    @endif
+    
+    <!-- Items Table -->
+    <table class="items-table">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Description</th>
+                <th>Qty</th>
+                <th>Rate</th>
+                <th>Tax</th>
+                <th>Amount</th>
+            </tr>
+        </thead>
+        <tbody>
+            @php $itemIndex = 0; @endphp
+            @forelse($proposal->items as $item)
+                @if(($item->item_type ?? 'product') === 'section')
+                    <tr class="section-row">
+                        <td colspan="6">{{ $item->description }}</td>
+                    </tr>
+                @elseif(($item->item_type ?? 'product') === 'note')
+                    <tr class="note-row">
+                        <td colspan="6">{{ $item->long_description ?: $item->description }}</td>
+                    </tr>
+                @else
+                    @php 
+                        $itemIndex++;
+                        $itemTaxIds = [];
+                        if (!empty($item->tax_ids)) {
+                            if (is_array($item->tax_ids)) {
+                                $itemTaxIds = array_map('intval', $item->tax_ids);
+                            } else {
+                                $decoded = json_decode($item->tax_ids, true);
+                                if (is_array($decoded)) {
+                                    $itemTaxIds = array_map('intval', $decoded);
+                                } elseif (strpos($item->tax_ids, ',') !== false) {
+                                    $itemTaxIds = array_map('intval', array_filter(explode(',', $item->tax_ids)));
+                                } elseif ($item->tax_ids) {
+                                    $itemTaxIds = [intval($item->tax_ids)];
+                                }
+                            }
+                        }
+                    @endphp
+                    <tr>
+                        <td>{{ $itemIndex }}</td>
+                        <td>
+                            <div class="item-name">{{ $item->description }}</div>
+                            @if($item->long_description)
+                                <div class="item-desc">{{ $item->long_description }}</div>
+                            @endif
+                        </td>
+                        <td>{{ number_format($item->quantity, 2) }}</td>
+                        <td>{{ number_format($item->rate, 2) }}</td>
+                        <td>
+                            @foreach($itemTaxIds as $taxId)
+                                <span class="tax-badge">{{ $taxRatesMap[$taxId] ?? 0 }}%</span>
+                            @endforeach
+                            @if(empty($itemTaxIds))
+                                <span style="color: #9ca3af; font-size: 9px;">-</span>
+                            @endif
+                        </td>
+                        <td>{{ number_format($item->amount, 2) }}</td>
+                    </tr>
+                @endif
+            @empty
+                <tr>
+                    <td colspan="6" style="text-align: center; padding: 30px; color: #888;">No items</td>
+                </tr>
+            @endforelse
+        </tbody>
+    </table>
+    
+    <!-- Totals Section -->
+    <div class="totals-section">
+        <div class="totals-left">
+            @if($proposal->content)
+                <div class="notes-section">
+                    <div class="notes-title">Notes</div>
+                    <div class="notes-content">{{ $proposal->content }}</div>
+                </div>
+            @endif
+            
+            @if($proposal->terms_conditions)
+                <div class="notes-section">
+                    <div class="notes-title">Terms & Conditions</div>
+                    <div class="notes-content">{{ $proposal->terms_conditions }}</div>
+                </div>
+            @endif
+        </div>
+        <div class="totals-right">
+            <div class="amount-due-box">
+                <div class="amount-due-label">Proposal Value</div>
+                <div class="amount-due-value">{{ $proposal->currency ?? 'INR' }} {{ number_format($proposal->total, 2) }}</div>
+            </div>
+            
+            <div class="totals-box">
                 <div class="totals-row">
-                    <span>Discount ({{ $proposal->discount_percent }}%):</span>
-                    <span>-{{ $proposal->currency }} {{ number_format($proposal->discount_amount, 2) }}</span>
+                    <span class="totals-label">Subtotal</span>
+                    <span class="totals-value">{{ $proposal->currency ?? 'INR' }} {{ number_format($proposal->subtotal, 2) }}</span>
+                </div>
+                
+                @if(($proposal->discount_amount ?? 0) > 0)
+                <div class="totals-row">
+                    <span class="totals-label">
+                        Discount 
+                        @if($proposal->discount_percent > 0)({{ $proposal->discount_percent }}%)@endif
+                    </span>
+                    <span class="totals-value text-danger">- {{ $proposal->currency ?? 'INR' }} {{ number_format($proposal->discount_amount, 2) }}</span>
                 </div>
                 @endif
-                <div class="totals-row">
-                    <span>Tax:</span>
-                    <span>{{ $proposal->currency }} {{ number_format($proposal->total_tax, 2) }}</span>
-                </div>
-                @if($proposal->adjustment != 0)
-                <div class="totals-row">
-                    <span>Adjustment:</span>
-                    <span>{{ $proposal->currency }} {{ number_format($proposal->adjustment, 2) }}</span>
+                
+                @if(count($taxBreakdown) > 0)
+                <div class="tax-breakdown">
+                    <div class="tax-breakdown-title">Tax Breakdown</div>
+                    @foreach($taxBreakdown as $tax)
+                    <div class="tax-breakdown-item">
+                        <span class="tax-breakdown-name">{{ $tax['name'] }} ({{ $tax['rate'] }}%)</span>
+                        <span class="tax-breakdown-amount">{{ $proposal->currency ?? 'INR' }} {{ number_format($tax['amount'], 2) }}</span>
+                    </div>
+                    @endforeach
                 </div>
                 @endif
-                <div class="totals-row total">
-                    <span>Total:</span>
-                    <span>{{ $proposal->currency }} {{ number_format($proposal->total, 2) }}</span>
+                
+                <div class="totals-row">
+                    <span class="totals-label">Total Tax</span>
+                    <span class="totals-value text-success">{{ $proposal->currency ?? 'INR' }} {{ number_format($proposal->tax_amount ?? 0, 2) }}</span>
+                </div>
+                
+                @if(($proposal->adjustment ?? 0) != 0)
+                <div class="totals-row">
+                    <span class="totals-label">Adjustment</span>
+                    <span class="totals-value">{{ $proposal->currency ?? 'INR' }} {{ number_format($proposal->adjustment, 2) }}</span>
+                </div>
+                @endif
+                
+                <div class="totals-row grand">
+                    <span class="totals-label">Grand Total</span>
+                    <span class="totals-value">{{ $proposal->currency ?? 'INR' }} {{ number_format($proposal->total, 2) }}</span>
                 </div>
             </div>
         </div>
-
-        @if($proposal->content)
-        <div class="content-section">
-            <h3>Terms & Conditions</h3>
-            <div>{!! nl2br(e($proposal->content)) !!}</div>
-        </div>
-        @endif
-
-        <div class="signature-section">
-            <div class="signature-block">
-                <div class="signature-line">Authorized Signature</div>
-            </div>
-            <div class="signature-block">
-                <div class="signature-line">Customer Acceptance</div>
-            </div>
-        </div>
-
-        <div class="footer">
-            <p>Thank you for your business!</p>
-            <p>Generated on {{ now()->format('M d, Y h:i A') }}</p>
+    </div>
+    
+    <!-- Footer -->
+    <div class="footer">
+        <div class="footer-text">We look forward to working with you!</div>
+        <div class="footer-company">{{ $company['name'] }}</div>
+        <div class="footer-text" style="margin-top: 10px;">
+            This is a computer-generated proposal. No signature required.
         </div>
     </div>
 </body>

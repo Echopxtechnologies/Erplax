@@ -10,8 +10,11 @@ use Illuminate\Http\UploadedFile;
 
 class ProductImage extends Model
 {
+    protected $table = 'product_images';
+    
     protected $fillable = [
         'product_id',
+        'variation_id',
         'image_path',
         'alt_text',
         'sort_order',
@@ -28,6 +31,11 @@ class ProductImage extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function variation(): BelongsTo
+    {
+        return $this->belongsTo(ProductVariation::class);
     }
 
     // ==================== ACCESSORS ====================

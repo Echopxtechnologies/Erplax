@@ -37,7 +37,9 @@
             "Modules\\": "Modules/"
         },
         "files": [
-        "app/Helpers/Admin/mail.php"
+        "app/Helpers/Admin/mail.php",
+        "app/Helpers/Admin/MenuHelper.php",
+        "app/Helpers/Client/MenuHelper.php"
     ]
     },
     "autoload-dev": {

@@ -1,4 +1,5 @@
-<x-layouts.app>
+
+
 <style>
     .inventory-container {
         padding: 20px;
@@ -216,6 +217,32 @@
         font-size: 11px;
         color: var(--text-muted);
         font-family: monospace;
+    }
+    
+    /* Variation Tags */
+    .variation-tags {
+        display: flex;
+        gap: 4px;
+        flex-wrap: wrap;
+        margin: 2px 0;
+    }
+    .var-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        padding: 2px 6px;
+        background: var(--body-bg);
+        border: 1px solid var(--card-border);
+        border-radius: 10px;
+        font-size: 10px;
+        font-weight: 500;
+        color: var(--text-primary);
+    }
+    .var-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        border: 1px solid rgba(0,0,0,0.1);
     }
     
     /* Badges */
@@ -537,10 +564,24 @@ window.dtRenders.movementType = function(value, row) {
 };
 
 window.dtRenders.product = function(value, row) {
+    let variationHtml = '';
+    if (row.variation_info) {
+        let chips = '';
+        row.variation_info.attributes.forEach((attr, i) => {
+            const colorCode = row.variation_info.color_codes[i] || null;
+            if (colorCode) {
+                chips += `<span class="var-chip"><span class="var-dot" style="background:${colorCode}"></span>${attr}</span>`;
+            } else {
+                chips += `<span class="var-chip">${attr}</span>`;
+            }
+        });
+        variationHtml = `<div class="variation-tags">${chips}</div>`;
+    }
     return `<div class="product-cell">
         <div class="product-thumb">${row.product_initials || 'PR'}</div>
         <div class="product-info">
             <div class="name">${row.product_name || '-'}</div>
+            ${variationHtml}
             <div class="sku">${row.product_sku || ''}</div>
         </div>
     </div>`;
@@ -575,6 +616,24 @@ function viewMovement(id) {
     
     document.getElementById('modalTitle').innerHTML = `${t.icon} ${t.label}`;
     
+    // Build variation display for modal
+    let variationDisplay = '';
+    if (row.variation_info) {
+        let chips = '';
+        row.variation_info.attributes.forEach((attr, i) => {
+            const colorCode = row.variation_info.color_codes[i] || null;
+            if (colorCode) {
+                chips += `<span class="var-chip"><span class="var-dot" style="background:${colorCode}"></span>${attr}</span>`;
+            } else {
+                chips += `<span class="var-chip">${attr}</span>`;
+            }
+        });
+        variationDisplay = `<div class="detail-item full">
+            <div class="detail-label">Variation</div>
+            <div class="detail-value"><div class="variation-tags">${chips}</div><span style="font-size:11px;color:var(--text-muted);">SKU: ${row.variation_info.sku}</span></div>
+        </div>`;
+    }
+    
     let html = `<div class="detail-grid">
         <div class="detail-item">
             <div class="detail-label">Reference No</div>
@@ -588,6 +647,7 @@ function viewMovement(id) {
             <div class="detail-label">Product</div>
             <div class="detail-value">${row.product_name || '-'} <span style="color:var(--text-muted);font-size:12px;">(${row.product_sku || ''})</span></div>
         </div>
+        ${variationDisplay}
         <div class="detail-item">
             <div class="detail-label">Quantity</div>
             <div class="detail-value" style="color:${t.color}">${row.qty_display || row.qty + ' ' + row.unit}</div>
@@ -678,4 +738,3 @@ document.addEventListener('keydown', function(e) {
 </script>
 
 @include('core::datatable')
-</x-layouts.app>

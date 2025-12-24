@@ -1,0 +1,62 @@
+{
+    "logo_text": "Laravel",
+    "navbar": {
+        "bg_color": "#ffffff",
+        "text_color": "#475569",
+        "hover_color": "#667eea",
+        "dropdown_bg": "#ffffff",
+        "shadow": true,
+        "sticky": true
+    },
+    "menu": [
+        {"title": "Home", "url": "", "children": []},
+        {"title": "About", "url": "/page/about", "children": []},
+        {"title": "Services", "url": "/page/services", "children": [
+            {"title": "Web Development", "url": "/page/services#web"},
+            {"title": "Mobile Apps", "url": "/page/services#mobile"},
+            {"title": "Cloud Solutions", "url": "/page/services#cloud"}
+        ]},
+        {"title": "Shop", "url": "/shop", "children": []},
+        {"title": "Contact", "url": "/page/contact", "children": []}
+    ],
+    "footer": {
+        "bg_color": "#0f172a",
+        "text_color": "#94a3b8",
+        "heading_color": "#e2e8f0",
+        "link_hover": "#667eea",
+        "columns": [
+            {
+                "title": "Quick Links",
+                "links": [
+                    {"text": "About Us", "url": "/page/about"},
+                    {"text": "Services", "url": "/page/services"},
+                    {"text": "Privacy Policy", "url": "/page/privacy"},
+                    {"text": "Terms & Conditions", "url": "/page/terms"}
+                ]
+            },
+            {
+                "title": "Contact Us",
+                "type": "contact",
+                "address": "123 Main Street, City",
+                "phone": "+1 234 567 890",
+                "email": "hello@example.com"
+            },
+            {
+                "title": "My Account",
+                "links": [
+                    {"text": "Login", "url": "/login"},
+                    {"text": "Register", "url": "/register"},
+                    {"text": "Shop", "url": "/shop"},
+                    {"text": "Contact", "url": "/page/contact"}
+                ]
+            }
+        ],
+        "copyright": "© 2024 Laravel. All rights reserved."
+    },
+    "pages": [
+        {"slug": "home", "title": "Home"},
+        {"slug": "about", "title": "About Us"},
+        {"slug": "services", "title": "Services"},
+        {"slug": "contact", "title": "Contact"}
+    ]
+}

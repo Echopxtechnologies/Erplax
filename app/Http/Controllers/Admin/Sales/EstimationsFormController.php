@@ -12,6 +12,7 @@ use Modules\Inventory\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class EstimationsFormController extends AdminController
 {
@@ -289,16 +290,50 @@ public function fromProposal(\App\Models\Proposal $proposal)
         }
     }
 
+    // public function destroy(Estimation $estimation)
+    // {
+    //     try {
+    //         $estimation->delete();
+    //         return redirect()->route('admin.sales.estimations.index')
+    //             ->with('success', 'Estimation deleted successfully.');
+    //     } catch (\Exception $e) {
+    //         return back()->with('error', 'Error deleting estimation: ' . $e->getMessage());
+    //     }
+    // }
+   
+
+
     public function destroy(Estimation $estimation)
-    {
-        try {
-            $estimation->delete();
-            return redirect()->route('admin.sales.estimations.index')
-                ->with('success', 'Estimation deleted successfully.');
-        } catch (\Exception $e) {
-            return back()->with('error', 'Error deleting estimation: ' . $e->getMessage());
+{
+    try {
+        $estimation->delete();
+        
+        // ⭐ Check if request wants JSON (AJAX)
+        if (request()->wantsJson() || request()->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Estimation deleted successfully.'
+            ]);
         }
+        
+        // Regular browser request
+        return redirect()->route('admin.sales.estimations.index')
+            ->with('success', 'Estimation deleted successfully.');
+            
+    } catch (\Exception $e) {
+        // ⭐ Also return JSON for errors
+        if (request()->wantsJson() || request()->ajax()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error deleting estimation: ' . $e->getMessage()
+            ], 500);
+        }
+        
+        return back()->with('error', 'Error deleting estimation: ' . $e->getMessage());
     }
+}
+
+    
 
     /**
      * Parse tax_ids from various formats (JSON array, comma-separated, single value)
@@ -431,4 +466,220 @@ public function fromProposal(\App\Models\Proposal $proposal)
 
         return response()->json($products);
     }
+
+ public function print(Estimation $estimation)
+    {
+        $estimation->load(['customer', 'items']);
+        
+        // Get taxes for breakdown
+        $taxesMap = \App\Models\Tax::where('active', 1)->pluck('name', 'id')->toArray();
+        $taxRatesMap = \App\Models\Tax::where('active', 1)->pluck('rate', 'id')->toArray();
+        
+        // Calculate tax breakdown from items
+        $taxBreakdown = [];
+        foreach ($estimation->items as $item) {
+            if (($item->item_type ?? 'product') !== 'product') continue;
+            
+            $taxIds = $this->parseTaxIdsForPrint($item->tax_ids ?? null);
+            foreach ($taxIds as $taxId) {
+                $taxName = $taxesMap[$taxId] ?? 'Tax';
+                $taxRate = $taxRatesMap[$taxId] ?? 0;
+                $taxAmount = ($item->amount * $taxRate) / 100;
+                $key = $taxId;
+                
+                if (!isset($taxBreakdown[$key])) {
+                    $taxBreakdown[$key] = [
+                        'name' => $taxName,
+                        'rate' => $taxRate,
+                        'amount' => 0
+                    ];
+                }
+                $taxBreakdown[$key]['amount'] += $taxAmount;
+            }
+        }
+        
+        // Fetch company details from options table
+        $company = $this->getCompanyDetailsForPrint();
+        
+        $pdf = Pdf::loadView('admin.sales.estimations.print', [
+            'estimation' => $estimation,
+            'company' => $company,
+            'taxBreakdown' => $taxBreakdown,
+            'taxesMap' => $taxesMap,
+            'taxRatesMap' => $taxRatesMap,
+        ]);
+        
+        $pdf->setPaper('a4', 'portrait');
+        
+        return $pdf->stream("Estimation-{$estimation->estimation_number}.pdf");
+    }
+
+    /**
+     * Get company details from options table for print
+     */
+    private function getCompanyDetailsForPrint(): array
+    {
+        $options = \DB::table('options')
+            ->whereIn('key', [
+                'company_name',
+                'company_logo', 
+                'company_email',
+                'company_phone',
+                'company_address',
+                'company_city',
+                'company_state',
+                'company_country',
+                'company_zip',
+                'company_gst',
+            ])
+            ->pluck('value', 'key')
+            ->toArray();
+        
+        $addressParts = [];
+        if (!empty($options['company_address'])) $addressParts[] = $options['company_address'];
+        if (!empty($options['company_city'])) $addressParts[] = $options['company_city'];
+        if (!empty($options['company_state'])) $addressParts[] = $options['company_state'];
+        if (!empty($options['company_zip'])) $addressParts[] = $options['company_zip'];
+        
+        return [
+            'name' => $options['company_name'] ?? config('app.name', 'Your Company'),
+            'logo' => $options['company_logo'] ?? null,
+            'email' => $options['company_email'] ?? '',
+            'phone' => $options['company_phone'] ?? '',
+            'address' => implode(', ', $addressParts),
+            'gst' => $options['company_gst'] ?? '',
+        ];
+    }
+
+    /**
+     * Parse tax IDs from various formats for print
+     */
+    private function parseTaxIdsForPrint($taxIds): array
+    {
+        if (empty($taxIds)) return [];
+        
+        if (is_array($taxIds)) {
+            return array_map('intval', $taxIds);
+        }
+        
+        $decoded = json_decode($taxIds, true);
+        if (is_array($decoded)) {
+            return array_map('intval', $decoded);
+        }
+        
+        if (strpos($taxIds, ',') !== false) {
+            return array_map('intval', array_filter(explode(',', $taxIds)));
+        }
+        
+        return $taxIds ? [intval($taxIds)] : [];
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    
+
 }

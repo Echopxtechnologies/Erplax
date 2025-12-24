@@ -1,4 +1,4 @@
-<x-layouts.app>
+
     <x-slot name="header">
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
             <div>
@@ -397,6 +397,33 @@
         </div>
     </div>
 
+
+
+{{-- 🎯 PASTE THE BUTTON CODE HERE --}}
+    {{-- <div style="display:flex;justify-content:flex-end;gap:12px;margin-bottom:16px;">
+        <a href="{{ route('admin.customer-groups.index') }}" class="btn-modern btn-light">
+            <svg style="width:16px;height:16px;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+            </svg>
+            Customer Groups
+        </a>
+         --}}
+         <div style="display:flex;justify-content:flex-end;gap:12px;margin-bottom:16px;">
+        <a href="{{ route('admin.customers.create') }}" class="btn-modern btn-primary">
+            <svg style="width:16px;height:16px;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path>
+            </svg>
+             Create Customer
+        </a>
+    </div>
+
+
+
+    
+
+
+
+
     <!-- DataTable -->
     <table class="dt-table dt-search dt-export dt-perpage dt-checkbox dt-import" 
            data-route="{{ route('admin.customers.data') }}"
@@ -538,50 +565,49 @@
         });
     }
 
-    document.addEventListener('DOMContentLoaded', function() {
-        document.addEventListener('click', function(e) {
-            if (e.target.classList.contains('dt-btn-delete')) {
-                e.preventDefault();
-                const id = e.target.dataset.id;
+    // document.addEventListener('DOMContentLoaded', function() {
+    //     document.addEventListener('click', function(e) {
+    //         if (e.target.classList.contains('dt-btn-delete')) {
+    //             e.preventDefault();
+    //             const id = e.target.dataset.id;
                 
-                if (!confirm('Are you sure you want to delete this customer?')) {
-                    return;
-                }
+    //             if (!confirm('Are you sure you want to delete this customer?')) {
+    //                 return;
+    //             }
                 
-                const csrf = document.querySelector('meta[name="csrf-token"]');
-                fetch('/admin/customers/' + id, {
-                    method: 'DELETE',
-                    headers: {
-                        'X-CSRF-TOKEN': csrf ? csrf.content : '',
-                        'Accept': 'application/json'
-                    }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success !== false) {
-                        const table = document.getElementById('customersTable');
-                        if (table.dtReload) table.dtReload();
-                        if (typeof Toast !== 'undefined') {
-                            Toast.success('Customer deleted successfully');
-                        }
-                    } else {
-                        if (typeof Toast !== 'undefined') {
-                            Toast.error(data.message || 'Delete failed');
-                        } else {
-                            alert(data.message || 'Delete failed');
-                        }
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    if (typeof Toast !== 'undefined') {
-                        Toast.error('Delete failed');
-                    } else {
-                        alert('Delete failed');
-                    }
-                });
-            }
-        });
-    });
+    //             const csrf = document.querySelector('meta[name="csrf-token"]');
+    //             fetch('/admin/customers/' + id, {
+    //                 method: 'DELETE',
+    //                 headers: {
+    //                     'X-CSRF-TOKEN': csrf ? csrf.content : '',
+    //                     'Accept': 'application/json'
+    //                 }
+    //             })
+    //             .then(response => response.json())
+    //             .then(data => {
+    //                 if (data.success !== false) {
+    //                     const table = document.getElementById('customersTable');
+    //                     if (table.dtReload) table.dtReload();
+    //                     if (typeof Toast !== 'undefined') {
+    //                         Toast.success('Customer deleted successfully');
+    //                     }
+    //                 } else {
+    //                     if (typeof Toast !== 'undefined') {
+    //                         Toast.error(data.message || 'Delete failed');
+    //                     } else {
+    //                         alert(data.message || 'Delete failed');
+    //                     }
+    //                 }
+    //             })
+    //             .catch(error => {
+    //                 console.error('Error:', error);
+    //                 if (typeof Toast !== 'undefined') {
+    //                     Toast.error('Delete failed');
+    //                 } else {
+    //                     alert('Delete failed');
+    //                 }
+    //             });
+    //         }
+    //     });
+    // });
 </script>
-</x-layouts.app>

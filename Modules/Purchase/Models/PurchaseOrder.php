@@ -37,6 +37,11 @@ class PurchaseOrder extends Model
     public function goodsReceiptNotes() { return $this->hasMany(GoodsReceiptNote::class); }
 
     // Accessors
+    public function getGrandTotalAttribute()
+    {
+        return $this->total_amount;
+    }
+
     public function getStatusLabelAttribute()
     {
         return match($this->status) {

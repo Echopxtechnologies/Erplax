@@ -512,7 +512,17 @@ class AdminController extends Controller
     {
         return back()->withErrors($errors)->withInput();
     }
+    public function callAction($method, $parameters)
+    {
+        $response = parent::callAction($method, $parameters);
 
+        if ($response instanceof \Illuminate\View\View) {
+            $content = $response->render();
+            return view('components.layouts.app-wrap', ['slot' => $content]);
+        }
+
+        return $response;
+    }
     /*
     |--------------------------------------------------------------------------
     | View Helpers
@@ -536,14 +546,7 @@ class AdminController extends Controller
         return $this->view('admin.' . $view, $data);
     }
 
-    /**
-     * Render module view with automatic layout
-     */
-    protected function moduleView(string $view, array $data = [])
-    {
-        $content = view($view, array_merge($this->viewData, $data))->render();
-        return view('components.layouts.app-wrap', ['slot' => $content]);
-    }
+
 
     /**
      * Add data to view
@@ -1249,16 +1252,23 @@ public function sendTestEmail(Request $request)
     /**
      * Admin Logout
      */
-    public function logout(Request $request)
-    {
-        $this->logAction('Admin logged out');
+public function logout(Request $request)
+{
+    $sessionId = session()->getId();
+    
+    // Remove session record from database
+    DB::table('admin_sessions')
+        ->where('session_id', $sessionId)
+        ->delete();
+    
+    $this->logAction('Admin logged out');
 
-        Auth::guard('admin')->logout(); // Use admin guard
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
-        
-        return redirect()->route('admin.login')->with('success', 'Logged out successfully.');
-    }
+    Auth::guard('admin')->logout();
+    $request->session()->invalidate();
+    $request->session()->regenerateToken();
+    
+    return redirect()->route('admin.login')->with('success', 'Logged out successfully.');
+}
     /*
     |--------------------------------------------------------------------------
     | Tax Management Methods

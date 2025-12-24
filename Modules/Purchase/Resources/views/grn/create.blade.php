@@ -249,12 +249,14 @@ document.addEventListener('DOMContentLoaded', function() {
         items.forEach((item, idx) => {
             const pending = item.ordered_qty - item.received_qty;
             const hasBatch = item.product && item.product.is_batch_managed;
+            const variationName = item.variation ? (item.variation.variation_name || item.variation.sku || '') : '';
             
             itemsBody.innerHTML += `
                 <tr>
                     <td>
                         <div class="product-info">
                             <span class="product-name">${item.product?.name || 'N/A'}</span>
+                            ${variationName ? `<span style="background:#8b5cf6;color:#fff;padding:2px 8px;border-radius:4px;font-size:11px;display:inline-block;margin:4px 0;">${variationName}</span>` : ''}
                             <span class="product-sku">SKU: ${item.product?.sku || '-'}</span>
                             <span class="product-unit">Unit: ${item.unit?.short_name || item.unit?.name || '-'}</span>
                         </div>

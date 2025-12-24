@@ -1,4 +1,5 @@
-<x-layouts.app>
+
+
 <style>
     .page-container {
         padding: 20px;
@@ -402,6 +403,8 @@
                                         data-purchase="{{ $product->purchase_price }}"
                                         data-sale="{{ $product->sale_price }}"
                                         data-image="{{ $product->images->where('is_primary', true)->first()?->image_path ?? $product->images->first()?->image_path }}"
+                                        data-has-variants="{{ $product->has_variants ? '1' : '0' }}"
+                                        data-variations='@json($product->variations->map(fn($v) => ["id" => $v->id, "name" => $v->variation_name ?? $v->sku, "sku" => $v->sku]))'
                                         {{ old('product_id') == $product->id ? 'selected' : '' }}>
                                     {{ $product->name }} ({{ $product->sku }})
                                 </option>
@@ -427,6 +430,16 @@
                                 </div>
                             </div>
                         </div>
+                    </div>
+
+                    <!-- Variation Selection (shown when product has variants) -->
+                    <div class="form-group" id="variationGroup" style="display: none;">
+                        <label class="form-label">Select Variation</label>
+                        <select name="variation_id" id="variation_id" class="form-control">
+                            <option value="">-- All Variations (No specific variation) --</option>
+                        </select>
+                        @error('variation_id')<div class="form-error">{{ $message }}</div>@enderror
+                        <div class="form-help">Optional: Link this lot to a specific variation</div>
                     </div>
 
                     <div class="form-row">
@@ -537,6 +550,8 @@ let checkTimeout = null;
 let isLotValid = true;
 
 const productSelect = document.getElementById('product_id');
+const variationSelect = document.getElementById('variation_id');
+const variationGroup = document.getElementById('variationGroup');
 const productPreview = document.getElementById('productPreview');
 const previewPlaceholder = document.getElementById('previewPlaceholder');
 const previewImage = document.getElementById('previewImage');
@@ -552,12 +567,14 @@ const lotNoIcon = document.getElementById('lotNoIcon');
 const lotNoFeedback = document.getElementById('lotNoFeedback');
 const submitBtn = document.getElementById('submitBtn');
 
-// Product selection - show preview
+// Product selection - show preview and variations
 productSelect.addEventListener('change', function() {
     const selected = this.options[this.selectedIndex];
     
     if (!this.value) {
         productPreview.classList.remove('show');
+        variationGroup.style.display = 'none';
+        variationSelect.innerHTML = '<option value="">-- All Variations (No specific variation) --</option>';
         purchasePriceInput.placeholder = 'Use product default';
         salePriceInput.placeholder = 'Use product default';
         return;
@@ -568,6 +585,7 @@ productSelect.addEventListener('change', function() {
     const purchase = parseFloat(selected.dataset.purchase) || 0;
     const sale = parseFloat(selected.dataset.sale) || 0;
     const imagePath = selected.dataset.image;
+    const hasVariants = selected.dataset.hasVariants === '1';
     
     previewName.textContent = name;
     previewSku.textContent = 'SKU: ' + sku;
@@ -595,10 +613,36 @@ productSelect.addEventListener('change', function() {
     
     productPreview.classList.add('show');
     
+    // Handle variations
+    if (hasVariants) {
+        try {
+            const variations = JSON.parse(selected.dataset.variations || '[]');
+            variationSelect.innerHTML = '<option value="">-- All Variations (No specific variation) --</option>';
+            variations.forEach(v => {
+                variationSelect.innerHTML += `<option value="${v.id}">${v.name} (${v.sku})</option>`;
+            });
+            variationGroup.style.display = 'block';
+        } catch (e) {
+            console.error('Error parsing variations:', e);
+            variationGroup.style.display = 'none';
+        }
+    } else {
+        variationGroup.style.display = 'none';
+        variationSelect.innerHTML = '<option value="">-- All Variations (No specific variation) --</option>';
+    }
+    
     // Re-check lot number if already entered
     const lotNo = lotNoInput.value.trim();
     if (lotNo.length >= 2) {
-        checkLotNumber(lotNo, this.value);
+        checkLotNumber(lotNo, this.value, variationSelect.value);
+    }
+});
+
+// Variation selection - re-check lot number
+variationSelect.addEventListener('change', function() {
+    const lotNo = lotNoInput.value.trim();
+    if (lotNo.length >= 2) {
+        checkLotNumber(lotNo, productSelect.value, this.value);
     }
 });
 
@@ -613,6 +657,7 @@ lotNoInput.addEventListener('input', function() {
     
     const lotNo = this.value.trim();
     const productId = productSelect.value;
+    const variationId = variationSelect.value;
     
     // Reset state
     lotNoInput.classList.remove('is-valid', 'is-invalid', 'is-checking');
@@ -635,14 +680,17 @@ lotNoInput.addEventListener('input', function() {
     
     // Debounce the check
     checkTimeout = setTimeout(() => {
-        checkLotNumber(lotNo, productId);
+        checkLotNumber(lotNo, productId, variationId);
     }, 500);
 });
 
-function checkLotNumber(lotNo, productId) {
+function checkLotNumber(lotNo, productId, variationId) {
     let url = '{{ route("inventory.lots.check") }}?lot_no=' + encodeURIComponent(lotNo);
     if (productId) {
         url += '&product_id=' + productId;
+    }
+    if (variationId) {
+        url += '&variation_id=' + variationId;
     }
     
     fetch(url)
@@ -661,6 +709,9 @@ function checkLotNumber(lotNo, productId) {
                 let message = 'This lot number already exists';
                 if (data.product_name) {
                     message += ' for product: ' + data.product_name;
+                }
+                if (data.variation_name) {
+                    message += ' (' + data.variation_name + ')';
                 }
                 
                 lotNoFeedback.innerHTML = '<div class="form-error"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> ' + message + '</div>';
@@ -700,4 +751,3 @@ document.getElementById('lotForm').addEventListener('submit', function(e) {
     }
 });
 </script>
-</x-layouts.app>

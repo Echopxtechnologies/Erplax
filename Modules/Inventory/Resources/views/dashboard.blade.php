@@ -1,4 +1,5 @@
-<x-layouts.app>
+
+
 <style>
     /* ============================================
        INVENTORY DASHBOARD - Dark/Light Mode Ready
@@ -618,6 +619,124 @@
     .transfer-from { color: #ef4444; }
     .transfer-to { color: #10b981; }
     .transfer-arrow { color: var(--text-muted); margin: 0 4px; }
+
+    /* Low Stock Alert Styles */
+    .alert-count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 22px;
+        height: 22px;
+        padding: 0 6px;
+        background: #ef4444;
+        color: #fff;
+        border-radius: 11px;
+        font-size: 11px;
+        font-weight: 700;
+        margin-left: 8px;
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
+    }
+    
+    .stock-status-bar {
+        display: flex;
+        gap: 12px;
+        padding: 12px 16px;
+        background: var(--body-bg);
+        border-bottom: 1px solid var(--card-border);
+    }
+    
+    .status-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+    }
+    
+    .status-item.status-out {
+        background: rgba(239, 68, 68, 0.15);
+        color: #ef4444;
+    }
+    
+    .status-item.status-critical {
+        background: rgba(249, 115, 22, 0.15);
+        color: #f97316;
+    }
+    
+    .status-item.status-warning {
+        background: rgba(245, 158, 11, 0.15);
+        color: #f59e0b;
+    }
+    
+    .status-count {
+        font-weight: 700;
+        font-size: 14px;
+    }
+    
+    .status-label {
+        font-size: 11px;
+        opacity: 0.9;
+    }
+    
+    .product-avatar.out {
+        background: rgba(239, 68, 68, 0.15);
+        color: #ef4444;
+    }
+    
+    .product-avatar.critical {
+        background: rgba(249, 115, 22, 0.15);
+        color: #f97316;
+    }
+    
+    .product-avatar.warning {
+        background: rgba(245, 158, 11, 0.15);
+        color: #f59e0b;
+    }
+    
+    .stock-bar.out { background: rgba(239, 68, 68, 0.2); }
+    .stock-bar.out .stock-bar-fill { background: #ef4444; }
+    
+    .stock-bar.critical { background: rgba(249, 115, 22, 0.2); }
+    .stock-bar.critical .stock-bar-fill { background: linear-gradient(90deg, #f97316, #fb923c); }
+    
+    .stock-bar.warning { background: rgba(245, 158, 11, 0.2); }
+    .stock-bar.warning .stock-bar-fill { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+    
+    .badge-dark {
+        background: rgba(30, 30, 30, 0.9);
+        color: #fff;
+    }
+    
+    .btn-sm {
+        padding: 6px 12px;
+        font-size: 11px;
+        border-radius: 6px;
+    }
+    
+    .btn-warning {
+        background: linear-gradient(135deg, #f59e0b, #d97706);
+        color: #fff;
+    }
+    
+    .btn-warning:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+    }
+    
+    .empty-state.success svg {
+        color: #10b981;
+        opacity: 1;
+    }
+    
+    .empty-state.success h4 {
+        color: #10b981;
+    }
 </style>
 
 <div class="dashboard-wrapper">
@@ -834,37 +953,90 @@
                 <div class="table-card-title">
                     <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
                     Low Stock Alerts
+                    @if(($lowStockCount ?? 0) > 0)
+                        <span class="alert-count">{{ $lowStockCount }}</span>
+                    @endif
                 </div>
-                <a href="{{ route('inventory.products.index') }}" class="view-all-link">View All <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></a>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    @if(($lowStockCount ?? 0) > 0)
+                    <button type="button" class="btn btn-sm btn-warning" onclick="createLowStockNotifications()" title="Send notifications">
+                        🔔 Notify
+                    </button>
+                    @endif
+                    <a href="{{ route('inventory.products.index') }}?filter=low_stock" class="view-all-link">View All <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></a>
+                </div>
             </div>
+            
+            @if(isset($stockStatusSummary) && ($stockStatusSummary['total_low_stock'] ?? 0) > 0)
+            <div class="stock-status-bar">
+                <div class="status-item status-out" title="Out of Stock">
+                    <span class="status-count">{{ $stockStatusSummary['out_of_stock'] ?? 0 }}</span>
+                    <span class="status-label">Out</span>
+                </div>
+                <div class="status-item status-critical" title="Critical (below 50% of min)">
+                    <span class="status-count">{{ $stockStatusSummary['critical'] ?? 0 }}</span>
+                    <span class="status-label">Critical</span>
+                </div>
+                <div class="status-item status-warning" title="Warning">
+                    <span class="status-count">{{ $stockStatusSummary['warning'] ?? 0 }}</span>
+                    <span class="status-label">Warning</span>
+                </div>
+            </div>
+            @endif
+            
             <div class="table-card-body">
                 @if(($lowStockProducts ?? collect())->count() > 0)
                     <table class="simple-table">
-                        <thead><tr><th>Product</th><th>Current</th><th>Min</th><th>Status</th></tr></thead>
+                        <thead><tr><th>Product / SKU</th><th>Current</th><th>Min</th><th>Status</th></tr></thead>
                         <tbody>
-                            @foreach($lowStockProducts as $product)
-                            @php $percentage = $product->min_stock_level > 0 ? min(100, ($product->current_stock / $product->min_stock_level) * 100) : 0; @endphp
-                            <tr>
+                            @foreach($lowStockProducts as $item)
+                            @php 
+                                $percentage = $item->min_stock_level > 0 ? min(100, ($item->current_stock / $item->min_stock_level) * 100) : 0;
+                                $statusClass = $item->current_stock <= 0 ? 'out' : ($percentage <= 50 ? 'critical' : 'warning');
+                                $productUrl = isset($item->product_id) 
+                                    ? route('inventory.products.show', $item->product_id) 
+                                    : route('inventory.products.show', $item->id);
+                            @endphp
+                            <tr onclick="window.location='{{ $productUrl }}'" style="cursor: pointer;">
                                 <td>
                                     <div class="product-cell">
-                                        <div class="product-avatar">{{ strtoupper(substr($product->name, 0, 2)) }}</div>
+                                        <div class="product-avatar {{ $statusClass }}">
+                                            @if($item->current_stock <= 0)
+                                                ⚠️
+                                            @else
+                                                {{ strtoupper(substr($item->name, 0, 2)) }}
+                                            @endif
+                                        </div>
                                         <div class="product-info">
-                                            <span class="product-name">{{ Str::limit($product->name, 20) }}</span>
-                                            <span class="product-sku">{{ $product->sku }}</span>
+                                            <span class="product-name">
+                                                {{ Str::limit($item->name, 18) }}
+                                                @if(isset($item->variation_name) && $item->type === 'variation')
+                                                    <small style="color: var(--text-muted);">({{ Str::limit($item->variation_name, 12) }})</small>
+                                                @endif
+                                            </span>
+                                            <span class="product-sku">{{ $item->sku }}</span>
                                         </div>
                                     </div>
                                 </td>
-                                <td><span class="badge badge-danger">{{ number_format($product->current_stock, 0) }}</span></td>
-                                <td>{{ number_format($product->min_stock_level, 0) }}</td>
-                                <td><div class="stock-bar"><div class="stock-bar-fill" style="width: {{ $percentage }}%"></div></div></td>
+                                <td>
+                                    <span class="badge {{ $item->current_stock <= 0 ? 'badge-dark' : 'badge-danger' }}">
+                                        {{ number_format($item->current_stock, 0) }}
+                                    </span>
+                                </td>
+                                <td>{{ number_format($item->min_stock_level, 0) }}</td>
+                                <td>
+                                    <div class="stock-bar {{ $statusClass }}">
+                                        <div class="stock-bar-fill" style="width: {{ $percentage }}%"></div>
+                                    </div>
+                                </td>
                             </tr>
                             @endforeach
                         </tbody>
                     </table>
                 @else
-                    <div class="empty-state">
+                    <div class="empty-state success">
                         <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                        <h4>All Stocked Up!</h4>
+                        <h4>All Stocked Up! 🎉</h4>
                         <p>All products are above minimum stock levels.</p>
                     </div>
                 @endif
@@ -939,4 +1111,31 @@
         </div>
     </div>
 </div>
-</x-layouts.app>
+
+<script>
+function createLowStockNotifications() {
+    if (!confirm('Create notifications for all low stock items? This will notify admin users.')) {
+        return;
+    }
+    
+    fetch('{{ route("inventory.alerts.notify") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('✅ ' + data.message);
+        } else {
+            alert('❌ ' + (data.message || 'Failed to create notifications'));
+        }
+    })
+    .catch(err => {
+        console.error('Error:', err);
+        alert('❌ Failed to create notifications');
+    });
+}
+</script>

@@ -8,6 +8,7 @@ use App\Models\CustomerGroup;
 use Illuminate\Http\Request;
 use App\Traits\DataTable;
 use Exception;
+use Illuminate\Support\Facades\DB;
 
 class Index extends AdminController
 {
@@ -486,47 +487,128 @@ public function data(Request $request)
     |--------------------------------------------------------------------------
     */
     
+    // public function bulkDelete(Request $request)
+    // {
+    //     try {
+    //         $ids = $request->input('ids', []);
+            
+    //         if (empty($ids)) {
+    //             return response()->json([
+    //                 'success' => false,
+    //                 'message' => 'No items selected'
+    //             ], 400);
+    //         }
+
+    //         $customers = Customer::whereIn('id', $ids)->get();
+    //         $count = 0;
+
+    //         foreach ($customers as $customer) {
+    //             if ($customer->customer_type === 'company') {
+    //                 // Delete all contacts of this company
+    //                 Customer::where('company', $customer->company)
+    //                     ->where('customer_type', 'company')
+    //                     ->delete();
+    //             } else {
+    //                 $customer->delete();
+    //             }
+    //             $count++;
+    //         }
+
+    //         return response()->json([
+    //             'success' => true,
+    //             'message' => $count . ' customer(s) deleted successfully'
+    //         ]);
+            
+    //     } catch (Exception $e) {
+    //         report($e);
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => 'Delete failed: ' . $e->getMessage()
+    //         ], 500);
+    //     }
+    // }
+
+
+
+
+
     public function bulkDelete(Request $request)
-    {
-        try {
-            $ids = $request->input('ids', []);
-            
-            if (empty($ids)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'No items selected'
-                ], 400);
-            }
-
-            $customers = Customer::whereIn('id', $ids)->get();
-            $count = 0;
-
-            foreach ($customers as $customer) {
-                if ($customer->customer_type === 'company') {
-                    // Delete all contacts of this company
-                    Customer::where('company', $customer->company)
-                        ->where('customer_type', 'company')
-                        ->delete();
-                } else {
-                    $customer->delete();
-                }
-                $count++;
-            }
-
-            return response()->json([
-                'success' => true,
-                'message' => $count . ' customer(s) deleted successfully'
-            ]);
-            
-        } catch (Exception $e) {
-            report($e);
+{
+    try {
+        $ids = $request->input('ids', []);
+        
+        if (empty($ids)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Delete failed: ' . $e->getMessage()
-            ], 500);
+                'message' => 'No items selected'
+            ], 400);
         }
-    }
 
+        $customers = Customer::whereIn('id', $ids)->get();
+        $deletedCount = 0;
+        $processedCompanies = []; // Track companies already processed
+
+        foreach ($customers as $customer) {
+            // Skip if already processed (company was deleted in previous iteration)
+            if (!Customer::find($customer->id)) {
+                continue;
+            }
+            
+            if ($customer->customer_type === 'company' && $customer->company) {
+                // Skip if we already processed this company
+                if (in_array($customer->company, $processedCompanies)) {
+                    continue;
+                }
+                
+                // Count total contacts in this company
+                $totalContacts = Customer::where('company', $customer->company)
+                    ->where('customer_type', 'company')
+                    ->count();
+                
+                // Count how many from this company are selected
+                $selectedFromCompany = Customer::whereIn('id', $ids)
+                    ->where('company', $customer->company)
+                    ->where('customer_type', 'company')
+                    ->count();
+                
+                if ($selectedFromCompany >= $totalContacts) {
+                    // ✅ All contacts selected or last contact → Delete entire company
+                    $deleted = Customer::where('company', $customer->company)
+                        ->where('customer_type', 'company')
+                        ->delete();
+                    $deletedCount += $deleted;
+                } else {
+                    // ✅ Only some contacts selected → Delete only selected ones
+                    $deleted = Customer::whereIn('id', $ids)
+                        ->where('company', $customer->company)
+                        ->where('customer_type', 'company')
+                        ->delete();
+                    $deletedCount += $deleted;
+                }
+                
+                // Mark this company as processed
+                $processedCompanies[] = $customer->company;
+                
+            } else {
+                // ✅ Individual customer
+                $customer->delete();
+                $deletedCount++;
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => $deletedCount . ' customer(s) deleted successfully'
+        ]);
+        
+    } catch (Exception $e) {
+        report($e);
+        return response()->json([
+            'success' => false,
+            'message' => 'Delete failed: ' . $e->getMessage()
+        ], 500);
+    }
+}
     /*
     |--------------------------------------------------------------------------
     | TOGGLE STATUS

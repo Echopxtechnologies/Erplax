@@ -605,9 +605,9 @@
         
         <!-- Brand -->
         <a href="{{ route('client.dashboard') }}" class="navbar-brand">
-            @if($companyLogo)
-                <img src="{{ Storage::url($companyLogo) }}" alt="{{ $companyName }}">
-            @else
+           @if($companyLogo && Storage::disk('public')->exists($companyLogo))
+            <img src="{{ Storage::url($companyLogo) }}" alt="{{ $companyName }}">
+        @else
                 <div class="navbar-brand-icon">
                     <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                         <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
@@ -635,7 +635,6 @@
                     @include(strtolower($module->alias) . '::client.navbar')
                 @endif
             @endforeach
-            
 
             <!-- Profile -->
             @if(Route::has('client.profile'))
@@ -683,16 +682,15 @@
                         <div class="dropdown-header-email">{{ $authUser->email ?? '' }}</div>
                     </div>
                     <div class="dropdown-menu-items">
-                            @if(Route::has('client.profile'))
-                            <a href="{{ route('client.profile') }}" class="dropdown-item">
-                                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                    <path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-                                </svg>
-                                My Profile
-                            </a>
-                            <div class="dropdown-divider"></div>
-                            @endif
+                        @if(Route::has('client.profile'))
+                        <a href="{{ route('client.profile') }}" class="dropdown-item">
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                            </svg>
+                            My Profile
+                        </a>
                         <div class="dropdown-divider"></div>
+                        @endif
                         <form method="POST" action="{{ route('client.logout') }}" id="logoutForm">
                             @csrf
                             <button type="submit" class="dropdown-item dropdown-item-danger">
@@ -747,12 +745,14 @@
             
             <div class="mobile-nav-title">Account</div>
             
+            @if(Route::has('client.profile'))
             <a href="{{ route('client.profile') }}" class="mobile-nav-link {{ request()->routeIs('client.profile*') ? 'active' : '' }}">
                 <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
                 </svg>
                 My Profile
             </a>
+            @endif
             
             <a href="#" onclick="event.preventDefault(); document.getElementById('logoutForm').submit();" class="mobile-nav-link" style="color: var(--danger);">
                 <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">

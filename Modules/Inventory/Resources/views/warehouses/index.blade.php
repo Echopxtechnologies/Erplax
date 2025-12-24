@@ -1,4 +1,5 @@
-<x-layouts.app>
+
+
 <style>
     .page-header {
         display: flex;
@@ -279,4 +280,3 @@ function setDefault(id) {
 </script>
 
 @include('core::datatable')
-</x-layouts.app>

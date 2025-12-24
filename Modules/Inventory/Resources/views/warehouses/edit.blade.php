@@ -1,4 +1,5 @@
-<x-layouts.app>
+
+
 <style>
     .page-header {
         display: flex;
@@ -335,4 +336,3 @@
         </div>
     </div>
 </div>
-</x-layouts.app>

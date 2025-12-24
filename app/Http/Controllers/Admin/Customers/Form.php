@@ -377,42 +377,166 @@ public function create()
     |--------------------------------------------------------------------------
     */
     
-    public function destroy($id)
-    {
-        try {
-            $customer = $this->getCustomer($id);
+   
+    
+
+
+
+//     public function destroy(Request $request, $id)
+// {
+//     try {
+//         $customer = $this->getCustomer($id);
+        
+//         if (!$customer) {
+//             // AJAX Request
+//             if ($request->wantsJson() || $request->ajax()) {
+//                 return response()->json([
+//                     'success' => false,
+//                     'message' => 'Customer not found'
+//                 ], 404);
+//             }
             
-            if (!$customer) {
-                return back()->with('error', 'Customer not found');
+//             return back()->with('error', 'Customer not found');
+//         }
+        
+//         $name = $customer->display_name;
+        
+//         DB::beginTransaction();
+        
+//         if ($customer->customer_type === 'company') {
+//             // Delete ALL contacts of this company
+//             Customer::where('company', $customer->company)
+//                 ->where('customer_type', 'company')
+//                 ->delete();
+//         } else {
+//             $customer->delete();
+//         }
+        
+//         DB::commit();
+        
+//         // ✅ AJAX Request (DataTable delete) → Return JSON
+//         if ($request->wantsJson() || $request->ajax()) {
+//             return response()->json([
+//                 'success' => true,
+//                 'message' => "Customer '{$name}' deleted successfully"
+//             ]);
+//         }
+        
+//         // ✅ Form Submit (show page delete) → Redirect
+//         return redirect()
+//             ->route('admin.customers.index')
+//             ->with('success', "Customer '{$name}' deleted successfully");
+            
+//     } catch (Exception $e) {
+//         DB::rollBack();
+//         report($e);
+        
+//         // AJAX Request
+//         if ($request->wantsJson() || $request->ajax()) {
+//             return response()->json([
+//                 'success' => false,
+//                 'message' => 'Failed to delete customer: ' . $e->getMessage()
+//             ], 500);
+//         }
+        
+//         return back()->with('error', 'Failed to delete customer: ' . $e->getMessage());
+//     }
+// }
+
+
+public function destroy(Request $request, $id)
+{
+    try {
+        $customer = $this->getCustomer($id);
+        
+        if (!$customer) {
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Customer not found'
+                ], 404);
             }
+            return back()->with('error', 'Customer not found');
+        }
+        
+        $name = $customer->name;
+        
+        DB::beginTransaction();
+        
+        if ($customer->customer_type === 'company' && $customer->company) {
+            // Count contacts in this company
+            $contactCount = Customer::where('company', $customer->company)
+                ->where('customer_type', 'company')
+                ->count();
             
-            $name = $customer->display_name;
-            
-            DB::beginTransaction();
-            
-            if ($customer->customer_type === 'company') {
-                // Delete ALL contacts of this company
+            if ($contactCount > 1) {
+                // ✅ Multiple contacts: Delete ONLY this one
+                $customer->delete();
+                
+                DB::commit();
+                
+                if ($request->wantsJson() || $request->ajax()) {
+                    return response()->json([
+                        'success' => true,
+                        'message' => "Contact '{$name}' deleted successfully"
+                    ]);
+                }
+                
+                return redirect()
+                    ->route('admin.customers.index')
+                    ->with('success', "Contact '{$name}' deleted successfully");
+                
+            } else {
+                // ✅ Last contact: Delete entire company (all rows with same company name)
                 Customer::where('company', $customer->company)
                     ->where('customer_type', 'company')
                     ->delete();
-            } else {
-                $customer->delete();
+                
+                DB::commit();
+                
+                if ($request->wantsJson() || $request->ajax()) {
+                    return response()->json([
+                        'success' => true,
+                        'message' => "Company '{$customer->company}' and all contacts deleted successfully"
+                    ]);
+                }
+                
+                return redirect()
+                    ->route('admin.customers.index')
+                    ->with('success', "Company '{$customer->company}' deleted successfully");
             }
+        } else {
+            // ✅ Individual customer: Delete only this one
+            $customer->delete();
             
             DB::commit();
+            
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => "Customer '{$name}' deleted successfully"
+                ]);
+            }
             
             return redirect()
                 ->route('admin.customers.index')
                 ->with('success', "Customer '{$name}' deleted successfully");
-                
-        } catch (Exception $e) {
-            DB::rollBack();
-            report($e);
-            return back()->with('error', 'Failed to delete customer: ' . $e->getMessage());
         }
+        
+    } catch (Exception $e) {
+        DB::rollBack();
+        report($e);
+        
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete customer: ' . $e->getMessage()
+            ], 500);
+        }
+        
+        return back()->with('error', 'Failed to delete customer: ' . $e->getMessage());
     }
-
-
+}
     /*
 |--------------------------------------------------------------------------
 | AJAX - Get Company Details

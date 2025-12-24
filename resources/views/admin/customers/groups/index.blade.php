@@ -1,4 +1,12 @@
-<x-layouts.app>
+
+<div style="margin-bottom:24px;">
+    <a href="{{ route('admin.customers.create') }}" class="btn-modern btn-light" style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;text-decoration:none;font-size:15px;font-weight:500;">
+        <svg style="width:18px;height:18px;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+        </svg>
+        Back to form
+    </a>
+</div>
     <x-slot name="header">
         <div style="display:flex;align-items:center;justify-content:space-between;">
             <h1 style="margin:0;font-size:20px;font-weight:600;color:var(--text-primary);">Customer Groups</h1>
@@ -45,6 +53,11 @@
     </style>
 
     <!-- Create New Group Form -->
+
+
+<br>
+<br>
+
     <div class="create-card">
         <div class="create-card-title">
             <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -216,4 +229,3 @@
             });
         });
     </script>
-</x-layouts.app>

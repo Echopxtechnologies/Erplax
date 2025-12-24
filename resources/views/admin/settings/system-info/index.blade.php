@@ -1,5 +1,4 @@
-<x-layouts.app>
-    <style>
+<style>
         .settings-page { max-width: 1000px; margin: 0 auto; }
         .settings-header { margin-bottom: 24px; }
         .settings-header h1 { font-size: 24px; font-weight: 700; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 10px; }
@@ -339,4 +338,3 @@
         </div>
         @endif
     </div>
-</x-layouts.app>

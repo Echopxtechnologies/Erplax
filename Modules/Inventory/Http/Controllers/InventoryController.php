@@ -125,6 +125,16 @@ class InventoryController extends BaseController
         return $this->products->deleteVariation($variationId);
     }
 
+    public function generateVariationBarcode(Request $request, $variationId)
+    {
+        return $this->products->generateVariationBarcode($request, $variationId);
+    }
+
+    public function generateVariationBarcodes($productId)
+    {
+        return $this->products->generateVariationBarcodes($productId);
+    }
+
     // ==================== WAREHOUSES ====================
     public function warehousesIndex()
     {
@@ -384,6 +394,11 @@ class InventoryController extends BaseController
         return $this->stock->getProductLots($request);
     }
 
+    public function stockProductVariations(Request $request)
+    {
+        return $this->stock->getProductVariations($request);
+    }
+
     // ==================== REPORTS ====================
     public function reportStockSummary(Request $request)
     {
@@ -479,5 +494,347 @@ class InventoryController extends BaseController
     public function unitsDestroy($id)
     {
         return $this->settings->unitsDestroy($id);
+    }
+
+    // ==================== ATTRIBUTES ====================
+    public function attributesData(Request $request)
+    {
+        return $this->settings->attributesData($request);
+    }
+
+    public function getAttributesWithValues()
+    {
+        return $this->settings->getAttributesWithValues();
+    }
+
+    public function attributesStore(Request $request)
+    {
+        return $this->settings->attributesStore($request);
+    }
+
+    public function attributesUpdate(Request $request, $id)
+    {
+        return $this->settings->attributesUpdate($request, $id);
+    }
+
+    public function attributesDestroy($id)
+    {
+        return $this->settings->attributesDestroy($id);
+    }
+
+    public function quickAddAttribute(Request $request)
+    {
+        return $this->settings->quickAddAttribute($request);
+    }
+
+    // ==================== ATTRIBUTE VALUES ====================
+    public function attributeValuesStore(Request $request)
+    {
+        return $this->settings->attributeValuesStore($request);
+    }
+
+    public function attributeValuesUpdate(Request $request, $id)
+    {
+        return $this->settings->attributeValuesUpdate($request, $id);
+    }
+
+    public function attributeValuesDestroy($id)
+    {
+        return $this->settings->attributeValuesDestroy($id);
+    }
+
+    public function quickAddAttributeValue(Request $request)
+    {
+        return $this->settings->quickAddAttributeValue($request);
+    }
+
+    // ==================== BARCODE ====================
+    
+    /**
+     * Generate a new barcode
+     */
+    public function generateBarcode(Request $request)
+    {
+        $type = $request->input('type', 'EAN13');
+        $prefix = $request->input('prefix');
+        $sku = $request->input('sku');
+        $count = min($request->input('count', 1), 100); // Max 100 at once
+        
+        $barcodes = [];
+        for ($i = 0; $i < $count; $i++) {
+            $barcodes[] = \Modules\Inventory\Helpers\BarcodeHelper::generateUnique($type, $prefix, $sku);
+        }
+        
+        return response()->json([
+            'success' => true,
+            'barcode' => $barcodes[0],
+            'barcodes' => $barcodes,
+            'type' => $type,
+        ]);
+    }
+
+    /**
+     * Check if barcode exists
+     */
+    public function checkBarcode($code)
+    {
+        $exists = \Modules\Inventory\Helpers\BarcodeHelper::barcodeExists($code);
+        $type = \Modules\Inventory\Helpers\BarcodeHelper::detectType($code);
+        
+        $valid = true;
+        if ($type === 'EAN13') {
+            $valid = \Modules\Inventory\Helpers\BarcodeHelper::validateEAN13($code);
+        } elseif ($type === 'EAN8') {
+            $valid = \Modules\Inventory\Helpers\BarcodeHelper::validateEAN8($code);
+        }
+        
+        return response()->json([
+            'exists' => $exists,
+            'type' => $type,
+            'valid' => $valid,
+        ]);
+    }
+
+    /**
+     * Find product by barcode
+     */
+    public function findByBarcode($code)
+    {
+        $result = \Modules\Inventory\Helpers\BarcodeHelper::findByBarcode($code);
+        
+        if (!$result) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Product not found',
+            ], 404);
+        }
+        
+        $data = [
+            'success' => true,
+            'type' => $result['type'],
+            'product' => [
+                'id' => $result['product']->id,
+                'name' => $result['product']->name,
+                'sku' => $result['product']->sku,
+                'barcode' => $result['product']->barcode,
+                'purchase_price' => $result['product']->purchase_price,
+                'sale_price' => $result['product']->sale_price,
+                'has_variants' => $result['product']->has_variants,
+            ],
+        ];
+        
+        if ($result['variation']) {
+            $data['variation'] = [
+                'id' => $result['variation']->id,
+                'sku' => $result['variation']->sku,
+                'barcode' => $result['variation']->barcode,
+                'variation_name' => $result['variation']->variation_name,
+                'purchase_price' => $result['variation']->purchase_price,
+                'sale_price' => $result['variation']->sale_price,
+            ];
+        }
+        
+        if ($result['unit']) {
+            $data['unit'] = [
+                'id' => $result['unit']->id,
+                'unit_name' => $result['unit']->unit_name,
+                'barcode' => $result['unit']->barcode,
+                'conversion_factor' => $result['unit']->conversion_factor,
+            ];
+        }
+        
+        return response()->json($data);
+    }
+
+    /**
+     * Barcode scanner page
+     */
+    public function scanBarcode()
+    {
+        return view('inventory::barcode.scan');
+    }
+
+    // ==================== ALERTS ====================
+
+    /**
+     * Get low stock alerts page/API
+     */
+    public function lowStockAlerts(Request $request)
+    {
+        $lowStockItems = \Modules\Inventory\Services\LowStockService::getAllLowStockItems(100);
+        $statusSummary = \Modules\Inventory\Services\LowStockService::getStockStatusSummary();
+        
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'items' => $lowStockItems,
+                'summary' => $statusSummary,
+            ]);
+        }
+        
+        return view('inventory::alerts.low-stock', compact('lowStockItems', 'statusSummary'));
+    }
+
+    /**
+     * Create notifications for low stock items
+     */
+    public function createLowStockNotifications(Request $request)
+    {
+        try {
+            $userId = auth()->id();
+            $notifications = \Modules\Inventory\Services\LowStockService::checkAndNotify($userId);
+            
+            $count = count($notifications);
+            
+            return response()->json([
+                'success' => true,
+                'message' => $count > 0 
+                    ? "Created {$count} new low stock notification(s)" 
+                    : "No new notifications needed (already notified recently)",
+                'count' => $count,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    // ==================== SKU VALIDATION ====================
+
+    /**
+     * Check if SKU exists (AJAX)
+     */
+    public function checkSku(Request $request)
+    {
+        $sku = $request->input('sku');
+        $excludeProductId = $request->input('product_id');
+        $excludeVariationId = $request->input('variation_id');
+        
+        if (empty($sku)) {
+            return response()->json([
+                'valid' => false,
+                'message' => 'SKU is required',
+            ]);
+        }
+        
+        $exists = \Modules\Inventory\Services\SkuService::skuExists(
+            $sku, 
+            $excludeProductId ? (int) $excludeProductId : null,
+            $excludeVariationId ? (int) $excludeVariationId : null
+        );
+        
+        return response()->json([
+            'valid' => !$exists,
+            'exists' => $exists,
+            'message' => $exists ? 'SKU already exists' : 'SKU is available',
+        ]);
+    }
+
+    /**
+     * Generate unique SKU
+     */
+    public function generateSku(Request $request)
+    {
+        $name = $request->input('name');
+        $prefix = $request->input('prefix', 'PRD');
+        
+        $sku = \Modules\Inventory\Services\SkuService::generateProductSku($name, $prefix);
+        
+        return response()->json([
+            'success' => true,
+            'sku' => $sku,
+        ]);
+    }
+
+    // ==================== BARCODE LOOKUP ====================
+    
+    /**
+     * Lookup product/variation by barcode or SKU
+     * Used by barcode scanner in stock operations
+     */
+    public function barcodeLookup(Request $request)
+    {
+        $code = trim($request->input('code', ''));
+        
+        if (empty($code)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Please enter a barcode or SKU',
+            ]);
+        }
+        
+        // First try barcode lookup
+        $result = \Modules\Inventory\Helpers\BarcodeHelper::findByBarcode($code);
+        
+        // If not found by barcode, try SKU search
+        if (!$result) {
+            $result = \Modules\Inventory\Services\SkuService::findBySku($code);
+        }
+        
+        if (!$result) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Product not found for: ' . $code,
+            ]);
+        }
+        
+        $product = $result['product'];
+        $variation = $result['variation'] ?? null;
+        $unit = $result['unit'] ?? null;
+        
+        // Get product image
+        $primaryImage = $product->images?->where('is_primary', true)->first() 
+            ?? $product->images?->first();
+        
+        // Get variations if product has them
+        $variations = [];
+        if ($product->has_variants) {
+            $variations = $product->variations()
+                ->where('is_active', true)
+                ->get()
+                ->map(fn($v) => [
+                    'id' => $v->id,
+                    'name' => $v->variation_name ?? $v->sku,
+                    'sku' => $v->sku,
+                    'barcode' => $v->barcode,
+                    'price' => $v->sale_price ?? $product->sale_price,
+                ])
+                ->toArray();
+        }
+        
+        return response()->json([
+            'success' => true,
+            'type' => $result['type'],
+            'product' => [
+                'id' => $product->id,
+                'name' => $product->name,
+                'sku' => $product->sku,
+                'barcode' => $product->barcode,
+                'purchase_price' => $product->purchase_price,
+                'sale_price' => $product->sale_price,
+                'unit_id' => $product->unit_id,
+                'unit_name' => $product->unit?->short_name ?? 'PCS',
+                'has_variants' => $product->has_variants,
+                'is_batch_managed' => $product->is_batch_managed,
+                'track_inventory' => $product->track_inventory,
+                'image' => $primaryImage ? asset('storage/' . $primaryImage->image_path) : null,
+            ],
+            'variation' => $variation ? [
+                'id' => $variation->id,
+                'name' => $variation->variation_name ?? $variation->sku,
+                'sku' => $variation->sku,
+                'barcode' => $variation->barcode,
+                'price' => $variation->sale_price ?? $product->sale_price,
+            ] : null,
+            'unit' => $unit ? [
+                'id' => $unit->id,
+                'unit_id' => $unit->unit_id,
+                'unit_name' => $unit->unit?->short_name,
+                'barcode' => $unit->barcode,
+            ] : null,
+            'variations' => $variations,
+        ]);
     }
 }

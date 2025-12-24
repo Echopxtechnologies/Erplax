@@ -1,4 +1,5 @@
-<x-layouts.app>
+
+
 <style>
     .page-header {
         display: flex;
@@ -522,6 +523,173 @@
         margin-bottom: 12px;
         opacity: 0.5;
     }
+
+    /* Attributes Styles */
+    .attributes-list {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+    
+    .attribute-card {
+        background: var(--body-bg);
+        border: 1px solid var(--card-border);
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    
+    .attribute-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 16px;
+        background: var(--card-bg);
+        border-bottom: 1px solid var(--card-border);
+    }
+    
+    .attribute-info {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .attribute-name {
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+    
+    .attribute-type {
+        font-size: 11px;
+        padding: 2px 8px;
+        border-radius: 10px;
+        background: #e0e7ff;
+        color: #4338ca;
+        text-transform: uppercase;
+        font-weight: 500;
+    }
+    
+    .attribute-type.color {
+        background: #fce7f3;
+        color: #be185d;
+    }
+    
+    .attribute-type.text {
+        background: #d1fae5;
+        color: #047857;
+    }
+    
+    .attribute-count {
+        font-size: 12px;
+        color: var(--text-muted);
+    }
+    
+    .attribute-actions {
+        display: flex;
+        gap: 4px;
+    }
+    
+    .attribute-values {
+        padding: 12px 16px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+    }
+    
+    .value-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: var(--card-bg);
+        border: 1px solid var(--card-border);
+        padding: 6px 10px;
+        border-radius: 20px;
+        font-size: 13px;
+        color: var(--text-primary);
+        transition: all 0.2s;
+    }
+    
+    .value-chip:hover {
+        border-color: var(--primary);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    
+    .value-chip .color-dot {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        border: 1px solid rgba(0,0,0,0.1);
+        flex-shrink: 0;
+    }
+    
+    .value-chip .value-text {
+        font-weight: 500;
+    }
+    
+    .value-chip .value-edit,
+    .value-chip .value-delete {
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 0;
+        margin-left: 2px;
+        opacity: 0;
+        transition: opacity 0.2s;
+    }
+    
+    .value-chip:hover .value-edit,
+    .value-chip:hover .value-delete {
+        opacity: 1;
+    }
+    
+    .value-chip .value-edit {
+        color: var(--text-muted);
+    }
+    
+    .value-chip .value-edit:hover {
+        color: var(--primary);
+    }
+    
+    .value-chip .value-edit svg {
+        width: 12px;
+        height: 12px;
+    }
+    
+    .value-chip .value-delete {
+        font-size: 16px;
+        color: var(--text-muted);
+        line-height: 1;
+    }
+    
+    .value-chip .value-delete:hover {
+        color: #ef4444;
+    }
+    
+    .add-value-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        background: transparent;
+        border: 1px dashed var(--card-border);
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        color: var(--text-muted);
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .add-value-btn:hover {
+        border-color: var(--primary);
+        color: var(--primary);
+        background: rgba(59, 130, 246, 0.05);
+    }
+    
+    .add-value-btn svg {
+        width: 14px;
+        height: 14px;
+    }
 </style>
 
 <div style="padding: 20px;">
@@ -559,6 +727,12 @@
                 <path stroke-linecap="round" stroke-linejoin="round" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"/>
             </svg>
             Units
+        </button>
+        <button class="tab-btn" onclick="showTab('attributes')">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/>
+            </svg>
+            Attributes
         </button>
     </div>
 
@@ -745,6 +919,171 @@
                 @endif
             </div>
         </div>
+    </div>
+</div>
+
+<!-- Attributes Tab -->
+<div id="tab-attributes" class="tab-content">
+    <div class="settings-card">
+        <div class="settings-card-header">
+            <h3 class="settings-card-title">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/>
+                </svg>
+                Product Attributes (Color, Size, etc.)
+            </h3>
+            <button class="btn btn-primary btn-sm" onclick="openAttributeModal()">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+                </svg>
+                Add Attribute
+            </button>
+        </div>
+        <div class="settings-card-body">
+            <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 20px;">
+                Create attributes like "Color" or "Size", then add values like "Red", "Blue", "S", "M", "L". These can be used to create product variations.
+            </p>
+            
+            @if(isset($attributes) && $attributes->count() > 0)
+                <div class="attributes-list">
+                    @foreach($attributes as $attribute)
+                        <div class="attribute-card" id="attr-card-{{ $attribute->id }}">
+                            <div class="attribute-header">
+                                <div class="attribute-info">
+                                    <span class="attribute-name">{{ $attribute->name }}</span>
+                                    <span class="attribute-type {{ $attribute->type }}">{{ ucfirst($attribute->type) }}</span>
+                                    <span class="attribute-count">{{ $attribute->values->count() }} values</span>
+                                </div>
+                                <div class="attribute-actions">
+                                    <button class="btn btn-ghost btn-sm" onclick="editAttribute({{ $attribute->id }}, '{{ $attribute->name }}', '{{ $attribute->type }}', {{ $attribute->sort_order ?? 0 }})">
+                                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                        </svg>
+                                    </button>
+                                    <button class="btn btn-danger btn-sm" onclick="deleteAttribute({{ $attribute->id }})">
+                                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="attribute-values" id="attr-values-{{ $attribute->id }}">
+                                @foreach($attribute->values as $value)
+                                    <div class="value-chip" id="value-chip-{{ $value->id }}">
+                                        @if($attribute->type == 'color' && $value->color_code)
+                                            <span class="color-dot" style="background: {{ $value->color_code }};"></span>
+                                        @endif
+                                        <span class="value-text">{{ $value->value }}</span>
+                                        <button class="value-edit" onclick="editAttributeValue({{ $value->id }}, {{ $attribute->id }}, '{{ $value->value }}', '{{ $value->color_code }}')">
+                                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+                                            </svg>
+                                        </button>
+                                        <button class="value-delete" onclick="deleteAttributeValue({{ $value->id }})">×</button>
+                                    </div>
+                                @endforeach
+                                <button class="add-value-btn" onclick="openValueModal({{ $attribute->id }}, '{{ $attribute->name }}', '{{ $attribute->type }}')">
+                                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+                                    </svg>
+                                    Add {{ $attribute->name }}
+                                </button>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            @else
+                <div class="empty-state">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/>
+                    </svg>
+                    <p>No attributes yet. Create attributes like "Color" or "Size" to enable product variations.</p>
+                    <button class="btn btn-primary" onclick="openAttributeModal()" style="margin-top: 12px;">
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+                        </svg>
+                        Create First Attribute
+                    </button>
+                </div>
+            @endif
+        </div>
+    </div>
+</div>
+
+<!-- Attribute Modal -->
+<div id="attributeModal" class="modal-overlay">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 class="modal-title" id="attributeModalTitle">Add Attribute</h3>
+            <button class="modal-close" onclick="closeAttributeModal()">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        <form id="attributeForm" onsubmit="saveAttribute(event)">
+            <div class="modal-body">
+                <input type="hidden" id="attributeId" value="">
+                <div class="form-group">
+                    <label class="form-label">Attribute Name <span class="required">*</span></label>
+                    <input type="text" id="attributeName" class="form-control" placeholder="e.g., Color, Size, Material" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Type <span class="required">*</span></label>
+                    <select id="attributeType" class="form-control" required>
+                        <option value="select">Select (Dropdown)</option>
+                        <option value="color">Color (with color picker)</option>
+                        <option value="text">Text</option>
+                    </select>
+                    <div class="form-help">Color type shows color swatches, Select shows dropdown options</div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Sort Order</label>
+                    <input type="number" id="attributeSortOrder" class="form-control" min="0" value="0">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeAttributeModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Attribute</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Attribute Value Modal -->
+<div id="valueModal" class="modal-overlay">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 class="modal-title" id="valueModalTitle">Add Value</h3>
+            <button class="modal-close" onclick="closeValueModal()">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        <form id="valueForm" onsubmit="saveAttributeValue(event)">
+            <div class="modal-body">
+                <input type="hidden" id="valueId" value="">
+                <input type="hidden" id="valueAttributeId" value="">
+                <input type="hidden" id="valueAttributeType" value="">
+                <div class="form-group">
+                    <label class="form-label">Value <span class="required">*</span></label>
+                    <input type="text" id="valueName" class="form-control" placeholder="e.g., Red, Large, Cotton" required>
+                </div>
+                <div class="form-group" id="colorPickerGroup" style="display: none;">
+                    <label class="form-label">Color Code</label>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <input type="color" id="valueColorPicker" value="#3b82f6" style="width: 50px; height: 40px; border: none; cursor: pointer;">
+                        <input type="text" id="valueColorCode" class="form-control" placeholder="#3b82f6" style="flex: 1;">
+                    </div>
+                    <div class="form-help">Click the color box to pick a color</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeValueModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Value</button>
+            </div>
+        </form>
     </div>
 </div>
 
@@ -1129,5 +1468,178 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => {
         }
     });
 });
+
+// ==================== ATTRIBUTES ====================
+
+// Attribute Modal
+function openAttributeModal() {
+    document.getElementById('attributeModalTitle').textContent = 'Add Attribute';
+    document.getElementById('attributeId').value = '';
+    document.getElementById('attributeName').value = '';
+    document.getElementById('attributeType').value = 'select';
+    document.getElementById('attributeSortOrder').value = '0';
+    document.getElementById('attributeModal').classList.add('show');
+}
+
+function editAttribute(id, name, type, sortOrder) {
+    document.getElementById('attributeModalTitle').textContent = 'Edit Attribute';
+    document.getElementById('attributeId').value = id;
+    document.getElementById('attributeName').value = name;
+    document.getElementById('attributeType').value = type;
+    document.getElementById('attributeSortOrder').value = sortOrder || 0;
+    document.getElementById('attributeModal').classList.add('show');
+}
+
+function closeAttributeModal() {
+    document.getElementById('attributeModal').classList.remove('show');
+}
+
+function saveAttribute(e) {
+    e.preventDefault();
+    let id = document.getElementById('attributeId').value;
+    let data = {
+        name: document.getElementById('attributeName').value,
+        type: document.getElementById('attributeType').value,
+        sort_order: document.getElementById('attributeSortOrder').value,
+        _token: '{{ csrf_token() }}'
+    };
+    
+    let url = id ? '{{ url("admin/inventory/settings/attributes") }}/' + id : '{{ route("inventory.settings.attributes.store") }}';
+    let method = id ? 'PUT' : 'POST';
+    
+    fetch(url, {
+        method: method,
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            location.reload();
+        } else {
+            alert(result.message || 'Error saving attribute');
+        }
+    })
+    .catch(error => alert('Error: ' + error));
+}
+
+function deleteAttribute(id) {
+    if (!confirm('Are you sure you want to delete this attribute and all its values?')) return;
+    
+    fetch('{{ url("admin/inventory/settings/attributes") }}/' + id, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            location.reload();
+        } else {
+            alert(result.message || 'Error deleting attribute');
+        }
+    })
+    .catch(error => alert('Error: ' + error));
+}
+
+// ==================== ATTRIBUTE VALUES ====================
+
+function openValueModal(attributeId, attributeName, attributeType) {
+    document.getElementById('valueModalTitle').textContent = 'Add ' + attributeName + ' Value';
+    document.getElementById('valueId').value = '';
+    document.getElementById('valueAttributeId').value = attributeId;
+    document.getElementById('valueAttributeType').value = attributeType;
+    document.getElementById('valueName').value = '';
+    document.getElementById('valueColorCode').value = '';
+    document.getElementById('valueColorPicker').value = '#3b82f6';
+    
+    // Show/hide color picker based on type
+    document.getElementById('colorPickerGroup').style.display = (attributeType === 'color') ? 'block' : 'none';
+    
+    document.getElementById('valueModal').classList.add('show');
+}
+
+function editAttributeValue(valueId, attributeId, value, colorCode) {
+    document.getElementById('valueModalTitle').textContent = 'Edit Value';
+    document.getElementById('valueId').value = valueId;
+    document.getElementById('valueAttributeId').value = attributeId;
+    document.getElementById('valueName').value = value;
+    document.getElementById('valueColorCode').value = colorCode || '';
+    
+    if (colorCode) {
+        document.getElementById('valueColorPicker').value = colorCode;
+        document.getElementById('colorPickerGroup').style.display = 'block';
+    }
+    
+    document.getElementById('valueModal').classList.add('show');
+}
+
+function closeValueModal() {
+    document.getElementById('valueModal').classList.remove('show');
+}
+
+// Color picker sync
+document.getElementById('valueColorPicker').addEventListener('input', function() {
+    document.getElementById('valueColorCode').value = this.value;
+});
+
+document.getElementById('valueColorCode').addEventListener('input', function() {
+    if (/^#[0-9A-Fa-f]{6}$/.test(this.value)) {
+        document.getElementById('valueColorPicker').value = this.value;
+    }
+});
+
+function saveAttributeValue(e) {
+    e.preventDefault();
+    let id = document.getElementById('valueId').value;
+    let attributeType = document.getElementById('valueAttributeType').value;
+    
+    let data = {
+        attribute_id: document.getElementById('valueAttributeId').value,
+        value: document.getElementById('valueName').value,
+        _token: '{{ csrf_token() }}'
+    };
+    
+    // Include color code if it's a color attribute
+    if (attributeType === 'color' || document.getElementById('valueColorCode').value) {
+        data.color_code = document.getElementById('valueColorCode').value;
+    }
+    
+    let url = id 
+        ? '{{ url("admin/inventory/settings/attribute-values") }}/' + id 
+        : '{{ route("inventory.settings.attribute-values.store") }}';
+    let method = id ? 'PUT' : 'POST';
+    
+    fetch(url, {
+        method: method,
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            location.reload();
+        } else {
+            alert(result.message || 'Error saving value');
+        }
+    })
+    .catch(error => alert('Error: ' + error));
+}
+
+function deleteAttributeValue(id) {
+    if (!confirm('Delete this value?')) return;
+    
+    fetch('{{ url("admin/inventory/settings/attribute-values") }}/' + id, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            location.reload();
+        } else {
+            alert(result.message || 'Error deleting value');
+        }
+    })
+    .catch(error => alert('Error: ' + error));
+}
 </script>
-</x-layouts.app>

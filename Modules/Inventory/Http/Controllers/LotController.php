@@ -16,13 +16,15 @@ class LotController extends BaseController
     
     protected $model = Lot::class;
     
-    protected $with = ['product.images', 'product.unit', 'stockLevels'];
+    protected $with = ['product.images', 'product.unit', 'variation', 'stockLevels'];
     
     protected $searchable = [
         'lot_no',
         'batch_no',
         'product.name',
         'product.sku',
+        'variation.sku',
+        'variation.variation_name',
     ];
     
     protected $sortable = [
@@ -40,6 +42,7 @@ class LotController extends BaseController
     
     protected $filterable = [
         'product_id',
+        'variation_id',
         'status',
     ];
     
@@ -433,6 +436,9 @@ class LotController extends BaseController
             'product_name' => $item->product?->name ?? '-',
             'product_sku' => $item->product?->sku ?? '-',
             'product_image' => $primaryImage ? asset('storage/' . $primaryImage->image_path) : null,
+            'variation_id' => $item->variation_id,
+            'variation_name' => $item->variation?->variation_name ?? null,
+            'variation_sku' => $item->variation?->sku ?? null,
             'initial_qty' => $item->initial_qty ? number_format($item->initial_qty, 2) : '-',
             'current_stock' => number_format($currentStock, 2),
             'current_stock_raw' => $currentStock,
@@ -514,7 +520,9 @@ class LotController extends BaseController
     
     public function create()
     {
-        $products = Product::with('images', 'unit')
+        $products = Product::with(['images', 'unit', 'variations' => function($q) {
+                $q->where('is_active', true);
+            }])
             ->where('is_active', true)
             ->where('is_batch_managed', true)
             ->orderBy('name')
@@ -529,6 +537,7 @@ class LotController extends BaseController
     {
         $validated = $request->validate([
             'product_id' => 'required|exists:products,id',
+            'variation_id' => 'nullable|exists:product_variations,id',
             'lot_no' => 'required|string|max:100',
             'batch_no' => 'nullable|string|max:100',
             'initial_qty' => 'nullable|numeric|min:0',
@@ -540,13 +549,18 @@ class LotController extends BaseController
             'notes' => 'nullable|string|max:1000',
         ]);
         
+        // Check lot uniqueness per product + variation combo
         $exists = Lot::where('product_id', $validated['product_id'])
             ->where('lot_no', $validated['lot_no'])
+            ->when($validated['variation_id'] ?? null, 
+                fn($q, $vid) => $q->where('variation_id', $vid),
+                fn($q) => $q->whereNull('variation_id')
+            )
             ->exists();
             
         if ($exists) {
             return back()
-                ->with('error', 'This lot number already exists for the selected product.')
+                ->with('error', 'This lot number already exists for the selected product/variation.')
                 ->withInput();
         }
         
@@ -587,9 +601,11 @@ class LotController extends BaseController
     
     public function edit($id)
     {
-        $lot = Lot::with(['product.images', 'product.unit'])->findOrFail($id);
+        $lot = Lot::with(['product.images', 'product.unit', 'product.variations', 'variation'])->findOrFail($id);
         
-        $products = Product::with('unit')
+        $products = Product::with(['unit', 'variations' => function($q) {
+                $q->where('is_active', true);
+            }])
             ->where('is_active', true)
             ->where('is_batch_managed', true)
             ->orderBy('name')
@@ -605,6 +621,7 @@ class LotController extends BaseController
         $lot = Lot::findOrFail($id);
         
         $validated = $request->validate([
+            'variation_id' => 'nullable|exists:product_variations,id',
             'lot_no' => 'required|string|max:100',
             'batch_no' => 'nullable|string|max:100',
             'initial_qty' => 'nullable|numeric|min:0',
@@ -616,14 +633,19 @@ class LotController extends BaseController
             'notes' => 'nullable|string|max:1000',
         ]);
         
+        // Check lot uniqueness per product + variation combo
         $exists = Lot::where('product_id', $lot->product_id)
             ->where('lot_no', $validated['lot_no'])
             ->where('id', '!=', $id)
+            ->when($validated['variation_id'] ?? null, 
+                fn($q, $vid) => $q->where('variation_id', $vid),
+                fn($q) => $q->whereNull('variation_id')
+            )
             ->exists();
             
         if ($exists) {
             return back()
-                ->with('error', 'This lot number already exists for this product.')
+                ->with('error', 'This lot number already exists for this product/variation.')
                 ->withInput();
         }
         
@@ -714,7 +736,7 @@ class LotController extends BaseController
 
     // ==================== AJAX: LOTS BY PRODUCT ====================
 
-    public function byProduct($productId)
+    public function byProduct($productId, Request $request)
     {
         $product = Product::with('unit')->find($productId);
         
@@ -722,22 +744,35 @@ class LotController extends BaseController
             return response()->json([]);
         }
         
+        $variationId = $request->get('variation_id');
         $unitName = $product->unit?->short_name ?? 'PCS';
         
-        $lots = Lot::with('stockLevels')
+        $query = Lot::with(['stockLevels', 'variation'])
             ->where('product_id', $productId)
-            ->where('status', 'ACTIVE')
-            ->orderBy('expiry_date', 'asc')
+            ->where('status', 'ACTIVE');
+        
+        // Filter by variation if provided, or show lots without variation
+        if ($variationId) {
+            $query->where('variation_id', $variationId);
+        }
+        
+        $lots = $query->orderBy('expiry_date', 'asc')
             ->orderBy('created_at', 'asc')
             ->get()
             ->map(function ($lot) use ($unitName) {
                 $currentStock = $lot->stockLevels ? $lot->stockLevels->sum('qty') : 0;
+                $displayName = $lot->lot_no . ($lot->batch_no ? ' / ' . $lot->batch_no : '');
+                if ($lot->variation) {
+                    $displayName .= ' [' . ($lot->variation->variation_name ?? $lot->variation->sku) . ']';
+                }
                 
                 return [
                     'id' => $lot->id,
                     'lot_no' => $lot->lot_no,
                     'batch_no' => $lot->batch_no,
-                    'display_name' => $lot->lot_no . ($lot->batch_no ? ' / ' . $lot->batch_no : ''),
+                    'variation_id' => $lot->variation_id,
+                    'variation_name' => $lot->variation?->variation_name ?? $lot->variation?->sku,
+                    'display_name' => $displayName,
                     'expiry_date' => $lot->expiry_date?->format('Y-m-d'),
                     'expiry_display' => $lot->expiry_date?->format('d M Y'),
                     'current_stock' => $currentStock,
@@ -756,6 +791,7 @@ class LotController extends BaseController
     {
         $warehouseId = $request->get('warehouse_id');
         $rackId = $request->get('rack_id');
+        $variationId = $request->get('variation_id');
         
         $product = Product::with('unit')->find($productId);
         
@@ -765,37 +801,54 @@ class LotController extends BaseController
         
         $unitName = $product->unit?->short_name ?? 'PCS';
         
-        $query = Lot::with('stockLevels')
+        $query = Lot::with(['stockLevels', 'variation'])
             ->where('product_id', $productId)
             ->where('status', 'ACTIVE');
         
+        // Filter by variation if provided
+        if ($variationId) {
+            $query->where('variation_id', $variationId);
+        }
+        
         if ($warehouseId) {
-            $query->whereHas('stockLevels', function ($q) use ($warehouseId, $rackId) {
+            $query->whereHas('stockLevels', function ($q) use ($warehouseId, $rackId, $variationId) {
                 $q->where('warehouse_id', $warehouseId)->where('qty', '>', 0);
                 if ($rackId) $q->where('rack_id', $rackId);
+                if ($variationId) $q->where('variation_id', $variationId);
             });
         }
         
         $lots = $query->orderBy('expiry_date', 'asc')
             ->orderBy('created_at', 'asc')
             ->get()
-            ->map(function ($lot) use ($unitName, $warehouseId, $rackId) {
+            ->map(function ($lot) use ($unitName, $warehouseId, $rackId, $variationId) {
                 $stock = 0;
                 if ($lot->stockLevels) {
+                    $filtered = $lot->stockLevels;
                     if ($warehouseId) {
-                        $filtered = $lot->stockLevels->where('warehouse_id', $warehouseId);
-                        if ($rackId) $filtered = $filtered->where('rack_id', $rackId);
-                        $stock = $filtered->sum('qty');
-                    } else {
-                        $stock = $lot->stockLevels->sum('qty');
+                        $filtered = $filtered->where('warehouse_id', $warehouseId);
                     }
+                    if ($rackId) {
+                        $filtered = $filtered->where('rack_id', $rackId);
+                    }
+                    if ($variationId) {
+                        $filtered = $filtered->where('variation_id', $variationId);
+                    }
+                    $stock = $filtered->sum('qty');
+                }
+                
+                $displayName = $lot->lot_no . ($lot->batch_no ? ' / ' . $lot->batch_no : '');
+                if ($lot->variation) {
+                    $displayName .= ' [' . ($lot->variation->variation_name ?? $lot->variation->sku) . ']';
                 }
                 
                 return [
                     'id' => $lot->id,
                     'lot_no' => $lot->lot_no,
                     'batch_no' => $lot->batch_no,
-                    'display_name' => $lot->lot_no . ($lot->batch_no ? ' / ' . $lot->batch_no : ''),
+                    'variation_id' => $lot->variation_id,
+                    'variation_name' => $lot->variation?->variation_name ?? $lot->variation?->sku,
+                    'display_name' => $displayName,
                     'expiry_date' => $lot->expiry_date?->format('Y-m-d'),
                     'stock' => $stock,
                     'stock_display' => number_format($stock, 2) . ' ' . $unitName,
@@ -813,15 +866,25 @@ class LotController extends BaseController
     {
         $lotNo = $request->get('lot_no');
         $productId = $request->get('product_id');
+        $variationId = $request->get('variation_id');
         $excludeId = $request->get('exclude_id');
         
         if (!$lotNo) return response()->json(['exists' => false]);
         
         $query = Lot::where('lot_no', $lotNo);
         if ($productId) $query->where('product_id', $productId);
+        
+        // Check variation: if variation_id is provided, check that specific variation
+        // If not provided, check for lots without variation
+        if ($variationId) {
+            $query->where('variation_id', $variationId);
+        } else {
+            $query->whereNull('variation_id');
+        }
+        
         if ($excludeId) $query->where('id', '!=', $excludeId);
         
-        $existing = $query->with('product')->first();
+        $existing = $query->with(['product', 'variation'])->first();
         
         if ($existing) {
             return response()->json([
@@ -829,6 +892,7 @@ class LotController extends BaseController
                 'lot_id' => $existing->id,
                 'lot_no' => $existing->lot_no,
                 'product_name' => $existing->product?->name,
+                'variation_name' => $existing->variation?->variation_name ?? $existing->variation?->sku,
                 'status' => $existing->status,
             ]);
         }

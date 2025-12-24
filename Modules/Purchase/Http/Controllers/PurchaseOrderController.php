@@ -37,7 +37,7 @@ class PurchaseOrderController extends AdminController
             'received' => PurchaseOrder::whereIn('status', ['PARTIALLY_RECEIVED', 'RECEIVED'])->count(),
         ];
         
-        return $this->moduleView('purchase::purchase-order.index', compact('stats'));
+        return view('purchase::purchase-order.index', compact('stats'));
     }
 
     /**
@@ -128,20 +128,23 @@ class PurchaseOrderController extends AdminController
             ];
         }
         
+        // Load products with variations
         if (class_exists('\Modules\Inventory\Models\Product')) {
-            $products = \Modules\Inventory\Models\Product::with('unit')
+            $products = \Modules\Inventory\Models\Product::with(['unit', 'variations' => function($q) {
+                    $q->where('is_active', true);
+                }])
                 ->where('is_active', true)
                 ->orderBy('name')
-                ->get(['id', 'name', 'sku', 'unit_id', 'sale_price', 'mrp', 'purchase_price', 'tax_1_id', 'tax_2_id']);
+                ->get(['id', 'name', 'sku', 'unit_id', 'sale_price', 'mrp', 'purchase_price', 'tax_1_id', 'tax_2_id', 'has_variants']);
         }
         
         $taxes = $this->getTaxesLookup();
 
         if ($prId = $request->query('pr_id')) {
-            $pr = PurchaseRequest::with(['items.product.unit'])->find($prId);
+            $pr = PurchaseRequest::with(['items.product.unit', 'items.variation'])->find($prId);
         }
         
-        return $this->moduleView('purchase::purchase-order.create', compact('poNumber', 'vendors', 'products', 'taxes', 'pr', 'defaultTerms', 'companyAddress'));
+        return view('purchase::purchase-order.create', compact('poNumber', 'vendors', 'products', 'taxes', 'pr', 'defaultTerms', 'companyAddress'));
     }
 
     public function store(Request $request)
@@ -168,6 +171,7 @@ class PurchaseOrderController extends AdminController
             'items.*.tax_1_id' => 'nullable|integer',
             'items.*.tax_2_id' => 'nullable|integer',
             'items.*.discount_percent' => 'nullable|numeric|min:0|max:100',
+            'items.*.variation_id' => 'nullable|integer',
             'items.*.pr_item_id' => 'nullable|integer',
         ]);
 
@@ -217,6 +221,7 @@ class PurchaseOrderController extends AdminController
                     'purchase_order_id' => $po->id,
                     'purchase_request_item_id' => $item['pr_item_id'] ?? null,
                     'product_id' => $item['product_id'],
+                    'variation_id' => !empty($item['variation_id']) ? $item['variation_id'] : null,
                     'unit_id' => $item['unit_id'] ?? null,
                     'qty' => $qty,
                     'rate' => $rate,
@@ -251,13 +256,13 @@ class PurchaseOrderController extends AdminController
 
     public function show($id)
     {
-        $po = PurchaseOrder::with(['items.product', 'items.unit', 'vendor', 'purchaseRequest', 'creator'])->findOrFail($id);
-        return $this->moduleView('purchase::purchase-order.show', compact('po'));
+        $po = PurchaseOrder::with(['items.product', 'items.variation', 'items.unit', 'vendor', 'purchaseRequest', 'creator'])->findOrFail($id);
+        return view('purchase::purchase-order.show', compact('po'));
     }
 
     public function edit($id)
     {
-        $po = PurchaseOrder::with(['items.product', 'items.unit'])->findOrFail($id);
+        $po = PurchaseOrder::with(['items.product', 'items.variation', 'items.unit'])->findOrFail($id);
         
         if (!$po->canEdit()) {
             return redirect()->route('admin.purchase.orders.show', $id)->with('error', 'Cannot edit this PO.');
@@ -266,16 +271,19 @@ class PurchaseOrderController extends AdminController
         $vendors = Vendor::where('status', 'ACTIVE')->orderBy('name')->get(['id', 'name', 'vendor_code']);
         $products = collect();
         
+        // Load products with variations
         if (class_exists('\Modules\Inventory\Models\Product')) {
-            $products = \Modules\Inventory\Models\Product::with('unit')
+            $products = \Modules\Inventory\Models\Product::with(['unit', 'variations' => function($q) {
+                    $q->where('is_active', true);
+                }])
                 ->where('is_active', true)
                 ->orderBy('name')
-                ->get(['id', 'name', 'sku', 'unit_id', 'sale_price', 'mrp', 'purchase_price', 'tax_1_id', 'tax_2_id']);
+                ->get(['id', 'name', 'sku', 'unit_id', 'sale_price', 'mrp', 'purchase_price', 'tax_1_id', 'tax_2_id', 'has_variants']);
         }
         
         $taxes = $this->getTaxesLookup();
         
-        return $this->moduleView('purchase::purchase-order.edit', compact('po', 'vendors', 'products', 'taxes'));
+        return view('purchase::purchase-order.edit', compact('po', 'vendors', 'products', 'taxes'));
     }
 
     public function update(Request $request, $id)
@@ -307,6 +315,7 @@ class PurchaseOrderController extends AdminController
             'items.*.tax_1_id' => 'nullable|integer',
             'items.*.tax_2_id' => 'nullable|integer',
             'items.*.discount_percent' => 'nullable|numeric|min:0|max:100',
+            'items.*.variation_id' => 'nullable|integer',
         ]);
 
         $taxesLookup = $this->getTaxesLookup();
@@ -352,6 +361,7 @@ class PurchaseOrderController extends AdminController
                 PurchaseOrderItem::create([
                     'purchase_order_id' => $po->id,
                     'product_id' => $item['product_id'],
+                    'variation_id' => !empty($item['variation_id']) ? $item['variation_id'] : null,
                     'unit_id' => $item['unit_id'] ?? null,
                     'qty' => $qty,
                     'rate' => $rate,
@@ -614,31 +624,20 @@ class PurchaseOrderController extends AdminController
         $pdf = Pdf::loadView('purchase::purchase-order.pdf', compact('po', 'settings', 'company'));
         $pdfContent = $pdf->output();
         
-        // Get mail settings from Options (database)
-        if (class_exists('\App\Models\Option')) {
-            $mailConfig = [
-                'driver' => \App\Models\Option::get('mail_mailer', 'smtp'),
-                'host' => \App\Models\Option::get('mail_host', ''),
-                'port' => \App\Models\Option::get('mail_port', 587),
-                'username' => \App\Models\Option::get('mail_username', ''),
-                'password' => \App\Models\Option::get('mail_password', ''),
-                'encryption' => \App\Models\Option::get('mail_encryption', 'tls'),
-                'from_address' => \App\Models\Option::get('mail_from_address', ''),
-                'from_name' => \App\Models\Option::get('mail_from_name', ''),
-            ];
-            
-            // Set runtime mail config
-            config([
-                'mail.default' => $mailConfig['driver'],
-                'mail.mailers.smtp.host' => $mailConfig['host'],
-                'mail.mailers.smtp.port' => $mailConfig['port'],
-                'mail.mailers.smtp.username' => $mailConfig['username'],
-                'mail.mailers.smtp.password' => $mailConfig['password'],
-                'mail.mailers.smtp.encryption' => $mailConfig['encryption'],
-                'mail.from.address' => $mailConfig['from_address'],
-                'mail.from.name' => $mailConfig['from_name'],
-            ]);
-        }
+        // Get mail settings using Option model (has proper decryption)
+        $mailConfig = \App\Models\Option::mailConfig();
+        
+        // Set runtime mail config
+        config([
+            'mail.default' => $mailConfig['mailer'] ?? 'smtp',
+            'mail.mailers.smtp.host' => $mailConfig['host'],
+            'mail.mailers.smtp.port' => $mailConfig['port'],
+            'mail.mailers.smtp.username' => $mailConfig['username'],
+            'mail.mailers.smtp.password' => $mailConfig['password'],
+            'mail.mailers.smtp.encryption' => $mailConfig['encryption'],
+            'mail.from.address' => $mailConfig['from_address'],
+            'mail.from.name' => $mailConfig['from_name'],
+        ]);
         
         try {
             $vendorEmail = $po->vendor->email;
@@ -693,10 +692,14 @@ class PurchaseOrderController extends AdminController
         
         $itemsHtml = '';
         foreach ($po->items as $i => $item) {
+            $productName = $item->product->name ?? $item->description ?? 'N/A';
+            if ($item->variation) {
+                $productName .= ' - ' . ($item->variation->variation_name ?: $item->variation->sku ?: '');
+            }
             $itemsHtml .= "
             <tr>
                 <td style='padding:8px;border:1px solid #ddd;'>" . ($i + 1) . "</td>
-                <td style='padding:8px;border:1px solid #ddd;'>" . ($item->product->name ?? $item->description ?? 'N/A') . "</td>
+                <td style='padding:8px;border:1px solid #ddd;'>" . htmlspecialchars($productName) . "</td>
                 <td style='padding:8px;border:1px solid #ddd;text-align:center;'>" . ($item->unit->short_name ?? '-') . "</td>
                 <td style='padding:8px;border:1px solid #ddd;text-align:right;'>" . number_format($item->qty, 2) . "</td>
                 <td style='padding:8px;border:1px solid #ddd;text-align:right;'>₹" . number_format($item->rate, 2) . "</td>
@@ -788,5 +791,71 @@ class PurchaseOrderController extends AdminController
             </div>
         </body>
         </html>";
+    }
+
+    /**
+     * Search products for Select2 dropdown
+     */
+    public function searchProducts(Request $request)
+    {
+        $term = $request->get('q', '');
+        $results = [];
+
+        $products = \DB::table('products')
+            ->where('is_active', 1)
+            ->where('can_be_purchased', 1)
+            ->where(function($q) use ($term) {
+                $q->where('name', 'like', "%{$term}%")
+                  ->orWhere('sku', 'like', "%{$term}%")
+                  ->orWhere('barcode', 'like', "%{$term}%");
+            })
+            ->limit(20)
+            ->get();
+
+        foreach ($products as $product) {
+            $unit = $product->unit_id ? \DB::table('units')->find($product->unit_id) : null;
+            $image = \DB::table('product_images')->where('product_id', $product->id)->orderByDesc('is_primary')->first();
+            
+            // Add main product
+            $results[] = [
+                'id' => $product->id,
+                'text' => ($product->sku ? $product->sku . ' - ' : '') . $product->name,
+                'sku' => $product->sku,
+                'variation_id' => null,
+                'variation_name' => null,
+                'unit_id' => $product->unit_id,
+                'unit_name' => $unit ? ($unit->short_name ?? $unit->name) : '-',
+                'price' => $product->purchase_price ?? $product->sale_price ?? 0,
+                'tax_1_id' => $product->tax_1_id,
+                'tax_2_id' => $product->tax_2_id,
+                'image' => $image ? asset('storage/' . $image->image_path) : null,
+            ];
+
+            // Add variations if product has variants
+            if ($product->has_variants) {
+                $variations = \DB::table('product_variations')
+                    ->where('product_id', $product->id)
+                    ->where('is_active', 1)
+                    ->get();
+
+                foreach ($variations as $var) {
+                    $results[] = [
+                        'id' => $product->id,
+                        'text' => ($product->sku ? $product->sku . ' - ' : '') . $product->name,
+                        'sku' => $var->sku ?? $product->sku,
+                        'variation_id' => $var->id,
+                        'variation_name' => $var->variation_name ?? $var->sku,
+                        'unit_id' => $product->unit_id,
+                        'unit_name' => $unit ? ($unit->short_name ?? $unit->name) : '-',
+                        'price' => $var->purchase_price ?? $product->purchase_price ?? $product->sale_price ?? 0,
+                        'tax_1_id' => $product->tax_1_id,
+                        'tax_2_id' => $product->tax_2_id,
+                        'image' => $var->image_path ? asset('storage/' . $var->image_path) : ($image ? asset('storage/' . $image->image_path) : null),
+                    ];
+                }
+            }
+        }
+
+        return response()->json($results);
     }
 }

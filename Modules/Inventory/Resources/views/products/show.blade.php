@@ -1,4 +1,5 @@
-<x-layouts.app>
+
+
 <style>
     .product-container {
         padding: 20px;
@@ -442,6 +443,24 @@
     }
     .var-price { font-weight: 600; color: #059669; }
     .var-stock { color: var(--text-muted); }
+    .var-barcode { 
+        font-family: 'Courier New', monospace; 
+        font-size: 11px; 
+        color: var(--text-muted); 
+        margin: 6px 0;
+        padding: 4px 8px;
+        background: var(--body-bg);
+        border-radius: 4px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .var-barcode.no-barcode { 
+        font-style: italic; 
+        color: #9ca3af;
+        background: transparent;
+        padding: 4px 0;
+    }
 
     /* Quick Actions Sidebar */
     .action-btn {
@@ -550,8 +569,9 @@
     
     // Group stock by warehouse with details
     $stockDetails = $product->stockLevels()
-        ->with(['warehouse', 'rack', 'lot', 'unit'])
+        ->with(['warehouse', 'rack', 'lot', 'unit', 'variation.attributeValues.attribute'])
         ->where('qty', '>', 0)
+        ->orderBy('variation_id')
         ->orderBy('warehouse_id')
         ->get();
 @endphp
@@ -804,13 +824,16 @@
             <!-- Stock by Location -->
             <div class="card">
                 <div class="card-header">
-                    <h3 class="card-title">🏭 Stock by Location <span class="count">{{ $stockDetails->count() }} locations</span></h3>
+                    <h3 class="card-title">🏭 Stock by Location <span class="count">{{ $stockDetails->count() }} entries</span></h3>
                 </div>
                 <div class="card-body no-pad">
                     @if($stockDetails->count() > 0)
                     <table class="stock-table">
                         <thead>
                             <tr>
+                                @if($product->has_variants)
+                                <th>Variation</th>
+                                @endif
                                 <th>Location</th>
                                 <th>Lot / Batch</th>
                                 <th style="text-align: right;">Quantity</th>
@@ -820,6 +843,27 @@
                         <tbody>
                             @foreach($stockDetails as $stock)
                             <tr>
+                                @if($product->has_variants)
+                                <td>
+                                    @if($stock->variation)
+                                        <div style="display: flex; gap: 4px; flex-wrap: wrap; align-items: center;">
+                                            @foreach($stock->variation->attributeValues as $av)
+                                                @if($av->attribute && $av->attribute->type === 'color')
+                                                    <span style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; background: var(--body-bg); border: 1px solid var(--card-border); border-radius: 12px; font-size: 11px;">
+                                                        <span style="width: 10px; height: 10px; border-radius: 50%; background: {{ $av->color_code ?? '#ccc' }}; border: 1px solid rgba(0,0,0,0.1);"></span>
+                                                        {{ $av->value }}
+                                                    </span>
+                                                @else
+                                                    <span style="padding: 3px 8px; background: var(--body-bg); border: 1px solid var(--card-border); border-radius: 12px; font-size: 11px;">{{ $av->value }}</span>
+                                                @endif
+                                            @endforeach
+                                        </div>
+                                        <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">{{ $stock->variation->sku }}</div>
+                                    @else
+                                        <span style="color: var(--text-muted);">-</span>
+                                    @endif
+                                </td>
+                                @endif
                                 <td>
                                     <div class="location-cell">
                                         <div class="location-icon">🏭</div>
@@ -860,7 +904,7 @@
                         </tbody>
                         <tfoot style="background: var(--body-bg); font-weight: 600;">
                             <tr>
-                                <td colspan="2">Total</td>
+                                <td colspan="{{ $product->has_variants ? 3 : 2 }}">Total</td>
                                 <td style="text-align: right;">{{ number_format($totalStock, 2) }} {{ $unitName }}</td>
                                 <td style="text-align: right; color: #059669;">₹{{ number_format($stockValue, 2) }}</td>
                             </tr>
@@ -1190,11 +1234,16 @@ function loadVariations() {
                     }).join('');
                 }
                 
+                let barcodeHtml = v.barcode 
+                    ? `<div class="var-barcode" title="${v.barcode}">🔲 ${v.barcode}</div>` 
+                    : `<div class="var-barcode no-barcode">No barcode</div>`;
+                
                 html += `
                 <div class="var-card ${v.is_active ? '' : 'inactive'}">
                     <div class="var-sku">${v.sku}</div>
                     <div class="var-name">${v.variation_name || '-'}</div>
                     ${attrs ? `<div class="var-attrs">${attrs}</div>` : ''}
+                    ${barcodeHtml}
                     <div class="var-footer">
                         <span class="var-price">₹${parseFloat(v.sale_price || 0).toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
                         <span class="var-stock">${v.stock_qty || 0} {{ $unitName }}</span>
@@ -1217,5 +1266,3 @@ document.addEventListener('DOMContentLoaded', loadVariations);
 @endif
 </script>
 @endif
-
-</x-layouts.app>

@@ -1,4 +1,5 @@
-<x-layouts.app>
+
+
 <link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css" rel="stylesheet">
 <style>
     .page-container { padding: 20px; max-width: 800px; margin: 0 auto; }
@@ -94,6 +95,9 @@
     .alert { padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; }
     .alert-success { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
     .alert-error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+    
+    .variation-box { background: #fef3c7; border: 1px solid #fcd34d; border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+    .variation-box .form-group { margin: 0; }
 </style>
 
 <div class="page-container">
@@ -104,6 +108,9 @@
 
     @if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
     @if(session('error'))<div class="alert alert-error">{{ session('error') }}</div>@endif
+
+    {{-- Barcode Scanner --}}
+    @include('inventory::partials.barcode-scanner', ['color' => 'purple'])
 
     <div class="form-card">
         <div class="form-card-header"><h3 class="form-card-title">🔄 Transfer Stock Between Locations</h3></div>
@@ -119,10 +126,21 @@
                         <select name="product_id" id="product_id" required>
                             <option value="">Select product...</option>
                             @foreach($products as $product)
-                                <option value="{{ $product->id }}" data-batch="{{ $product->is_batch_managed ? '1' : '0' }}" data-unit="{{ $product->unit->short_name ?? 'PCS' }}" data-name="{{ $product->name }}" data-sku="{{ $product->sku }}">{{ $product->name }} ({{ $product->sku }})</option>
+                                <option value="{{ $product->id }}" data-batch="{{ $product->is_batch_managed ? '1' : '0' }}" data-unit="{{ $product->unit->short_name ?? 'PCS' }}" data-name="{{ $product->name }}" data-sku="{{ $product->sku }}" data-has-variants="{{ $product->has_variants ? '1' : '0' }}">{{ $product->name }} ({{ $product->sku }})</option>
                             @endforeach
                         </select>
                     </div>
+                    
+                    <!-- Variation Selector -->
+                    <div class="variation-box" id="variationBox" style="display:none;">
+                        <div class="form-group">
+                            <label class="form-label">Variation <span class="required">*</span></label>
+                            <select name="variation_id" id="variation_id">
+                                <option value="">Select variation...</option>
+                            </select>
+                        </div>
+                    </div>
+                    
                     <div class="info-panel" id="infoPanel">
                         <div class="info-header">
                             <div class="info-icon" id="pIcon">P</div>
@@ -186,8 +204,8 @@
 
 <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
 <script>
-var pData={},lots=[],selectedLot=null,baseStock=0;
-var selProduct,selFromWh,selFromRack,selToWh,selToRack,selUnit;
+var pData={},lots=[],selectedLot=null,baseStock=0,variations=[];
+var selProduct,selFromWh,selFromRack,selToWh,selToRack,selUnit,selVariation;
 
 document.addEventListener('DOMContentLoaded',function(){
     selProduct=new TomSelect('#product_id',{plugins:['dropdown_input'],create:false,onChange:onProduct});
@@ -196,28 +214,65 @@ document.addEventListener('DOMContentLoaded',function(){
     selToWh=new TomSelect('#to_warehouse_id',{plugins:['dropdown_input'],create:false,onChange:onToWarehouse});
     selToRack=new TomSelect('#to_rack_id',{plugins:['dropdown_input'],create:false,onChange:validateLocations});
     selUnit=new TomSelect('#unit_id',{plugins:['dropdown_input'],create:false,onChange:updateUnit});
+    selVariation=new TomSelect('#variation_id',{plugins:['dropdown_input'],create:false,onChange:onVariation});
     var w=document.getElementById('from_warehouse_id').value;if(w)loadRacks(w,'from');
 });
 
 function onProduct(v){
     var o=document.querySelector('#product_id option[value="'+v+'"]');
-    if(!o||!v){document.getElementById('infoPanel').classList.remove('show');document.getElementById('lotBox').classList.remove('show');return;}
+    if(!o||!v){document.getElementById('infoPanel').classList.remove('show');document.getElementById('lotBox').classList.remove('show');document.getElementById('variationBox').style.display='none';return;}
     document.getElementById('infoPanel').classList.add('show');
     document.getElementById('pIcon').textContent=o.dataset.name.substring(0,2).toUpperCase();
     document.getElementById('pName').textContent=o.dataset.name;
     document.getElementById('pSku').textContent='SKU: '+o.dataset.sku;
     document.getElementById('pUnit').textContent=o.dataset.unit;
     document.getElementById('lotBadge').innerHTML='';
+    
+    // Handle variations
+    if(o.dataset.hasVariants==='1'){
+        document.getElementById('variationBox').style.display='block';
+        document.getElementById('variation_id').required=true;
+        loadVariations(v);
+    } else {
+        document.getElementById('variationBox').style.display='none';
+        document.getElementById('variation_id').required=false;
+        selVariation.clear();selVariation.clearOptions();
+    }
+    
     if(o.dataset.batch==='1')document.getElementById('lotBox').classList.add('show');else document.getElementById('lotBox').classList.remove('show');
     loadUnits(v);checkStock();
+}
+
+function loadVariations(productId){
+    var wh=document.getElementById('from_warehouse_id').value;
+    fetch('{{ url("admin/inventory/stock/product-variations") }}?product_id='+productId+(wh?'&warehouse_id='+wh:''))
+        .then(r=>r.json()).then(d=>{
+            variations=d.variations||d||[];
+            selVariation.clear();selVariation.clearOptions();
+            selVariation.addOption({value:'',text:'Select variation...'});
+            variations.forEach(v=>{
+                var label=v.variation_name||v.sku;
+                if(v.current_stock!==undefined)label+=' (Stock: '+v.current_stock+')';
+                selVariation.addOption({value:String(v.id),text:label});
+            });
+        });
+}
+
+function onVariation(v){
+    if(!v)return;
+    var variation=variations.find(x=>String(x.id)==String(v));
+    if(variation){
+        document.getElementById('pSku').textContent='SKU: '+variation.sku;
+    }
+    checkStock();
 }
 
 function loadUnits(pid){fetch('{{ url("admin/inventory/stock/product-units") }}?product_id='+pid).then(r=>r.json()).then(d=>{pData=d;selUnit.clear();selUnit.clearOptions();(d.units||[]).forEach(u=>{selUnit.addOption({value:u.id,text:u.name+(u.is_base?' (Base)':u.conversion_factor!=1?' (='+u.conversion_factor+' '+d.base_unit_name+')':'')});});selUnit.setValue(d.base_unit_id);});}
 
 function checkStock(){
-    var p=document.getElementById('product_id').value,w=document.getElementById('from_warehouse_id').value,r=document.getElementById('from_rack_id').value,l=document.getElementById('lot_id').value;
+    var p=document.getElementById('product_id').value,w=document.getElementById('from_warehouse_id').value,r=document.getElementById('from_rack_id').value,l=document.getElementById('lot_id').value,v=document.getElementById('variation_id').value;
     if(!p||!w){document.getElementById('stockDisplay').classList.remove('show');return;}
-    var url='{{ route("inventory.stock.check") }}?product_id='+p+'&warehouse_id='+w;if(r)url+='&rack_id='+r;if(l)url+='&lot_id='+l;
+    var url='{{ route("inventory.stock.check") }}?product_id='+p+'&warehouse_id='+w;if(r)url+='&rack_id='+r;if(l)url+='&lot_id='+l;if(v)url+='&variation_id='+v;
     fetch(url).then(r=>r.json()).then(d=>{
         baseStock=parseFloat(d.base_stock||d.quantity)||0;
         document.getElementById('availStock').textContent=baseStock+' '+(d.base_unit||'PCS');
@@ -272,4 +327,3 @@ function loadRacks(wid,type){var sel=type==='from'?selFromRack:selToRack;sel.cle
 document.getElementById('qty').addEventListener('input',updateUnit);
 document.getElementById('mainForm').addEventListener('submit',function(e){var qty=parseFloat(document.getElementById('qty').value)||0,c=1;if(pData.units){var u=pData.units.find(x=>x.id==document.getElementById('unit_id').value);if(u)c=parseFloat(u.conversion_factor)||1;}if(qty*c>baseStock){e.preventDefault();alert('Insufficient stock!');}});
 </script>
-</x-layouts.app>

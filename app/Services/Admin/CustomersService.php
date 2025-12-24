@@ -35,30 +35,30 @@ class CustomersService
         return [
             'title'       => 'Customers',
             'icon'        => 'users',
-            'route'       => null,
+            'route'       => 'admin.customers.index',
             'permission'  => 'customers.read',
             'section'     => 'core',
             'sort_order'  => 50,
 
             'children' => [
-                [
-                    'title' => 'All Customers',
-                    'route' => 'admin.customers.index',
-                    'icon' => 'list',
-                    'permission' => 'customers.read',
-                ],
-                [
-                    'title' => 'Create Customer',
-                    'route' => 'admin.customers.create',
-                    'icon' => 'plus',
-                    'permission' => 'customers.create',
-                ],
-                [
-                    'title' => 'Customer Groups',
-                    'route' => 'admin.customer-groups.index',
-                    'icon' => 'folder',
-                    'permission' => 'customers.read',
-                ],
+                // [
+                //     'title' => 'All Customers',
+                //     'route' => 'admin.customers.index',
+                //     'icon' => 'list',
+                //     'permission' => 'customers.read',
+                // ],
+                // [
+                //     'title' => 'Create Customer',
+                //     'route' => 'admin.customers.create',
+                //     'icon' => 'plus',
+                //     'permission' => 'customers.create',
+                // ],
+                // [
+                //     'title' => 'Customer Groups',
+                //     'route' => 'admin.customer-groups.index',
+                //     'icon' => 'folder',
+                //     'permission' => 'customers.read',
+                // ],
             ],
         ];
     }

@@ -57,7 +57,7 @@ class PurchaseBillItem extends Model
         if (class_exists('\Modules\Inventory\Models\Product')) {
             return $this->belongsTo(\Modules\Inventory\Models\Product::class);
         }
-        return $this->belongsTo(Vendor::class, 'product_id');
+        return $this->belongsTo(self::class, 'product_id')->whereRaw('1=0'); // Empty relationship fallback
     }
 
     public function variation()
@@ -65,7 +65,7 @@ class PurchaseBillItem extends Model
         if (class_exists('\Modules\Inventory\Models\ProductVariation')) {
             return $this->belongsTo(\Modules\Inventory\Models\ProductVariation::class);
         }
-        return $this->belongsTo(Vendor::class, 'variation_id');
+        return $this->belongsTo(self::class, 'variation_id')->whereRaw('1=0'); // Empty relationship fallback
     }
 
     public function unit()
@@ -73,7 +73,7 @@ class PurchaseBillItem extends Model
         if (class_exists('\Modules\Inventory\Models\Unit')) {
             return $this->belongsTo(\Modules\Inventory\Models\Unit::class);
         }
-        return $this->belongsTo(Vendor::class, 'unit_id');
+        return $this->belongsTo(self::class, 'unit_id')->whereRaw('1=0'); // Empty relationship fallback
     }
 
     // Calculate item total

@@ -1,0 +1,7 @@
+{
+    "name": "Pos",
+    "alias": "pos",
+    "description": "Point of Sale Module",
+    "version": "1.0.0",
+    "providers": ["Modules\\Pos\\Providers\\PosServiceProvider"]
+}

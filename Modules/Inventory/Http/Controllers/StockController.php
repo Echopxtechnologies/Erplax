@@ -5,6 +5,7 @@ namespace Modules\Inventory\Http\Controllers;
 use Illuminate\Http\Request;
 use Modules\Inventory\Models\Product;
 use Modules\Inventory\Models\ProductUnit;
+use Modules\Inventory\Models\ProductVariation;
 use Modules\Inventory\Models\Warehouse;
 use Modules\Inventory\Models\Rack;
 use Modules\Inventory\Models\Unit;
@@ -27,7 +28,7 @@ class StockController extends BaseController
     // ==================== DATATABLE CONFIGURATION ====================
     protected $model = StockMovement::class;
     
-    protected $with = ['product.unit', 'warehouse', 'rack', 'lot', 'unit', 'creator'];
+    protected $with = ['product.unit', 'warehouse', 'rack', 'lot', 'unit', 'creator', 'variation.attributeValues.attribute'];
     
     protected $searchable = ['reference_no', 'reason', 'notes', 'product.name', 'product.sku', 'warehouse.name', 'lot.lot_no'];
     
@@ -41,6 +42,7 @@ class StockController extends BaseController
         'movement_type', 
         'product_name',
         'product_sku',
+        'variation_name',
         'qty',
         'base_qty',
         'unit',
@@ -97,6 +99,28 @@ class StockController extends BaseController
             ];
         }
         
+        // Variation info
+        $variationInfo = null;
+        $variationName = null;
+        if ($item->variation) {
+            $attrParts = [];
+            $colorCodes = [];
+            foreach ($item->variation->attributeValues as $av) {
+                $attrParts[] = $av->value;
+                if ($av->attribute && $av->attribute->type === 'color' && $av->color_code) {
+                    $colorCodes[] = $av->color_code;
+                }
+            }
+            $variationName = implode(' / ', $attrParts);
+            $variationInfo = [
+                'id' => $item->variation->id,
+                'sku' => $item->variation->sku,
+                'name' => $variationName,
+                'attributes' => $attrParts,
+                'color_codes' => $colorCodes,
+            ];
+        }
+        
         // Qty display
         $qtyDisplay = number_format($item->qty, 2) . ' ' . $unitName;
         if ($item->qty != $item->base_qty && $item->base_qty) {
@@ -112,6 +136,8 @@ class StockController extends BaseController
             'product_name' => $item->product->name ?? '-',
             'product_sku' => $item->product->sku ?? '-',
             'product_initials' => strtoupper(substr($item->product->name ?? 'P', 0, 2)),
+            'variation_info' => $variationInfo,
+            'variation_name' => $variationName,
             'qty' => number_format($item->qty, 2),
             'base_qty' => number_format($item->base_qty ?? $item->qty, 2),
             'qty_display' => $qtyDisplay,
@@ -256,6 +282,7 @@ class StockController extends BaseController
     {
         $request->validate([
             'product_id' => 'required|exists:products,id',
+            'variation_id' => 'nullable|exists:product_variations,id',
             'warehouse_id' => 'required|exists:warehouses,id',
             'qty' => 'required|numeric|min:0.001',
             'unit_id' => 'required|exists:units,id',
@@ -273,6 +300,17 @@ class StockController extends BaseController
         DB::beginTransaction();
         try {
             $product = Product::with('unit')->findOrFail($request->product_id);
+            $variationId = $request->variation_id;
+            
+            // Validate variation belongs to product if provided
+            if ($variationId && $product->has_variants) {
+                $variation = $product->variations()->find($variationId);
+                if (!$variation) {
+                    return back()->with('error', 'Invalid variation selected.')->withInput();
+                }
+            } elseif ($product->has_variants && !$variationId) {
+                return back()->with('error', 'Please select a variation for this product.')->withInput();
+            }
             
             $conversionData = $this->getConversionFactor($product, $request->unit_id);
             $conversionFactor = $conversionData['factor'];
@@ -301,10 +339,11 @@ class StockController extends BaseController
                 }
             }
             
-            $stockBefore = $this->getStockInBaseUnits($product->id, $request->warehouse_id, $request->rack_id, $lotId);
+            $stockBefore = $this->getStockInBaseUnits($product->id, $request->warehouse_id, $request->rack_id, $lotId, $variationId);
             
             $stockLevel = StockLevel::firstOrNew([
                 'product_id' => $product->id,
+                'variation_id' => $variationId,
                 'warehouse_id' => $request->warehouse_id,
                 'rack_id' => $request->rack_id,
                 'lot_id' => $lotId,
@@ -320,6 +359,7 @@ class StockController extends BaseController
             StockMovement::create([
                 'reference_no' => $refNo,
                 'product_id' => $product->id,
+                'variation_id' => $variationId,
                 'warehouse_id' => $request->warehouse_id,
                 'rack_id' => $request->rack_id,
                 'lot_id' => $lotId,
@@ -376,6 +416,7 @@ class StockController extends BaseController
     {
         $request->validate([
             'product_id' => 'required|exists:products,id',
+            'variation_id' => 'nullable|exists:product_variations,id',
             'warehouse_id' => 'required|exists:warehouses,id',
             'qty' => 'required|numeric|min:0.001',
             'unit_id' => 'required|exists:units,id',
@@ -389,6 +430,17 @@ class StockController extends BaseController
         DB::beginTransaction();
         try {
             $product = Product::with('unit')->findOrFail($request->product_id);
+            $variationId = $request->variation_id;
+            
+            // Validate variation belongs to product if provided
+            if ($variationId && $product->has_variants) {
+                $variation = $product->variations()->find($variationId);
+                if (!$variation) {
+                    return back()->with('error', 'Invalid variation selected.')->withInput();
+                }
+            } elseif ($product->has_variants && !$variationId) {
+                return back()->with('error', 'Please select a variation for this product.')->withInput();
+            }
             
             $conversionData = $this->getConversionFactor($product, $request->unit_id);
             $conversionFactor = $conversionData['factor'];
@@ -398,7 +450,8 @@ class StockController extends BaseController
                 $product->id, 
                 $request->warehouse_id, 
                 $request->rack_id, 
-                $request->lot_id
+                $request->lot_id,
+                $variationId
             );
             
             if ($availableStock < $baseQty) {
@@ -410,6 +463,7 @@ class StockController extends BaseController
                 ->where('warehouse_id', $request->warehouse_id)
                 ->when($request->rack_id, fn($q) => $q->where('rack_id', $request->rack_id))
                 ->when($request->lot_id, fn($q) => $q->where('lot_id', $request->lot_id))
+                ->when($variationId, fn($q) => $q->where('variation_id', $variationId))
                 ->first();
                 
             if (!$stockLevel) {
@@ -427,6 +481,7 @@ class StockController extends BaseController
             StockMovement::create([
                 'reference_no' => $refNo,
                 'product_id' => $product->id,
+                'variation_id' => $variationId,
                 'warehouse_id' => $request->warehouse_id,
                 'rack_id' => $request->rack_id,
                 'lot_id' => $request->lot_id,
@@ -443,6 +498,9 @@ class StockController extends BaseController
             ]);
             
             DB::commit();
+            
+            // Check for low stock and create immediate notification
+            \Modules\Inventory\Services\LowStockService::checkAndNotifyProduct($product->id, $variationId);
             
             $unitName = $conversionData['unit_name'];
             $baseUnitName = $product->unit->short_name ?? 'PCS';
@@ -479,6 +537,7 @@ class StockController extends BaseController
     {
         $request->validate([
             'product_id' => 'required|exists:products,id',
+            'variation_id' => 'nullable|exists:product_variations,id',
             'warehouse_id' => 'required|exists:warehouses,id',
             'qty' => 'required|numeric|min:0.001',
             'unit_id' => 'required|exists:units,id',
@@ -491,15 +550,27 @@ class StockController extends BaseController
         DB::beginTransaction();
         try {
             $product = Product::with('unit')->findOrFail($request->product_id);
+            $variationId = $request->variation_id;
+            
+            // Validate variation belongs to product if provided
+            if ($variationId && $product->has_variants) {
+                $variation = $product->variations()->find($variationId);
+                if (!$variation) {
+                    return back()->with('error', 'Invalid variation selected.')->withInput();
+                }
+            } elseif ($product->has_variants && !$variationId) {
+                return back()->with('error', 'Please select a variation for this product.')->withInput();
+            }
             
             $conversionData = $this->getConversionFactor($product, $request->unit_id);
             $conversionFactor = $conversionData['factor'];
             $baseQty = $request->qty * $conversionFactor;
             
-            $stockBefore = $this->getStockInBaseUnits($product->id, $request->warehouse_id, $request->rack_id, $request->lot_id);
+            $stockBefore = $this->getStockInBaseUnits($product->id, $request->warehouse_id, $request->rack_id, $request->lot_id, $variationId);
             
             $stockLevel = StockLevel::firstOrNew([
                 'product_id' => $product->id,
+                'variation_id' => $variationId,
                 'warehouse_id' => $request->warehouse_id,
                 'rack_id' => $request->rack_id,
                 'lot_id' => $request->lot_id,
@@ -515,6 +586,7 @@ class StockController extends BaseController
             StockMovement::create([
                 'reference_no' => $refNo,
                 'product_id' => $product->id,
+                'variation_id' => $variationId,
                 'warehouse_id' => $request->warehouse_id,
                 'rack_id' => $request->rack_id,
                 'lot_id' => $request->lot_id,
@@ -566,6 +638,7 @@ class StockController extends BaseController
     {
         $request->validate([
             'product_id' => 'required|exists:products,id',
+            'variation_id' => 'nullable|exists:product_variations,id',
             'warehouse_id' => 'required|exists:warehouses,id',
             'adjustment_type' => 'required|in:set,add,subtract',
             'qty' => 'required|numeric|min:0',
@@ -578,10 +651,23 @@ class StockController extends BaseController
         DB::beginTransaction();
         try {
             $product = Product::with('unit')->findOrFail($request->product_id);
+            $variationId = $request->variation_id;
+            
+            // Validate variation belongs to product if provided
+            if ($variationId && $product->has_variants) {
+                $variation = $product->variations()->find($variationId);
+                if (!$variation) {
+                    return back()->with('error', 'Invalid variation selected.')->withInput();
+                }
+            } elseif ($product->has_variants && !$variationId) {
+                return back()->with('error', 'Please select a variation for this product.')->withInput();
+            }
+            
             $adjustQty = $request->qty;
             
             $stockLevel = StockLevel::firstOrNew([
                 'product_id' => $product->id,
+                'variation_id' => $variationId,
                 'warehouse_id' => $request->warehouse_id,
                 'rack_id' => $request->rack_id,
                 'lot_id' => $request->lot_id,
@@ -619,6 +705,7 @@ class StockController extends BaseController
             StockMovement::create([
                 'reference_no' => $refNo,
                 'product_id' => $product->id,
+                'variation_id' => $variationId,
                 'warehouse_id' => $request->warehouse_id,
                 'rack_id' => $request->rack_id,
                 'lot_id' => $request->lot_id,
@@ -635,6 +722,9 @@ class StockController extends BaseController
             ]);
             
             DB::commit();
+            
+            // Check for low stock and create immediate notification
+            \Modules\Inventory\Services\LowStockService::checkAndNotifyProduct($product->id, $variationId);
             
             $baseUnitName = $product->unit->short_name ?? 'PCS';
             $message = "Stock adjusted: {$stockBefore} → {$newQty} {$baseUnitName} | Ref: {$refNo}";
@@ -666,6 +756,7 @@ class StockController extends BaseController
     {
         $request->validate([
             'product_id' => 'required|exists:products,id',
+            'variation_id' => 'nullable|exists:product_variations,id',
             'from_warehouse_id' => 'required|exists:warehouses,id',
             'to_warehouse_id' => 'required|exists:warehouses,id',
             'qty' => 'required|numeric|min:0.001',
@@ -685,6 +776,17 @@ class StockController extends BaseController
         DB::beginTransaction();
         try {
             $product = Product::with('unit')->findOrFail($request->product_id);
+            $variationId = $request->variation_id;
+            
+            // Validate variation belongs to product if provided
+            if ($variationId && $product->has_variants) {
+                $variation = $product->variations()->find($variationId);
+                if (!$variation) {
+                    return back()->with('error', 'Invalid variation selected.')->withInput();
+                }
+            } elseif ($product->has_variants && !$variationId) {
+                return back()->with('error', 'Please select a variation for this product.')->withInput();
+            }
             
             $conversionData = $this->getConversionFactor($product, $request->unit_id);
             $conversionFactor = $conversionData['factor'];
@@ -694,7 +796,8 @@ class StockController extends BaseController
                 $product->id,
                 $request->from_warehouse_id,
                 $request->from_rack_id,
-                $request->lot_id
+                $request->lot_id,
+                $variationId
             );
             
             if ($sourceStock < $baseQty) {
@@ -706,6 +809,7 @@ class StockController extends BaseController
                 ->where('warehouse_id', $request->from_warehouse_id)
                 ->when($request->from_rack_id, fn($q) => $q->where('rack_id', $request->from_rack_id))
                 ->when($request->lot_id, fn($q) => $q->where('lot_id', $request->lot_id))
+                ->when($variationId, fn($q) => $q->where('variation_id', $variationId))
                 ->first();
             
             $sourceStockBefore = $sourceStockLevel->qty;
@@ -715,6 +819,7 @@ class StockController extends BaseController
             
             $destStockLevel = StockLevel::firstOrNew([
                 'product_id' => $product->id,
+                'variation_id' => $variationId,
                 'warehouse_id' => $request->to_warehouse_id,
                 'rack_id' => $request->to_rack_id,
                 'lot_id' => $request->lot_id,
@@ -735,6 +840,7 @@ class StockController extends BaseController
             StockTransfer::create([
                 'transfer_no' => $transferNo,
                 'product_id' => $product->id,
+                'variation_id' => $variationId,
                 'lot_id' => $request->lot_id,
                 'unit_id' => $request->unit_id,
                 'from_warehouse_id' => $request->from_warehouse_id,
@@ -752,6 +858,7 @@ class StockController extends BaseController
             StockMovement::create([
                 'reference_no' => $transferNo,
                 'product_id' => $product->id,
+                'variation_id' => $variationId,
                 'warehouse_id' => $request->from_warehouse_id,
                 'rack_id' => $request->from_rack_id,
                 'lot_id' => $request->lot_id,
@@ -770,6 +877,7 @@ class StockController extends BaseController
             StockMovement::create([
                 'reference_no' => $transferNo . '-IN',
                 'product_id' => $product->id,
+                'variation_id' => $variationId,
                 'warehouse_id' => $request->to_warehouse_id,
                 'rack_id' => $request->to_rack_id,
                 'lot_id' => $request->lot_id,
@@ -786,6 +894,9 @@ class StockController extends BaseController
             ]);
             
             DB::commit();
+            
+            // Check for low stock at source warehouse and create immediate notification
+            \Modules\Inventory\Services\LowStockService::checkAndNotifyProduct($product->id, $variationId);
             
             $unitName = $conversionData['unit_name'];
             $baseUnitName = $product->unit->short_name ?? 'PCS';
@@ -815,6 +926,7 @@ class StockController extends BaseController
         $rackId = $request->get('rack_id');
         $lotId = $request->get('lot_id');
         $unitId = $request->get('unit_id');
+        $variationId = $request->get('variation_id');
         
         if (!$productId) {
             return response()->json(['error' => 'Product ID required'], 400);
@@ -826,7 +938,7 @@ class StockController extends BaseController
         }
         
         $baseUnitName = $product->unit->short_name ?? 'PCS';
-        $baseStock = $this->getStockInBaseUnits($productId, $warehouseId, $rackId, $lotId);
+        $baseStock = $this->getStockInBaseUnits($productId, $warehouseId, $rackId, $lotId, $variationId);
         
         $displayStock = $baseStock;
         $displayUnit = $baseUnitName;
@@ -846,19 +958,18 @@ class StockController extends BaseController
                 ->orderBy('expiry_date');
             
             if ($warehouseId) {
-                $lotIds = StockLevel::where('product_id', $productId)
+                $stockQuery = StockLevel::where('product_id', $productId)
                     ->where('warehouse_id', $warehouseId)
                     ->when($rackId, fn($q) => $q->where('rack_id', $rackId))
-                    ->where('qty', '>', 0)
-                    ->pluck('lot_id')
-                    ->filter()
-                    ->unique();
+                    ->when($variationId, fn($q) => $q->where('variation_id', $variationId))
+                    ->where('qty', '>', 0);
                     
+                $lotIds = $stockQuery->pluck('lot_id')->filter()->unique();
                 $lotsQuery->whereIn('id', $lotIds);
             }
             
-            $lots = $lotsQuery->get()->map(function ($lot) use ($productId, $warehouseId, $rackId, $baseUnitName) {
-                $lotStock = $this->getStockInBaseUnits($productId, $warehouseId, $rackId, $lot->id);
+            $lots = $lotsQuery->get()->map(function ($lot) use ($productId, $warehouseId, $rackId, $variationId, $baseUnitName) {
+                $lotStock = $this->getStockInBaseUnits($productId, $warehouseId, $rackId, $lot->id, $variationId);
                 return [
                     'id' => $lot->id,
                     'lot_no' => $lot->lot_no,
@@ -957,15 +1068,66 @@ class StockController extends BaseController
         return ['factor' => 1, 'unit_name' => 'PCS'];
     }
 
-    protected function getStockInBaseUnits(int $productId, ?int $warehouseId = null, ?int $rackId = null, ?int $lotId = null): float
+    protected function getStockInBaseUnits(int $productId, ?int $warehouseId = null, ?int $rackId = null, ?int $lotId = null, ?int $variationId = null): float
     {
         $query = StockLevel::where('product_id', $productId);
         
         if ($warehouseId) $query->where('warehouse_id', $warehouseId);
         if ($rackId) $query->where('rack_id', $rackId);
         if ($lotId) $query->where('lot_id', $lotId);
+        if ($variationId) $query->where('variation_id', $variationId);
         
         return (float) ($query->sum('qty') ?? 0);
+    }
+
+    // ==================== GET PRODUCT VARIATIONS (AJAX) ====================
+    public function getProductVariations(Request $request)
+    {
+        $productId = $request->get('product_id');
+        $warehouseId = $request->get('warehouse_id');
+        
+        if (!$productId) {
+            return response()->json(['error' => 'Product ID required'], 400);
+        }
+        
+        $product = Product::with(['variations.attributeValues.attribute'])->find($productId);
+        if (!$product || !$product->has_variants) {
+            return response()->json(['variations' => []]);
+        }
+        
+        $variations = $product->variations->map(function ($variation) use ($warehouseId) {
+            // Build variation name from attributes
+            $attrParts = [];
+            foreach ($variation->attributeValues as $av) {
+                if ($av->attribute && $av->attribute->type === 'color') {
+                    $attrParts[] = ['name' => $av->value, 'color' => $av->color_code];
+                } else {
+                    $attrParts[] = ['name' => $av->value];
+                }
+            }
+            
+            // Get current stock for this variation
+            $stockQuery = StockLevel::where('product_id', $variation->product_id)
+                ->where('variation_id', $variation->id);
+            if ($warehouseId) {
+                $stockQuery->where('warehouse_id', $warehouseId);
+            }
+            $currentStock = (float) $stockQuery->sum('qty');
+            
+            return [
+                'id' => $variation->id,
+                'sku' => $variation->sku,
+                'variation_name' => $variation->variation_name ?: implode(' / ', array_column($attrParts, 'name')),
+                'attributes' => $attrParts,
+                'purchase_price' => $variation->purchase_price,
+                'sale_price' => $variation->sale_price,
+                'image_path' => $variation->image_path,
+                'is_active' => $variation->is_active,
+                'current_stock' => $currentStock,
+            ];
+        });
+        
+        return response()->json(['variations' => $variations]);
     }
 
     // ==================== GET PRODUCT UNITS (AJAX) ====================

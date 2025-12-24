@@ -1,4 +1,5 @@
-<x-layouts.app>
+
+
 <style>
     .page-container { padding: 20px; max-width: 700px; margin: 0 auto; }
     .page-header { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
@@ -212,4 +213,3 @@ function updateCodePreview() {
 }
 document.addEventListener('DOMContentLoaded', updateCodePreview);
 </script>
-</x-layouts.app>

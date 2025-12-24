@@ -1,4 +1,5 @@
-<x-layouts.app>
+
+
 <style>
     .inventory-container { padding: 20px; max-width: 1400px; margin: 0 auto; }
     .inv-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--card-border); }
@@ -244,4 +245,3 @@ function deleteRack(id) {
 </script>
 
 @include('core::datatable')
-</x-layouts.app>

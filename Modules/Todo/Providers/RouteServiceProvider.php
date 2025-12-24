@@ -16,12 +16,25 @@ class RouteServiceProvider extends ServiceProvider
     public function map(): void
     {
         $this->mapWebRoutes();
+        $this->mapClientRoutes();
         $this->mapApiRoutes();
     }
 
     protected function mapWebRoutes(): void
     {
         Route::middleware('web')->group(module_path('Todo', '/Routes/web.php'));
+    }
+
+    protected function mapClientRoutes(): void
+    {
+        $clientRoutesPath = module_path('Todo', '/Routes/client.php');
+        
+        if (file_exists($clientRoutesPath)) {
+            Route::middleware(['web', 'client'])
+                ->prefix('client')
+                ->name('client.')
+                ->group($clientRoutesPath);
+        }
     }
 
     protected function mapApiRoutes(): void

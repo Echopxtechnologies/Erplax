@@ -123,21 +123,41 @@ class CustomerGroupsForm extends AdminController
     // }
 
 
-    public function index()
+//     public function index()
+// {
+//     try {
+//         // FIXED: Use custom count since relationship is string-based
+//         $customerGroups = CustomerGroup::all()->map(function($group) {
+//             $group->customers_count = $group->customers()->count();
+//             return $group;
+//         })->sortBy('name');
+        
+//         return view('admin.customers.groups.index', compact('customerGroups'));
+        
+//     } catch (Exception $e) {
+//         report($e);
+//         return back()->with('error', 'Failed to load customer groups: ' . $e->getMessage());
+//     }
+// }
+
+
+
+
+
+public function index(Request $request)
 {
-    try {
-        // FIXED: Use custom count since relationship is string-based
-        $customerGroups = CustomerGroup::all()->map(function($group) {
-            $group->customers_count = $group->customers()->count();
-            return $group;
-        })->sortBy('name');
-        
-        return view('admin.customers.groups.index', compact('customerGroups'));
-        
-    } catch (Exception $e) {
-        report($e);
-        return back()->with('error', 'Failed to load customer groups: ' . $e->getMessage());
+    $customerGroups = CustomerGroup::withCount('customers')->get();
+    
+    // Return JSON for AJAX requests
+    if ($request->wantsJson() || $request->ajax()) {
+        return response()->json([
+            'success' => true,
+            'groups' => $customerGroups
+        ]);
     }
+    
+    // Return view for normal requests
+    return view('admin.customers.groups.index', compact('customerGroups'));
 }
 
     /*

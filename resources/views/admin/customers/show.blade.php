@@ -1,7 +1,35 @@
-<x-layouts.app>
-    <x-slot name="header">
+
+
+
+     {{-- <div style="padding: 20px; max-width: 1400px; margin: 0 auto;">
+    <div style="display: flex; justify-content: space-between;">
+        
+        
+        <a href="{{ route('admin.customers.index') }}" class="btn-modern btn-light">
+            ← Back to coustomers
+        </a>
+    </div>
+    
+</div> --}}
+
+
+
+
+
+{{-- <div style="padding: 20px; max-width: 1400px; margin: 0 auto;">
+        <!-- Header with Back Link -->
+        <div style="margin-bottom: 20px;">
+            <a href="{{ route('admin.customers.index') }}" style="color: #3498db; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; font-size: 14px;">
+                ← Back to coustomers
+            </a>
+        </div> --}}
+
+
+    
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
             <div style="display:flex;align-items:center;gap:12px;">
+
+               
                 <div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);display:flex;align-items:center;justify-content:center;color:white;font-size:18px;font-weight:700;">
                     {{ substr($customer->display_name, 0, 1) }}
                 </div>
@@ -40,14 +68,14 @@
                     </button>
                 </form>
                 <a href="{{ route('admin.customers.index') }}" class="btn-modern btn-light">
-                    <svg style="width:16px;height:16px;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
-                    </svg>
-                    Back
-                </a>
+    <svg style="width:16px;height:16px;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/>
+    </svg>
+    Back to List
+</a>
             </div>
         </div>
-    </x-slot>
+    
 
     <style>
         /* Modern Button Styles */
@@ -357,6 +385,10 @@
         }
     </style>
 
+    <br>
+    <br>
+    
+
     <!-- Information Cards Grid -->
     <div class="detail-grid">
         <!-- Customer/Company Information Card -->
@@ -558,4 +590,3 @@
     </div>
     @endif
 
-</x-layouts.app>

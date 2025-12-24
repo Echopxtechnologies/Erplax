@@ -1,5 +1,5 @@
-{{-- Todo Module - Sidebar Menu --}}
-{!! \App\Livewire\Admin\AdminComponent::renderMenu([
+{{-- Todo Module - Admin Sidebar Menu --}}
+{!! admin_menu([
     'title' => 'Todo',
     'icon' => 'clipboard-check',
     'route' => 'admin.todo.*',

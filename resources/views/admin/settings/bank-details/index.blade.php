@@ -1,4 +1,3 @@
-<x-layouts.app>
 <style>
     .page-wrapper { background: var(--body-bg); min-height: 100vh; }
     .page-header { background: var(--card-bg); border-bottom: 1px solid var(--card-border); padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
@@ -305,4 +304,3 @@ function debounce(func, wait) {
     };
 }
 </script>
-</x-layouts.app>

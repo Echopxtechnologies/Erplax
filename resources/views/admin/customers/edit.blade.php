@@ -1,4 +1,4 @@
-<x-layouts.app>
+
     <x-slot name="header">
         <div style="display:flex;align-items:center;justify-content:space-between;">
             <h1 style="margin:0;font-size:20px;font-weight:600;color:var(--text-primary);">
@@ -262,4 +262,3 @@
             document.getElementById('shipping_country').value = document.querySelector('[name="billing_country"]').value;
         }
     </script>
-</x-layouts.app>

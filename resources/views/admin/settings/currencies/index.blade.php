@@ -1,4 +1,4 @@
-<x-layouts.app>
+
 <style>
     .page-container {
         padding: 20px;
@@ -817,4 +817,3 @@ document.addEventListener('keydown', function(e) {
 </script>
 
 @include('components.datatable')
-</x-layouts.app>

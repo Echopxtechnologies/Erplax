@@ -21,6 +21,7 @@ class Lot extends Model
     // ==================== FILLABLE ====================
     protected $fillable = [
         'product_id',
+        'variation_id',
         'lot_no',
         'batch_no',
         'initial_qty',
@@ -50,6 +51,11 @@ class Lot extends Model
         return $this->belongsTo(Product::class);
     }
 
+    public function variation()
+    {
+        return $this->belongsTo(ProductVariation::class, 'variation_id');
+    }
+
     public function stockLevels()
     {
         return $this->hasMany(StockLevel::class);
@@ -67,10 +73,23 @@ class Lot extends Model
      */
     public function getDisplayNameAttribute()
     {
+        $name = $this->lot_no;
         if ($this->batch_no) {
-            return $this->lot_no . ' / ' . $this->batch_no;
+            $name .= ' / ' . $this->batch_no;
         }
-        return $this->lot_no;
+        return $name;
+    }
+
+    /**
+     * Get full display name including variation
+     */
+    public function getFullDisplayNameAttribute()
+    {
+        $name = $this->display_name;
+        if ($this->variation) {
+            $name .= ' [' . ($this->variation->variation_name ?? $this->variation->sku) . ']';
+        }
+        return $name;
     }
 
     /**

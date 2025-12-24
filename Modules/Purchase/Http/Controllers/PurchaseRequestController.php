@@ -23,6 +23,23 @@ class PurchaseRequestController extends AdminController
     protected $filterable = ['status', 'priority'];
     protected $exportTitle = 'Purchase Requests Export';
 
+    /**
+     * Get products with their variations for Select2 dropdown
+     */
+    protected function getProductsWithVariations()
+    {
+        if (!class_exists('\Modules\Inventory\Models\Product')) {
+            return collect();
+        }
+
+        return \Modules\Inventory\Models\Product::with(['unit', 'variations' => function($q) {
+            $q->where('is_active', true)->orderBy('variation_name');
+        }])
+        ->where('is_active', true)
+        ->orderBy('name')
+        ->get();
+    }
+
     public function index()
     {
         $stats = [
@@ -33,7 +50,7 @@ class PurchaseRequestController extends AdminController
             'rejected' => PurchaseRequest::where('status', 'REJECTED')->count(),
         ];
         
-        return $this->moduleView('purchase::purchase-request.index', compact('stats'));
+        return view('purchase::purchase-request.index', compact('stats'));
     }
 
     /**
@@ -98,16 +115,9 @@ class PurchaseRequestController extends AdminController
     public function create()
     {
         $prNumber = PurchaseRequest::generateNumber();
-        $products = collect();
+        $products = $this->getProductsWithVariations();
         
-        if (class_exists('\Modules\Inventory\Models\Product')) {
-            $products = \Modules\Inventory\Models\Product::with('unit')
-                ->where('is_active', true)
-                ->orderBy('name')
-                ->get(['id', 'name', 'sku', 'unit_id', 'sale_price', 'mrp']);
-        }
-        
-        return $this->moduleView('purchase::purchase-request.create', compact('prNumber', 'products'));
+        return view('purchase::purchase-request.create', compact('prNumber', 'products'));
     }
 
     public function store(Request $request)
@@ -121,6 +131,7 @@ class PurchaseRequestController extends AdminController
             'notes' => 'nullable|string|max:1000',
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|integer|exists:products,id',
+            'items.*.variation_id' => 'nullable|integer',
             'items.*.qty' => 'required|numeric|min:0.001|max:99999999',
             'items.*.unit_id' => 'nullable|integer',
             'items.*.estimated_price' => 'nullable|numeric|min:0|max:99999999',
@@ -154,6 +165,7 @@ class PurchaseRequestController extends AdminController
                 PurchaseRequestItem::create([
                     'purchase_request_id' => $pr->id,
                     'product_id' => $item['product_id'],
+                    'variation_id' => !empty($item['variation_id']) ? $item['variation_id'] : null,
                     'unit_id' => $item['unit_id'] ?? null,
                     'qty' => $item['qty'],
                     'estimated_price' => $item['estimated_price'] ?? null,
@@ -170,27 +182,21 @@ class PurchaseRequestController extends AdminController
 
     public function show($id)
     {
-        $pr = PurchaseRequest::with(['items.product', 'items.unit', 'requester', 'approver'])->findOrFail($id);
-        return $this->moduleView('purchase::purchase-request.show', compact('pr'));
+        $pr = PurchaseRequest::with(['items.product', 'items.variation', 'items.unit', 'requester', 'approver'])->findOrFail($id);
+        return view('purchase::purchase-request.show', compact('pr'));
     }
 
     public function edit($id)
     {
-        $pr = PurchaseRequest::with(['items'])->findOrFail($id);
+        $pr = PurchaseRequest::with(['items.variation'])->findOrFail($id);
         
         if (!$pr->canEdit()) {
             return redirect()->route('admin.purchase.requests.show', $id)->with('error', 'Cannot edit this PR.');
         }
         
-        $products = collect();
-        if (class_exists('\Modules\Inventory\Models\Product')) {
-            $products = \Modules\Inventory\Models\Product::with('unit')
-                ->where('is_active', true)
-                ->orderBy('name')
-                ->get(['id', 'name', 'sku', 'unit_id', 'sale_price', 'mrp']);
-        }
+        $products = $this->getProductsWithVariations();
         
-        return $this->moduleView('purchase::purchase-request.edit', compact('pr', 'products'));
+        return view('purchase::purchase-request.edit', compact('pr', 'products'));
     }
 
     public function update(Request $request, $id)
@@ -209,6 +215,7 @@ class PurchaseRequestController extends AdminController
             'notes' => 'nullable|string',
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|integer',
+            'items.*.variation_id' => 'nullable|integer',
             'items.*.qty' => 'required|numeric|min:0.001',
             'items.*.unit_id' => 'nullable|integer',
             'items.*.estimated_price' => 'nullable|numeric|min:0',
@@ -231,6 +238,7 @@ class PurchaseRequestController extends AdminController
                 PurchaseRequestItem::create([
                     'purchase_request_id' => $pr->id,
                     'product_id' => $item['product_id'],
+                    'variation_id' => !empty($item['variation_id']) ? $item['variation_id'] : null,
                     'unit_id' => $item['unit_id'] ?? null,
                     'qty' => $item['qty'],
                     'estimated_price' => $item['estimated_price'] ?? null,
@@ -323,5 +331,71 @@ class PurchaseRequestController extends AdminController
         
         $pr->update(['status' => 'CANCELLED']);
         return redirect()->route('admin.purchase.requests.show', $id)->with('success', 'Purchase Request cancelled.');
+    }
+
+    /**
+     * Search products for Select2 dropdown
+     */
+    public function searchProducts(Request $request)
+    {
+        $term = $request->get('q', '');
+        $results = [];
+
+        $products = \DB::table('products')
+            ->where('is_active', 1)
+            ->where('can_be_purchased', 1)
+            ->where(function($q) use ($term) {
+                $q->where('name', 'like', "%{$term}%")
+                  ->orWhere('sku', 'like', "%{$term}%")
+                  ->orWhere('barcode', 'like', "%{$term}%");
+            })
+            ->limit(20)
+            ->get();
+
+        foreach ($products as $product) {
+            $unit = $product->unit_id ? \DB::table('units')->find($product->unit_id) : null;
+            $image = \DB::table('product_images')->where('product_id', $product->id)->orderByDesc('is_primary')->first();
+            
+            // Add main product
+            $results[] = [
+                'id' => $product->id,
+                'text' => ($product->sku ? $product->sku . ' - ' : '') . $product->name,
+                'sku' => $product->sku,
+                'variation_id' => null,
+                'variation_name' => null,
+                'unit_id' => $product->unit_id,
+                'unit_name' => $unit ? ($unit->short_name ?? $unit->name) : '-',
+                'price' => $product->purchase_price ?? $product->sale_price ?? 0,
+                'tax_1_id' => $product->tax_1_id,
+                'tax_2_id' => $product->tax_2_id,
+                'image' => $image ? asset('storage/' . $image->image_path) : null,
+            ];
+
+            // Add variations if product has variants
+            if ($product->has_variants) {
+                $variations = \DB::table('product_variations')
+                    ->where('product_id', $product->id)
+                    ->where('is_active', 1)
+                    ->get();
+
+                foreach ($variations as $var) {
+                    $results[] = [
+                        'id' => $product->id,
+                        'text' => ($product->sku ? $product->sku . ' - ' : '') . $product->name,
+                        'sku' => $var->sku ?? $product->sku,
+                        'variation_id' => $var->id,
+                        'variation_name' => $var->variation_name ?? $var->sku,
+                        'unit_id' => $product->unit_id,
+                        'unit_name' => $unit ? ($unit->short_name ?? $unit->name) : '-',
+                        'price' => $var->purchase_price ?? $product->purchase_price ?? $product->sale_price ?? 0,
+                        'tax_1_id' => $product->tax_1_id,
+                        'tax_2_id' => $product->tax_2_id,
+                        'image' => $var->image_path ? asset('storage/' . $var->image_path) : ($image ? asset('storage/' . $image->image_path) : null),
+                    ];
+                }
+            }
+        }
+
+        return response()->json($results);
     }
 }

@@ -1,4 +1,4 @@
-<x-layouts.app>
+
 <style>
     .estimation-container {
         padding: 20px;
@@ -270,4 +270,3 @@ function deleteEstimation(id) {
 </script>
 
 @include('components.datatable')
-</x-layouts.app>

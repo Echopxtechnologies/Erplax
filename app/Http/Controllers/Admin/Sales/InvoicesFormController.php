@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Admin\Sales;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Admin\AdminController;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\Customer;
@@ -12,8 +12,10 @@ use Modules\Inventory\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Barryvdh\DomPDF\Facade\Pdf;
 
-class InvoicesFormController extends Controller
+
+class InvoicesFormController extends AdminController
 {
     public function create()
     {
@@ -223,16 +225,47 @@ class InvoicesFormController extends Controller
         }
     }
 
+    // public function destroy(Invoice $invoice)
+    // {
+    //     try {
+    //         $invoice->delete();
+    //         return redirect()->route('admin.sales.invoices.index')
+    //             ->with('success', 'Invoice deleted successfully.');
+    //     } catch (\Exception $e) {
+    //         return back()->with('error', 'Error deleting invoice: ' . $e->getMessage());
+    //     }
+    // }
+
+
     public function destroy(Invoice $invoice)
-    {
-        try {
-            $invoice->delete();
-            return redirect()->route('admin.sales.invoices.index')
-                ->with('success', 'Invoice deleted successfully.');
-        } catch (\Exception $e) {
-            return back()->with('error', 'Error deleting invoice: ' . $e->getMessage());
+{
+    try {
+        $invoice->delete();
+        
+        // ⭐ Check if request wants JSON (AJAX)
+        if (request()->wantsJson() || request()->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Invoice deleted successfully.'
+            ]);
         }
+        
+        // Regular browser request
+        return redirect()->route('admin.sales.invoices.index')
+            ->with('success', 'Invoice deleted successfully.');
+            
+    } catch (\Exception $e) {
+        // ⭐ Also return JSON for errors
+        if (request()->wantsJson() || request()->ajax()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error deleting invoice: ' . $e->getMessage()
+            ], 500);
+        }
+        
+        return back()->with('error', 'Error deleting invoice: ' . $e->getMessage());
     }
+}
 
     /**
      * Parse tax_ids from various formats (JSON array, comma-separated, single value)
@@ -341,6 +374,63 @@ class InvoicesFormController extends Controller
             'zip_code' => $customer->zip_code,
         ]);
     }
+    public function print(Invoice $invoice)
+{
+    $invoice->load(['customer', 'items']);
+    
+    // Get taxes for breakdown
+    $taxesMap = \App\Models\Tax::where('active', 1)->pluck('name', 'id')->toArray();
+    $taxRatesMap = \App\Models\Tax::where('active', 1)->pluck('rate', 'id')->toArray();
+    
+    // Calculate tax breakdown
+    $taxBreakdown = [];
+    foreach ($invoice->items as $item) {
+        if (($item->item_type ?? 'product') !== 'product') continue;
+        
+        $taxIds = $this->parseTaxIds($item->tax_ids);
+        foreach ($taxIds as $taxId) {
+            $taxName = $taxesMap[$taxId] ?? 'Tax';
+            $taxRate = $taxRatesMap[$taxId] ?? 0;
+            $taxAmount = ($item->amount * $taxRate) / 100;
+            $key = $taxId;
+            
+            if (!isset($taxBreakdown[$key])) {
+                $taxBreakdown[$key] = [
+                    'name' => $taxName,
+                    'rate' => $taxRate,
+                    'amount' => 0
+                ];
+            }
+            $taxBreakdown[$key]['amount'] += $taxAmount;
+        }
+    }
+    
+    // Company details from options
+    $company = [
+        'name' => \App\Models\Option::get('company_name', 'Your Company'),
+        'email' => \App\Models\Option::get('company_email', ''),
+        'phone' => \App\Models\Option::get('company_phone', ''),
+        'address' => \App\Models\Option::get('company_address', ''),
+        'gst' => \App\Models\Option::get('company_gst', ''),
+        'logo' => \App\Models\Option::get('company_logo', ''),
+    ];
+    
+    $pdf = Pdf::loadView('admin.sales.invoices.print', [
+        'invoice' => $invoice,
+        'company' => $company,
+        'taxBreakdown' => $taxBreakdown,
+        'taxesMap' => $taxesMap,
+        'taxRatesMap' => $taxRatesMap,
+    ]);
+    
+    // Optional: Set paper size
+    $pdf->setPaper('a4', 'portrait');
+    
+    // Return PDF for download or inline view
+    // For download: return $pdf->download("invoice-{$invoice->invoice_number}.pdf");
+    // For inline view:
+    return $pdf->stream("invoice-{$invoice->invoice_number}.pdf");
+}
 
     // Search products - include tax_ids info
     public function searchProducts(Request $request)

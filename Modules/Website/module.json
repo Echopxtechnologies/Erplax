@@ -1,0 +1,12 @@
+{
+    "name": "Website",
+    "alias": "website",
+    "description": "Website management module with multi-mode support (Website Only, Ecommerce Only, Both)",
+    "version": "1.0.0",
+    "keywords": ["website", "cms", "ecommerce"],
+    "active": 1,
+    "order": 0,
+    "providers": [
+        "Modules\\Website\\Providers\\WebsiteServiceProvider"
+    ]
+}

@@ -1,4 +1,7 @@
-<x-layouts.app>
+
+      
+
+    
     <x-slot name="header">
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
             <div>
@@ -373,4 +376,3 @@
             </div>
         </form>
     </div>
-</x-layouts.app>

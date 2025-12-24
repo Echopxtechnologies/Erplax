@@ -1,4 +1,5 @@
-<x-layouts.app>
+
+
 <style>
     .page-container {
         padding: 20px;
@@ -374,6 +375,25 @@
                         <div class="form-help">Product cannot be changed after lot creation</div>
                     </div>
 
+                    @if($lot->product && $lot->product->has_variants)
+                    <!-- Variation Selection -->
+                    <div class="form-group">
+                        <label class="form-label">Variation</label>
+                        <select name="variation_id" class="form-control">
+                            <option value="">-- No Specific Variation --</option>
+                            @foreach($lot->product->variations as $variation)
+                                <option value="{{ $variation->id }}" {{ old('variation_id', $lot->variation_id) == $variation->id ? 'selected' : '' }}>
+                                    {{ $variation->variation_name ?? $variation->sku }} ({{ $variation->sku }})
+                                </option>
+                            @endforeach
+                        </select>
+                        @error('variation_id')<div class="form-help" style="color: #ef4444;">{{ $message }}</div>@enderror
+                        @if($lot->variation)
+                            <div class="form-help">Current: {{ $lot->variation->variation_name ?? $lot->variation->sku }}</div>
+                        @endif
+                    </div>
+                    @endif
+
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label">Lot Number <span class="required">*</span></label>
@@ -467,4 +487,3 @@
         </div>
     </div>
 </div>
-</x-layouts.app>

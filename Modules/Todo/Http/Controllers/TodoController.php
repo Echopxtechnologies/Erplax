@@ -826,7 +826,7 @@ class TodoController extends AdminController
         // Get all users for assign dropdown (admin only)
         $users = $isAdmin ? User::orderBy('name')->get() : collect();
 
-        return $this->moduleView('todo::index', compact('stats', 'isAdmin', 'users'));
+        return view('todo::index', compact('stats', 'isAdmin', 'users'));
     }
 
     /**
@@ -838,7 +838,7 @@ class TodoController extends AdminController
         $isAdmin = $user->is_admin;
         $users = $isAdmin ? User::orderBy('name')->get() : collect();
         
-        return $this->moduleView('todo::create', compact('isAdmin', 'users'));
+        return view('todo::create', compact('isAdmin', 'users'));
     }
 
     /**
@@ -888,7 +888,7 @@ class TodoController extends AdminController
     public function show($id)
     {
         $todo = $this->getTodoWithAccess($id);
-        return $this->moduleView('todo::show', compact('todo'));
+        return view('todo::show', compact('todo'));
     }
 
     /**
@@ -901,7 +901,7 @@ class TodoController extends AdminController
         $isAdmin = $user->is_admin;
         $users = $isAdmin ? User::orderBy('name')->get() : collect();
         
-        return $this->moduleView('todo::edit', compact('todo', 'isAdmin', 'users'));
+        return view('todo::edit', compact('todo', 'isAdmin', 'users'));
     }
 
     /**

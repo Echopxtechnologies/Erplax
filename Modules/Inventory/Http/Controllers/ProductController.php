@@ -250,27 +250,10 @@ public function dashboard()
     $totalStockValue = $stockData->total_value ?? 0;
     $totalStockQty = $stockData->total_qty ?? 0;
     
-    // Low stock products - Simple PHP approach (avoids MySQL strict mode issues)
-    // Get products that have min_stock_level set
-    $productsWithMinStock = Product::where('is_active', true)
-        ->where('track_inventory', true)
-        ->where('min_stock_level', '>', 0)
-        ->get(['id', 'name', 'sku', 'min_stock_level']);
-    
-    // Calculate current stock for each and filter low stock
-    $lowStockProducts = $productsWithMinStock->map(function ($product) {
-            $currentStock = StockLevel::where('product_id', $product->id)->sum('qty') ?? 0;
-            $product->current_stock = $currentStock;
-            return $product;
-        })
-        ->filter(function ($product) {
-            return $product->current_stock <= $product->min_stock_level;
-        })
-        ->sortBy('current_stock')
-        ->take(10)
-        ->values();
-    
-    $lowStockCount = $lowStockProducts->count();
+    // Use LowStockService for low stock items
+    $lowStockProducts = \Modules\Inventory\Services\LowStockService::getAllLowStockItems(10);
+    $lowStockCount = \Modules\Inventory\Services\LowStockService::getLowStockCount();
+    $stockStatusSummary = \Modules\Inventory\Services\LowStockService::getStockStatusSummary();
     
     // Today's movements summary - single query with grouping
     $todayMovements = StockMovement::whereDate('created_at', today())
@@ -327,6 +310,7 @@ public function dashboard()
         'totalStockQty',
         'lowStockProducts',
         'lowStockCount',
+        'stockStatusSummary',
         'todayIn',
         'todayOut',
         'todayTransfer',
@@ -374,9 +358,15 @@ public function dashboard()
             'attributes' => $request->input('attributes'),
         ]);
 
+        // Custom SKU validation - check both products and variations tables
+        $sku = $request->input('sku');
+        if ($sku && \Modules\Inventory\Services\SkuService::skuExists($sku)) {
+            return back()->withInput()->withErrors(['sku' => 'This SKU already exists in products or variations.']);
+        }
+
         $validated = $request->validate([
             'name' => 'required|string|max:191',
-            'sku' => 'required|string|max:100|unique:products,sku',
+            'sku' => 'required|string|max:100',
             'barcode' => 'nullable|string|max:100',
             'description' => 'nullable|string',
             'short_description' => 'nullable|string|max:500',
@@ -445,14 +435,17 @@ public function dashboard()
             }
             
             // Handle images
+            $uploadedImages = [];
             if ($request->hasFile('images')) {
                 $files = $request->file('images');
                 $primaryIndex = (int) $request->input('primary_image', 0);
+                $imageColors = json_decode($request->input('image_colors', '[]'), true) ?: [];
                 
                 Log::info('ProductController::store - Processing images', [
                     'product_id' => $product->id,
                     'files_count' => count($files),
                     'primary_index' => $primaryIndex,
+                    'image_colors' => $imageColors,
                 ]);
                 
                 $uploadedCount = 0;
@@ -465,9 +458,15 @@ public function dashboard()
                     
                     if ($image) {
                         $uploadedCount++;
+                        $colorValueId = isset($imageColors[$index]) && $imageColors[$index] ? (int)$imageColors[$index] : null;
+                        $uploadedImages[] = [
+                            'image' => $image,
+                            'color_value_id' => $colorValueId,
+                        ];
                         Log::info('ProductController::store - Image uploaded', [
                             'image_id' => $image->id,
                             'is_primary' => $image->is_primary,
+                            'color_value_id' => $colorValueId,
                         ]);
                     }
                 }
@@ -507,7 +506,62 @@ public function dashboard()
                 if (!empty($attributeIds)) {
                     $product->attributes()->sync($attributeIds);
                     
-                    if ($request->boolean('generate_variations')) {
+                    // Check if we have pre-defined variation data (from new UI)
+                    $variationsData = $request->input('variations_data');
+                    
+                    if ($variationsData && $request->boolean('generate_variations')) {
+                        // Parse JSON variation data
+                        $variations = json_decode($variationsData, true);
+                        
+                        if (!empty($variations)) {
+                            foreach ($variations as $varData) {
+                                // Create variation with custom SKU, barcode, prices
+                                $variation = ProductVariation::create([
+                                    'product_id' => $product->id,
+                                    'sku' => $varData['sku'] ?? $product->sku . '-V' . ($varData['index'] + 1),
+                                    'barcode' => $varData['barcode'] ?? null,
+                                    'purchase_price' => $varData['purchase_price'] ?? $product->purchase_price,
+                                    'sale_price' => $varData['sale_price'] ?? $product->sale_price,
+                                    'mrp' => $product->mrp,
+                                    'is_active' => true,
+                                ]);
+                                
+                                // Attach attribute values
+                                if (!empty($varData['attributes'])) {
+                                    $valueIds = array_column($varData['attributes'], 'value_id');
+                                    $variation->attributeValues()->sync($valueIds);
+                                }
+                            }
+                            
+                            Log::info('ProductController::store - Variations created from data', [
+                                'count' => count($variations),
+                            ]);
+                            
+                            // Link images to variations based on color attribute values
+                            if (!empty($uploadedImages)) {
+                                foreach ($uploadedImages as $imgData) {
+                                    if (!$imgData['color_value_id']) continue;
+                                    
+                                    // Find variation that has this color value
+                                    $variation = $product->variations()
+                                        ->whereHas('attributeValues', function($q) use ($imgData) {
+                                            $q->where('attribute_values.id', $imgData['color_value_id']);
+                                        })
+                                        ->first();
+                                    
+                                    if ($variation) {
+                                        $imgData['image']->update(['variation_id' => $variation->id]);
+                                        Log::info('ProductController::store - Image linked to variation', [
+                                            'image_id' => $imgData['image']->id,
+                                            'variation_id' => $variation->id,
+                                            'color_value_id' => $imgData['color_value_id'],
+                                        ]);
+                                    }
+                                }
+                            }
+                        }
+                    } elseif ($request->boolean('generate_variations')) {
+                        // Fallback to old method
                         $product->createVariationsFromCombinations();
                     }
                 }
@@ -653,9 +707,15 @@ public function getVariations($productId)
             'attributes' => $request->input('attributes'),
         ]);
         
+        // Custom SKU validation - check both products and variations tables (excluding current product)
+        $sku = $request->input('sku');
+        if ($sku && \Modules\Inventory\Services\SkuService::skuExists($sku, $id)) {
+            return back()->withInput()->withErrors(['sku' => 'This SKU already exists in products or variations.']);
+        }
+        
         $validated = $request->validate([
             'name' => 'required|string|max:191',
-            'sku' => 'required|string|max:100|unique:products,sku,' . $id,
+            'sku' => 'required|string|max:100',
             'barcode' => 'nullable|string|max:100',
             'description' => 'nullable|string',
             'short_description' => 'nullable|string|max:500',
@@ -682,12 +742,13 @@ public function getVariations($productId)
             'attributes.*' => 'nullable',
         ]);
         
-        $validated['can_be_sold'] = $request->has('can_be_sold');
-        $validated['can_be_purchased'] = $request->has('can_be_purchased');
-        $validated['track_inventory'] = $request->has('track_inventory');
-        $validated['has_variants'] = $request->has('has_variants');
-        $validated['is_batch_managed'] = $request->has('is_batch_managed');
-        $validated['is_active'] = $request->has('is_active');
+        // Fix: Use input value check instead of has() since hidden inputs always exist
+        $validated['can_be_sold'] = $request->input('can_be_sold') == '1';
+        $validated['can_be_purchased'] = $request->input('can_be_purchased') == '1';
+        $validated['track_inventory'] = $request->input('track_inventory') == '1';
+        $validated['has_variants'] = $request->input('has_variants') == '1';
+        $validated['is_batch_managed'] = $request->input('is_batch_managed') == '1';
+        $validated['is_active'] = $request->input('is_active') == '1';
 
         DB::beginTransaction();
         
@@ -711,12 +772,41 @@ public function getVariations($productId)
             }
             
             // Upload new images
+            $uploadedImages = [];
             if ($request->hasFile('images')) {
                 $files = $request->file('images');
+                $imageColors = json_decode($request->input('image_colors', '[]'), true) ?: [];
                 
                 foreach ($files as $index => $file) {
                     if ($file && $file->isValid()) {
-                        ProductImage::uploadForProduct($product, $file, false);
+                        $image = ProductImage::uploadForProduct($product, $file, false);
+                        if ($image) {
+                            $colorValueId = isset($imageColors[$index]) && $imageColors[$index] ? (int)$imageColors[$index] : null;
+                            $uploadedImages[] = [
+                                'image' => $image,
+                                'color_value_id' => $colorValueId,
+                            ];
+                        }
+                    }
+                }
+                
+                // Link new images to variations based on color
+                foreach ($uploadedImages as $imgData) {
+                    if (!$imgData['color_value_id']) continue;
+                    
+                    $variation = $product->variations()
+                        ->whereHas('attributeValues', function($q) use ($imgData) {
+                            $q->where('attribute_values.id', $imgData['color_value_id']);
+                        })
+                        ->first();
+                    
+                    if ($variation) {
+                        $imgData['image']->update(['variation_id' => $variation->id]);
+                        Log::info('ProductController::update - New image linked to variation', [
+                            'image_id' => $imgData['image']->id,
+                            'variation_id' => $variation->id,
+                            'color_value_id' => $imgData['color_value_id'],
+                        ]);
                     }
                 }
             }
@@ -731,6 +821,35 @@ public function getVariations($productId)
             }
             
             $product->ensurePrimaryImage();
+            
+            // Handle image color assignments (update product_variations.image_path)
+            if (!empty($request->image_color_assignments)) {
+                foreach ($request->image_color_assignments as $imageId => $colorValueId) {
+                    if (empty($colorValueId)) continue;
+                    
+                    // Get the image path
+                    $image = ProductImage::find($imageId);
+                    if (!$image || $image->product_id != $product->id) continue;
+                    
+                    // Find all variations that have this color attribute value and update their image_path
+                    $variations = ProductVariation::where('product_id', $product->id)
+                        ->whereHas('attributeValues', function($q) use ($colorValueId) {
+                            $q->where('attribute_value_id', $colorValueId);
+                        })
+                        ->get();
+                    
+                    foreach ($variations as $variation) {
+                        $variation->image_path = $image->image_path;
+                        $variation->save();
+                    }
+                    
+                    Log::info('ProductController::update - Image assigned to color', [
+                        'image_id' => $imageId,
+                        'color_value_id' => $colorValueId,
+                        'variations_updated' => $variations->count()
+                    ]);
+                }
+            }
             
             // Delete selected units
             if (!empty($request->delete_units)) {
@@ -895,14 +1014,40 @@ public function getVariations($productId)
     public function updateVariation(Request $request, $variationId)
     {
         $variation = ProductVariation::findOrFail($variationId);
-        $validated = $request->validate([
-            'sku' => 'required|string|max:100|unique:product_variations,sku,' . $variationId,
-            'barcode' => 'nullable|string|max:100',
-            'purchase_price' => 'nullable|numeric|min:0',
-            'sale_price' => 'nullable|numeric|min:0',
-            'mrp' => 'nullable|numeric|min:0',
-            'is_active' => 'boolean',
-        ]);
+        
+        // Custom SKU validation if SKU is being updated
+        if ($request->has('sku')) {
+            $sku = $request->input('sku');
+            if (\Modules\Inventory\Services\SkuService::skuExists($sku, null, $variationId)) {
+                return response()->json([
+                    'success' => false, 
+                    'message' => 'This SKU already exists in products or variations.'
+                ], 422);
+            }
+        }
+        
+        // Only validate fields that are present
+        $rules = [];
+        if ($request->has('sku')) {
+            $rules['sku'] = 'required|string|max:100';
+        }
+        if ($request->has('barcode')) {
+            $rules['barcode'] = 'nullable|string|max:100';
+        }
+        if ($request->has('purchase_price')) {
+            $rules['purchase_price'] = 'nullable|numeric|min:0';
+        }
+        if ($request->has('sale_price')) {
+            $rules['sale_price'] = 'nullable|numeric|min:0';
+        }
+        if ($request->has('mrp')) {
+            $rules['mrp'] = 'nullable|numeric|min:0';
+        }
+        if ($request->has('is_active')) {
+            $rules['is_active'] = 'boolean';
+        }
+        
+        $validated = $request->validate($rules);
         $variation->update($validated);
         return response()->json(['success' => true, 'message' => 'Variation updated', 'variation' => $variation]);
     }
@@ -925,6 +1070,76 @@ public function getVariations($productId)
         }
         $created = $product->createVariationsFromCombinations();
         return response()->json(['success' => true, 'message' => count($created) . ' variations created', 'count' => count($created)]);
+    }
+
+    /**
+     * Generate barcode for a single variation
+     */
+    public function generateVariationBarcode(Request $request, $variationId)
+    {
+        $variation = ProductVariation::with('product')->findOrFail($variationId);
+        
+        $type = $request->input('type', 'EAN13');
+        $barcode = \Modules\Inventory\Helpers\BarcodeHelper::generateUnique($type, null, $variation->sku);
+        
+        $variation->barcode = $barcode;
+        $variation->save();
+        
+        return response()->json([
+            'success' => true,
+            'barcode' => $barcode,
+            'variation_id' => $variation->id,
+        ]);
+    }
+
+    /**
+     * Generate barcodes for all variations of a product
+     */
+    public function generateVariationBarcodes($productId)
+    {
+        $product = Product::findOrFail($productId);
+        
+        if (!$product->has_variants) {
+            return response()->json(['success' => false, 'message' => 'Product does not have variants'], 422);
+        }
+        
+        $variations = ProductVariation::where('product_id', $productId)
+            ->whereNull('barcode')
+            ->orWhere('barcode', '')
+            ->get();
+        
+        $generated = [];
+        $productBarcode = $product->barcode;
+        
+        foreach ($variations as $index => $variation) {
+            // Generate unique barcode
+            if ($productBarcode && strlen($productBarcode) === 13) {
+                // If product has EAN-13, derive variation barcode from it
+                $barcode = \Modules\Inventory\Helpers\BarcodeHelper::generateVariationBarcode($productBarcode, $index + 1, 'EAN13');
+                // Check if exists and regenerate if needed
+                if (\Modules\Inventory\Helpers\BarcodeHelper::barcodeExists($barcode)) {
+                    $barcode = \Modules\Inventory\Helpers\BarcodeHelper::generateUnique('EAN13', null, $variation->sku);
+                }
+            } else {
+                $barcode = \Modules\Inventory\Helpers\BarcodeHelper::generateUnique('EAN13', null, $variation->sku);
+            }
+            
+            $variation->barcode = $barcode;
+            $variation->save();
+            
+            $generated[] = [
+                'id' => $variation->id,
+                'sku' => $variation->sku,
+                'barcode' => $barcode,
+            ];
+        }
+        
+        return response()->json([
+            'success' => true,
+            'generated' => $generated,
+            'count' => count($generated),
+            'message' => count($generated) . ' barcodes generated',
+        ]);
     }
 
     protected function getProductStock($productId, $warehouseId = null, $rackId = null, $lotId = null)

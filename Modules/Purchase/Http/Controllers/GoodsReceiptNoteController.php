@@ -9,17 +9,19 @@ use Modules\Purchase\Models\GoodsReceiptNote;
 use Modules\Purchase\Models\GoodsReceiptNoteItem;
 use Modules\Purchase\Models\PurchaseOrder;
 use Modules\Purchase\Models\PurchaseSetting;
-use Modules\Inventory\Models\Warehouse;
-use Modules\Inventory\Models\Rack;
-use Modules\Inventory\Models\Product;
-use Modules\Inventory\Models\StockLevel;
-use Modules\Inventory\Models\StockMovement;
-use Modules\Inventory\Models\Lot;
 use Modules\Core\Traits\DataTableTrait;
 
 class GoodsReceiptNoteController extends AdminController
 {
     use DataTableTrait;
+
+    public function __construct()
+    {
+        // Check if Inventory module is available
+        if (!class_exists('\Modules\Inventory\Models\Warehouse')) {
+            abort(503, 'GRN functionality requires the Inventory module to be installed.');
+        }
+    }
     
     // DataTable Configuration
     protected $model = GoodsReceiptNote::class;
@@ -41,7 +43,7 @@ class GoodsReceiptNoteController extends AdminController
             'approved' => GoodsReceiptNote::where('status', 'APPROVED')->count(),
         ];
 
-        return $this->moduleView('purchase::grn.index', compact('stats'));
+        return view('purchase::grn.index', compact('stats'));
     }
 
     /**
@@ -112,7 +114,7 @@ class GoodsReceiptNoteController extends AdminController
             ->orderBy('po_date', 'desc')
             ->get();
 
-        $warehouses = Warehouse::where('is_active', true)->orderBy('name')->get();
+        $warehouses = \Modules\Inventory\Models\Warehouse::where('is_active', true)->orderBy('name')->get();
         
         $selectedPO = null;
         if ($request->has('po_id')) {
@@ -120,7 +122,7 @@ class GoodsReceiptNoteController extends AdminController
                 ->find($request->po_id);
         }
 
-        return $this->moduleView('purchase::grn.create', compact('purchaseOrders', 'warehouses', 'selectedPO'));
+        return view('purchase::grn.create', compact('purchaseOrders', 'warehouses', 'selectedPO'));
     }
 
     /**
@@ -179,10 +181,13 @@ class GoodsReceiptNoteController extends AdminController
                 $poItem = $po->items()->find($itemData['po_item_id']);
                 if (!$poItem) continue;
 
+                // Fix: empty string should use fallback, not just null
+                $variationId = !empty($itemData['variation_id']) ? $itemData['variation_id'] : $poItem->variation_id;
+
                 $grn->items()->create([
                     'purchase_order_item_id' => $poItem->id,
                     'product_id' => $itemData['product_id'],
-                    'variation_id' => $itemData['variation_id'] ?? $poItem->variation_id,
+                    'variation_id' => $variationId,
                     'unit_id' => $itemData['unit_id'] ?? $poItem->unit_id,
                     'ordered_qty' => $poItem->qty,
                     'received_qty' => $itemData['received_qty'],
@@ -229,6 +234,7 @@ class GoodsReceiptNoteController extends AdminController
             'warehouse',
             'rack',
             'items.product',
+            'items.variation',
             'items.unit',
             'items.lot',
             'items.purchaseOrderItem',
@@ -290,7 +296,7 @@ class GoodsReceiptNoteController extends AdminController
             ]);
         }
 
-        return $this->moduleView('purchase::grn.show', compact('grn'));
+        return view('purchase::grn.show', compact('grn'));
     }
 
     /**
@@ -310,12 +316,12 @@ class GoodsReceiptNoteController extends AdminController
                 ->with('error', 'Cannot edit GRN in current status.');
         }
 
-        $warehouses = Warehouse::where('is_active', true)->orderBy('name')->get();
+        $warehouses = \Modules\Inventory\Models\Warehouse::where('is_active', true)->orderBy('name')->get();
         $racks = $grn->warehouse_id 
-            ? Rack::where('warehouse_id', $grn->warehouse_id)->where('is_active', true)->get() 
+            ? \Modules\Inventory\Models\Rack::where('warehouse_id', $grn->warehouse_id)->where('is_active', true)->get() 
             : collect();
 
-        return $this->moduleView('purchase::grn.edit', compact('grn', 'warehouses', 'racks'));
+        return view('purchase::grn.edit', compact('grn', 'warehouses', 'racks'));
     }
 
     /**
@@ -444,7 +450,7 @@ class GoodsReceiptNoteController extends AdminController
 
                 // Handle lot/batch if product is batch managed
                 if ($product->is_batch_managed && $item->lot_no) {
-                    $lot = Lot::firstOrCreate([
+                    $lot = \Modules\Inventory\Models\Lot::firstOrCreate([
                         'product_id' => $product->id,
                         'lot_no' => $item->lot_no,
                     ], [
@@ -462,17 +468,26 @@ class GoodsReceiptNoteController extends AdminController
                     $item->save();
                 }
 
-                // Get current stock before update
-                $stockBefore = StockLevel::where('product_id', $product->id)
+                // Get variation_id - handle empty string as null
+                $variationId = !empty($item->variation_id) ? $item->variation_id : null;
+
+                // Get current stock before update (filter by variation_id too)
+                $stockBeforeQuery = \Modules\Inventory\Models\StockLevel::where('product_id', $product->id)
                     ->where('warehouse_id', $grn->warehouse_id)
                     ->when($grn->rack_id, fn($q) => $q->where('rack_id', $grn->rack_id))
-                    ->when($lotId, fn($q) => $q->where('lot_id', $lotId))
-                    ->sum('qty') ?? 0;
+                    ->when($lotId, fn($q) => $q->where('lot_id', $lotId));
+                
+                if ($variationId) {
+                    $stockBeforeQuery->where('variation_id', $variationId);
+                } else {
+                    $stockBeforeQuery->whereNull('variation_id');
+                }
+                $stockBefore = $stockBeforeQuery->sum('qty') ?? 0;
 
                 // Update/Create stock level
-                $stockLevel = StockLevel::firstOrNew([
+                $stockLevel = \Modules\Inventory\Models\StockLevel::firstOrNew([
                     'product_id' => $product->id,
-                    'variation_id' => $item->variation_id,
+                    'variation_id' => $variationId,
                     'warehouse_id' => $grn->warehouse_id,
                     'rack_id' => $grn->rack_id,
                     'lot_id' => $lotId,
@@ -483,14 +498,32 @@ class GoodsReceiptNoteController extends AdminController
                 $stockLevel->save();
 
                 $stockAfter = $stockLevel->qty;
+                
+                // Also update product_variations.stock_qty if variation exists
+                if ($variationId) {
+                    if (\Illuminate\Support\Facades\Schema::hasColumn('product_variations', 'stock_qty')) {
+                        $updated = \Illuminate\Support\Facades\DB::table('product_variations')
+                            ->where('id', $variationId)
+                            ->increment('stock_qty', $item->accepted_qty);
+                        
+                        \Log::info("GRN Stock Update - Variation: {$variationId}, Qty: {$item->accepted_qty}, Updated: {$updated}");
+                    }
+                } else {
+                    // Update product.stock_qty if no variation
+                    if (\Illuminate\Support\Facades\Schema::hasColumn('products', 'stock_qty')) {
+                        \Illuminate\Support\Facades\DB::table('products')
+                            ->where('id', $product->id)
+                            ->increment('stock_qty', $item->accepted_qty);
+                    }
+                }
 
                 // Create stock movement record
                 $refNo = 'GRN-' . $grn->grn_number . '-' . str_pad($item->id, 3, '0', STR_PAD_LEFT);
                 
-                $movement = StockMovement::create([
+                $movement = \Modules\Inventory\Models\StockMovement::create([
                     'reference_no' => $refNo,
                     'product_id' => $product->id,
-                    'variation_id' => $item->variation_id,
+                    'variation_id' => $variationId,
                     'warehouse_id' => $grn->warehouse_id,
                     'rack_id' => $grn->rack_id,
                     'lot_id' => $lotId,
@@ -637,21 +670,36 @@ class GoodsReceiptNoteController extends AdminController
      */
     public function getPOItems($poId)
     {
-        $po = PurchaseOrder::with(['items.product.unit', 'items.unit', 'vendor'])
+        $po = PurchaseOrder::with(['items.product.unit', 'items.variation', 'items.unit', 'vendor'])
             ->findOrFail($poId);
 
         $items = $po->items->map(function($item) {
             $pendingQty = max(0, $item->qty - $item->received_qty);
             $product = $item->product;
+            $variation = $item->variation;
             
             return [
                 'id' => $item->id,
                 'product_id' => $item->product_id,
-                'product_name' => $product->name ?? '-',
-                'product_sku' => $product->sku ?? '-',
-                'is_batch_managed' => $product->is_batch_managed ?? false,
+                'variation_id' => $item->variation_id,
+                'product' => $product ? [
+                    'name' => $product->name,
+                    'sku' => $product->sku,
+                    'is_batch_managed' => $product->is_batch_managed ?? false,
+                ] : null,
+                'variation' => $variation ? [
+                    'id' => $variation->id,
+                    'variation_name' => $variation->variation_name,
+                    'sku' => $variation->sku,
+                ] : null,
                 'unit_id' => $item->unit_id,
-                'unit_name' => $item->unit->short_name ?? $product->unit->short_name ?? 'PCS',
+                'unit' => $item->unit ? [
+                    'short_name' => $item->unit->short_name ?? $item->unit->name,
+                    'name' => $item->unit->name,
+                ] : ($product && $product->unit ? [
+                    'short_name' => $product->unit->short_name ?? $product->unit->name,
+                    'name' => $product->unit->name,
+                ] : null),
                 'ordered_qty' => $item->qty,
                 'received_qty' => $item->received_qty,
                 'pending_qty' => $pendingQty,

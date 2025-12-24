@@ -12,6 +12,16 @@ Route::middleware(['web', 'auth:admin', EnsureIsAdmin::class])
     // ==================== DASHBOARD ====================
     Route::get('/', [InventoryController::class, 'dashboard'])->name('dashboard');
 
+    // ==================== BARCODE ====================
+    Route::prefix('barcode')->name('barcode.')->group(function () {
+        Route::post('/generate', [InventoryController::class, 'generateBarcode'])->name('generate');
+        Route::get('/check/{code}', [InventoryController::class, 'checkBarcode'])->name('check');
+        Route::get('/scan', [InventoryController::class, 'scanBarcode'])->name('scan');
+        Route::get('/find/{code}', [InventoryController::class, 'findByBarcode'])->name('find');
+        Route::get('/lookup', [InventoryController::class, 'barcodeLookup'])->name('lookup');
+        Route::post('/lookup', [InventoryController::class, 'barcodeLookup'])->name('lookup.post');
+    });
+
     // ==================== PRODUCTS ====================
     Route::prefix('products')->name('products.')->group(function () {
         Route::get('/tags/search', [InventoryController::class, 'tagsSearch'])->name('tags.search');
@@ -30,11 +40,13 @@ Route::middleware(['web', 'auth:admin', EnsureIsAdmin::class])
         Route::get('/{id}/units', [InventoryController::class, 'productsGetUnits'])->name('units');
         Route::get('/{id}/variations', [InventoryController::class, 'getVariations'])->name('variations');
         Route::post('/{id}/generate-variations', [InventoryController::class, 'generateVariations'])->name('generate-variations');
+        Route::post('/{id}/generate-variation-barcodes', [InventoryController::class, 'generateVariationBarcodes'])->name('generate-variation-barcodes');
     });
 
     // ==================== VARIATIONS ====================
     Route::prefix('variations')->name('variations.')->group(function () {
         Route::put('/{id}', [InventoryController::class, 'updateVariation'])->name('update');
+        Route::post('/{id}/generate-barcode', [InventoryController::class, 'generateVariationBarcode'])->name('generate-barcode');
         Route::delete('/{id}', [InventoryController::class, 'deleteVariation'])->name('destroy');
     });
 
@@ -111,6 +123,7 @@ Route::middleware(['web', 'auth:admin', EnsureIsAdmin::class])
         Route::get('/check', [InventoryController::class, 'stockCheck'])->name('check');
         Route::get('/product-units', [InventoryController::class, 'stockProductUnits'])->name('product-units');
         Route::get('/product-lots', [InventoryController::class, 'stockProductLots'])->name('product-lots');
+        Route::get('/product-variations', [InventoryController::class, 'stockProductVariations'])->name('product-variations');
     });
 
     // ==================== REPORTS ====================
@@ -120,6 +133,16 @@ Route::middleware(['web', 'auth:admin', EnsureIsAdmin::class])
         Route::get('/movement-history', [InventoryController::class, 'reportMovementHistory'])->name('movement-history');
         Route::get('/movement-history/data', [InventoryController::class, 'reportMovementHistoryData'])->name('movement-history.data');
     });
+
+    // ==================== ALERTS ====================
+    Route::prefix('alerts')->name('alerts.')->group(function () {
+        Route::get('/low-stock', [InventoryController::class, 'lowStockAlerts'])->name('low-stock');
+        Route::post('/notify', [InventoryController::class, 'createLowStockNotifications'])->name('notify');
+    });
+
+    // ==================== SKU VALIDATION ====================
+    Route::get('/sku/check', [InventoryController::class, 'checkSku'])->name('sku.check');
+    Route::get('/sku/generate', [InventoryController::class, 'generateSku'])->name('sku.generate');
 
     // ==================== SETTINGS ====================
     Route::prefix('settings')->name('settings.')->group(function () {
@@ -144,5 +167,19 @@ Route::middleware(['web', 'auth:admin', EnsureIsAdmin::class])
         Route::post('/units', [InventoryController::class, 'unitsStore'])->name('units.store');
         Route::put('/units/{id}', [InventoryController::class, 'unitsUpdate'])->name('units.update');
         Route::delete('/units/{id}', [InventoryController::class, 'unitsDestroy'])->name('units.destroy');
+        
+        // Attributes (Color, Size, etc.)
+        Route::get('/attributes/data', [InventoryController::class, 'attributesData'])->name('attributes.data');
+        Route::get('/attributes/all', [InventoryController::class, 'getAttributesWithValues'])->name('attributes.all');
+        Route::post('/attributes', [InventoryController::class, 'attributesStore'])->name('attributes.store');
+        Route::put('/attributes/{id}', [InventoryController::class, 'attributesUpdate'])->name('attributes.update');
+        Route::delete('/attributes/{id}', [InventoryController::class, 'attributesDestroy'])->name('attributes.destroy');
+        Route::post('/attributes/quick-add', [InventoryController::class, 'quickAddAttribute'])->name('attributes.quick-add');
+        
+        // Attribute Values (Blue, Red, S, M, L, etc.)
+        Route::post('/attribute-values', [InventoryController::class, 'attributeValuesStore'])->name('attribute-values.store');
+        Route::put('/attribute-values/{id}', [InventoryController::class, 'attributeValuesUpdate'])->name('attribute-values.update');
+        Route::delete('/attribute-values/{id}', [InventoryController::class, 'attributeValuesDestroy'])->name('attribute-values.destroy');
+        Route::post('/attribute-values/quick-add', [InventoryController::class, 'quickAddAttributeValue'])->name('attribute-values.quick-add');
     });
 });

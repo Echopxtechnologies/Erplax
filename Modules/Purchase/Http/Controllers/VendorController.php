@@ -29,7 +29,7 @@ class VendorController extends AdminController
             'blocked' => Vendor::where('status', 'BLOCKED')->count(),
         ];
         
-        return $this->moduleView('purchase::vendor.index', compact('stats'));
+        return view('purchase::vendor.index', compact('stats'));
     }
 
     /**
@@ -92,7 +92,7 @@ class VendorController extends AdminController
     public function create()
     {
         $vendorCode = Vendor::generateCode();
-        return $this->moduleView('purchase::vendor.create', compact('vendorCode'));
+        return view('purchase::vendor.create', compact('vendorCode'));
     }
 
     public function store(Request $request)
@@ -205,7 +205,7 @@ class VendorController extends AdminController
                 ->where('is_primary', true)
                 ->first();
         }
-        return $this->moduleView('purchase::vendor.show', compact('vendor', 'bankDetail'));
+        return view('purchase::vendor.show', compact('vendor', 'bankDetail'));
     }
 
     public function edit($id)
@@ -219,7 +219,7 @@ class VendorController extends AdminController
                 ->where('is_primary', true)
                 ->first();
         }
-        return $this->moduleView('purchase::vendor.edit', compact('vendor', 'bankDetail'));
+        return view('purchase::vendor.edit', compact('vendor', 'bankDetail'));
     }
 
     public function update(Request $request, $id)

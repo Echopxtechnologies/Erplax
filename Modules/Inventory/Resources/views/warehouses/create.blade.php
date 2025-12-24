@@ -1,4 +1,5 @@
-<x-layouts.app>
+
+
 <style>
     .page-container {
         padding: 20px;
@@ -347,4 +348,3 @@
         </div>
     </div>
 </div>
-</x-layouts.app>
