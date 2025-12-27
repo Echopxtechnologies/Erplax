@@ -96,6 +96,8 @@
         .status-paid { background: #dcfce7; color: #15803d; }
         .status-overdue { background: #fee2e2; color: #dc2626; }
         .status-cancelled { background: #fef3c7; color: #d97706; }
+        .status-unpaid { background: #fef2f2; color: #991b1b; }
+        .status-partial { background: #fef3c7; color: #cdba0f; }
         
         /* Billing Section */
         .billing-section {
@@ -414,7 +416,8 @@
                     </tr>
                 </table>
             </div>
-            <span class="status-badge status-{{ $invoice->status }}">{{ ucfirst($invoice->status) }}</span>
+            {{-- <span class="status-badge status-{{ $invoice->status }}">{{ ucfirst($invoice->status) }}</span> --}}
+            <span class="status-badge status-{{ $invoice->payment_status ?? 'unpaid' }}">{{ ucfirst($invoice->payment_status ?? 'unpaid') }}</span>
         </div>
     </div>
     

@@ -384,7 +384,7 @@ public function dashboard()
             'max_stock_level' => 'nullable|numeric|min:0',
             'tags' => 'nullable|string',
             'images' => 'nullable|array',
-            'images.*' => 'nullable|image|mimes:jpg,jpeg,png,gif,webp|max:2048',
+            'images.*' => 'nullable|file|mimes:jpg,jpeg,png,gif,webp|max:5120',
             'primary_image' => 'nullable|integer',
             'product_units' => 'nullable|array',
             'attributes' => 'nullable|array',
@@ -434,7 +434,7 @@ public function dashboard()
                 Tag::syncProductTags($product, $validated['tags']);
             }
             
-            // Handle images
+            // Handle images using ProductImage model
             $uploadedImages = [];
             if ($request->hasFile('images')) {
                 $files = $request->file('images');
@@ -453,20 +453,29 @@ public function dashboard()
                 foreach ($files as $index => $file) {
                     if (!$file || !$file->isValid()) continue;
                     
-                    $isPrimary = ($index === $primaryIndex);
-                    $image = ProductImage::uploadForProduct($product, $file, $isPrimary);
-                    
-                    if ($image) {
-                        $uploadedCount++;
+                    try {
+                        $isPrimary = ($index === $primaryIndex) || ($index === 0 && $uploadedCount === 0);
                         $colorValueId = isset($imageColors[$index]) && $imageColors[$index] ? (int)$imageColors[$index] : null;
-                        $uploadedImages[] = [
-                            'image' => $image,
-                            'color_value_id' => $colorValueId,
-                        ];
-                        Log::info('ProductController::store - Image uploaded', [
-                            'image_id' => $image->id,
-                            'is_primary' => $image->is_primary,
-                            'color_value_id' => $colorValueId,
+                        
+                        $image = ProductImage::uploadForProduct($product, $file, $isPrimary);
+                        
+                        if ($image) {
+                            $uploadedCount++;
+                            $uploadedImages[] = [
+                                'image' => $image,
+                                'color_value_id' => $colorValueId,
+                            ];
+                            
+                            Log::info('ProductController::store - Image uploaded', [
+                                'image_id' => $image->id,
+                                'is_primary' => $image->is_primary,
+                                'color_value_id' => $colorValueId,
+                            ]);
+                        }
+                    } catch (\Exception $e) {
+                        Log::error('ProductController::store - Image upload failed', [
+                            'index' => $index,
+                            'error' => $e->getMessage(),
                         ]);
                     }
                 }
@@ -733,7 +742,7 @@ public function getVariations($productId)
             'max_stock_level' => 'nullable|numeric|min:0',
             'tags' => 'nullable|string',
             'images' => 'nullable|array',
-            'images.*' => 'nullable|image|mimes:jpg,jpeg,png,gif,webp|max:2048',
+            'images.*' => 'nullable|file|mimes:jpg,jpeg,png,gif,webp|max:5120',
             'delete_images' => 'nullable|array',
             'primary_image_id' => 'nullable|integer',
             'product_units' => 'nullable|array',
@@ -779,39 +788,45 @@ public function getVariations($productId)
                 
                 foreach ($files as $index => $file) {
                     if ($file && $file->isValid()) {
-                        $image = ProductImage::uploadForProduct($product, $file, false);
-                        if ($image) {
+                        try {
                             $colorValueId = isset($imageColors[$index]) && $imageColors[$index] ? (int)$imageColors[$index] : null;
-                            $uploadedImages[] = [
-                                'image' => $image,
-                                'color_value_id' => $colorValueId,
-                            ];
+                            
+                            $image = ProductImage::uploadForProduct($product, $file, false);
+                            
+                            if ($image) {
+                                $uploadedImages[] = [
+                                    'image' => $image,
+                                    'color_value_id' => $colorValueId,
+                                ];
+                                
+                                Log::info('ProductController::update - Image uploaded', [
+                                    'image_id' => $image->id,
+                                    'color_value_id' => $colorValueId,
+                                ]);
+                                
+                                // Link to variation if color specified
+                                if ($colorValueId) {
+                                    $variation = $product->variations()
+                                        ->whereHas('attributeValues', function($q) use ($colorValueId) {
+                                            $q->where('attribute_values.id', $colorValueId);
+                                        })
+                                        ->first();
+                                    
+                                    if ($variation) {
+                                        $image->update(['variation_id' => $variation->id]);
+                                    }
+                                }
+                            }
+                        } catch (\Exception $e) {
+                            Log::error('ProductController::update - Image upload failed', [
+                                'error' => $e->getMessage(),
+                            ]);
                         }
-                    }
-                }
-                
-                // Link new images to variations based on color
-                foreach ($uploadedImages as $imgData) {
-                    if (!$imgData['color_value_id']) continue;
-                    
-                    $variation = $product->variations()
-                        ->whereHas('attributeValues', function($q) use ($imgData) {
-                            $q->where('attribute_values.id', $imgData['color_value_id']);
-                        })
-                        ->first();
-                    
-                    if ($variation) {
-                        $imgData['image']->update(['variation_id' => $variation->id]);
-                        Log::info('ProductController::update - New image linked to variation', [
-                            'image_id' => $imgData['image']->id,
-                            'variation_id' => $variation->id,
-                            'color_value_id' => $imgData['color_value_id'],
-                        ]);
                     }
                 }
             }
             
-            // Set primary image
+            // Set primary image (support both legacy and media library)
             if ($request->filled('primary_image_id')) {
                 $primaryImage = ProductImage::find($request->primary_image_id);
                 if ($primaryImage && $primaryImage->product_id == $product->id) {

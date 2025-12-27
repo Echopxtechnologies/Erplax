@@ -1,4 +1,4 @@
-<x-layouts.app>
+{{-- <x-layouts.app> --}}
     <div style="max-width: 800px;">
         <h1 class="page-title" style="margin-bottom: 20px;">Edit Role</h1>
 
@@ -65,4 +65,4 @@
             </div>
         </div>
     </div>
-</x-layouts.app>
+{{-- </x-layouts.app> --}}

@@ -103,10 +103,10 @@ class SettingsService
                             'route' => 'admin.settings.payment-methods.index',
                             'permission' => 'payment-methods.list.read',
                         ],
-                        [
-                            'title' => 'Bank Details',
-                            'route' => 'admin.settings.bank-details.index',
-                            'permission' => 'bank-details.list.read',
+                       [
+                            'title' => 'Banks',
+                            'route' => 'admin.settings.banks.index',
+                            'permission' => 'banks.list.read',
                         ],
                     ],
                 ],

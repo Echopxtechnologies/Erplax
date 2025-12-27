@@ -30,6 +30,25 @@ class ProductVariation extends Model
         'is_active' => 'boolean',
     ];
 
+    /**
+     * Get variation image URL
+     */
+    public function getImageUrlAttribute(): string
+    {
+        if ($this->image_path) {
+            return asset('storage/' . $this->image_path);
+        }
+        
+        // Check product images linked to this variation
+        $varImage = ProductImage::where('product_id', $this->product_id)
+            ->where('variation_id', $this->id)
+            ->first();
+        if ($varImage) return $varImage->url;
+        
+        // Fallback to parent product image
+        return $this->product?->primary_image_url ?? asset('images/no-image.png');
+    }
+
     // ==================== RELATIONSHIPS ====================
 
     public function product(): BelongsTo
@@ -106,17 +125,6 @@ class ProductVariation extends Model
     public function getCurrentStockAttribute(): float
     {
         return $this->stockLevels()->sum('qty') ?? $this->stock_qty ?? 0;
-    }
-
-    /**
-     * Get image URL
-     */
-    public function getImageUrlAttribute(): ?string
-    {
-        if ($this->image_path) {
-            return asset('storage/' . $this->image_path);
-        }
-        return $this->product->primary_image_url;
     }
 
     /**

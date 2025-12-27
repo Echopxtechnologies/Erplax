@@ -1,0 +1,5 @@
+{
+    "name": "modules/service",
+    "description": "Equipment service management module",
+    "type": "laravel-module"
+}

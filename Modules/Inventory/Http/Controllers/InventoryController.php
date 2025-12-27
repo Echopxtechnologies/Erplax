@@ -3,6 +3,8 @@
 namespace Modules\Inventory\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Modules\Inventory\Models\Product;
+use Modules\Inventory\Models\ProductImage;
 
 /**
  * Main Inventory Controller - Facade Pattern
@@ -836,5 +838,88 @@ class InventoryController extends BaseController
             ] : null,
             'variations' => $variations,
         ]);
+    }
+
+    // ==================== IMAGE MANAGEMENT (AJAX) ====================
+
+    /**
+     * Upload image for a product (AJAX)
+     */
+    public function uploadProductImage(Request $request, $id)
+    {
+        try {
+            $product = Product::findOrFail($id);
+            
+            $request->validate([
+                'image' => 'required|file|mimes:jpg,jpeg,png,gif,webp|max:5120',
+                'is_primary' => 'nullable|boolean',
+                'variation_id' => 'nullable|integer',
+            ]);
+            
+            $file = $request->file('image');
+            $isPrimary = $request->boolean('is_primary', false);
+            $variationId = $request->input('variation_id');
+            
+            $image = ProductImage::uploadForProduct($product, $file, $isPrimary, $variationId);
+            
+            if (!$image) {
+                return response()->json(['success' => false, 'message' => 'Failed to upload image'], 500);
+            }
+            
+            return response()->json([
+                'success' => true,
+                'image' => [
+                    'id' => $image->id,
+                    'url' => $image->url,
+                    'is_primary' => $image->is_primary,
+                    'sort_order' => $image->sort_order,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Image upload failed', ['error' => $e->getMessage()]);
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Delete product image (AJAX)
+     */
+    public function deleteProductImage($productId, $imageId)
+    {
+        try {
+            $image = ProductImage::where('id', $imageId)
+                ->where('product_id', $productId)
+                ->firstOrFail();
+            
+            $wasPrimary = $image->is_primary;
+            $image->deleteWithFile();
+            
+            // Ensure product still has a primary image
+            if ($wasPrimary) {
+                ProductImage::ensurePrimaryImage($productId);
+            }
+            
+            return response()->json(['success' => true]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Set image as primary (AJAX)
+     */
+    public function setProductPrimaryImage($productId, $imageId)
+    {
+        try {
+            $image = ProductImage::where('id', $imageId)
+                ->where('product_id', $productId)
+                ->firstOrFail();
+            
+            $image->setAsPrimary();
+            
+            return response()->json(['success' => true]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
     }
 }

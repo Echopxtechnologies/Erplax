@@ -1164,7 +1164,7 @@
         </button>
     </div>
 
-    <form action="{{ route('inventory.products.store') }}" method="POST" enctype="multipart/form-data" id="productForm">
+    <form action="{{ route('inventory.products.store') }}" method="POST" enctype="multipart/form-data" id="productForm" novalidate>
         @csrf
         <input type="file" name="images[]" id="imageInput" multiple accept="image/*" style="display:none !important;">
         <input type="hidden" name="primary_image" id="primaryImageInput" value="0">
@@ -1364,7 +1364,7 @@
                             <label class="form-label">Profit Rate</label>
                             <div class="form-value">
                                 <div class="input-group">
-                                    <input type="number" name="default_profit_rate" id="profitRate" class="form-control with-suffix" step="0.01" placeholder="0" value="{{ old('default_profit_rate', '') }}">
+                                    <input type="number" name="default_profit_rate" id="profitRate" class="form-control with-suffix" step="0.01" min="0" max="100" placeholder="0" value="{{ old('default_profit_rate', '0') }}" formnovalidate>
                                     <span class="input-suffix">%</span>
                                 </div>
                                 <div class="form-hint">Enter % to calculate sale price</div>
@@ -1490,7 +1490,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/>
                     </svg>
                     <p><strong style="color:#3b82f6;">Click to browse</strong> or drag and drop images here</p>
-                    <p style="font-size:12px;margin-top:8px;">PNG, JPG, WEBP up to 2MB each • Select multiple files at once</p>
+                    <p style="font-size:12px;margin-top:8px;">PNG, JPG, WEBP up to 5MB each • Select multiple files at once</p>
                 </div>
                 <!-- File input is at top of form with id="imageInput" -->
                 
@@ -2448,9 +2448,9 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // --- Image Input ---
-    var imageFiles = []; // Store all image files
-    var imageColors = []; // Store color assignment for each image
+    // --- Image Upload (Simplified) ---
+    var imageFiles = [];
+    var imageColors = [];
     var primaryImageIndex = 0;
     var imageInput = document.getElementById('imageInput');
     var imageDropZone = document.getElementById('imageDropZone');
@@ -2482,25 +2482,22 @@ document.addEventListener('DOMContentLoaded', function() {
     if (imageInput) {
         imageInput.addEventListener('change', function() {
             if (this.files.length) addImageFiles(this.files);
-            this.value = ''; // Reset to allow same file again
         });
     }
     
     function addImageFiles(files) {
         Array.from(files).forEach(function(file) {
             if (!file.type.startsWith('image/')) return;
-            if (file.size > 2 * 1024 * 1024) {
-                alert('File "' + file.name + '" is too large. Max 2MB.');
+            if (file.size > 5 * 1024 * 1024) {
+                alert('File "' + file.name + '" is too large. Max 5MB.');
                 return;
             }
             imageFiles.push(file);
-            imageColors.push(''); // No color assigned initially
+            imageColors.push('');
         });
         renderImagePreviews();
-        updateImageInput();
     }
     
-    // Get selected colors from attribute checkboxes
     function getSelectedColors() {
         var colors = [];
         document.querySelectorAll('.value-checkbox:checked').forEach(function(cb) {
@@ -2528,19 +2525,15 @@ document.addEventListener('DOMContentLoaded', function() {
         if (imageFiles.length === 0) {
             if (info) info.style.display = 'none';
             if (colorHint) colorHint.style.display = 'none';
+            updateHeaderPreview();
             return;
         }
         
         if (info) info.style.display = 'block';
         if (count) count.textContent = imageFiles.length;
         
-        // Get available colors
         var colors = getSelectedColors();
-        
-        // Show/hide color hint
-        if (colorHint) {
-            colorHint.style.display = colors.length > 0 ? 'block' : 'none';
-        }
+        if (colorHint) colorHint.style.display = colors.length > 0 ? 'block' : 'none';
         
         imageFiles.forEach(function(file, idx) {
             var reader = new FileReader();
@@ -2552,7 +2545,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 var sizeKB = Math.round(file.size / 1024);
                 var sizeStr = sizeKB > 1024 ? (sizeKB / 1024).toFixed(1) + 'MB' : sizeKB + 'KB';
                 
-                // Build color selector
                 var colorSelectHtml = '';
                 if (colors.length > 0) {
                     var currentColor = imageColors[idx] || '';
@@ -2584,31 +2576,39 @@ document.addEventListener('DOMContentLoaded', function() {
             reader.readAsDataURL(file);
         });
         
-        // Update header preview
+        updateHeaderPreview();
+    }
+    
+    function updateHeaderPreview() {
+        var mainPreview = document.getElementById('mainPreview');
+        var cameraIcon = document.getElementById('cameraIcon');
+        var imageCount = document.getElementById('imageCount');
+        
         if (imageFiles.length > 0) {
             var headerReader = new FileReader();
             headerReader.onload = function(e) {
-                var mainPreview = document.getElementById('mainPreview');
-                var cameraIcon = document.getElementById('cameraIcon');
-                var imageCount = document.getElementById('imageCount');
                 if (mainPreview) { mainPreview.src = e.target.result; mainPreview.style.display = 'block'; }
                 if (cameraIcon) cameraIcon.style.display = 'none';
                 if (imageCount) { imageCount.textContent = imageFiles.length; imageCount.style.display = 'flex'; }
             };
             headerReader.readAsDataURL(imageFiles[primaryImageIndex] || imageFiles[0]);
+        } else {
+            if (mainPreview) mainPreview.style.display = 'none';
+            if (cameraIcon) cameraIcon.style.display = 'block';
+            if (imageCount) imageCount.style.display = 'none';
         }
     }
     
     window.setImagePrimary = function(idx) {
         primaryImageIndex = idx;
+        document.getElementById('primaryImageInput').value = idx;
         renderImagePreviews();
-        updateImageInput();
     };
     
     window.setImageColor = function(idx, colorId) {
         imageColors[idx] = colorId;
+        updateImageColorsInput();
         renderImagePreviews();
-        updateImageInput();
     };
     
     window.removeImage = function(idx) {
@@ -2619,18 +2619,9 @@ document.addEventListener('DOMContentLoaded', function() {
         } else if (primaryImageIndex > idx) {
             primaryImageIndex--;
         }
+        document.getElementById('primaryImageInput').value = primaryImageIndex;
+        rebuildFileInput();
         renderImagePreviews();
-        updateImageInput();
-        
-        // Reset header if no images
-        if (imageFiles.length === 0) {
-            var mainPreview = document.getElementById('mainPreview');
-            var cameraIcon = document.getElementById('cameraIcon');
-            var imageCount = document.getElementById('imageCount');
-            if (mainPreview) mainPreview.style.display = 'none';
-            if (cameraIcon) cameraIcon.style.display = 'block';
-            if (imageCount) imageCount.style.display = 'none';
-        }
     };
     
     window.clearAllImages = function() {
@@ -2638,51 +2629,45 @@ document.addEventListener('DOMContentLoaded', function() {
         imageFiles = [];
         imageColors = [];
         primaryImageIndex = 0;
+        document.getElementById('primaryImageInput').value = 0;
+        rebuildFileInput();
         renderImagePreviews();
-        updateImageInput();
-        
-        var mainPreview = document.getElementById('mainPreview');
-        var cameraIcon = document.getElementById('cameraIcon');
-        var imageCount = document.getElementById('imageCount');
-        if (mainPreview) mainPreview.style.display = 'none';
-        if (cameraIcon) cameraIcon.style.display = 'block';
-        if (imageCount) imageCount.style.display = 'none';
     };
     
-    function updateImageInput() {
+    function rebuildFileInput() {
         // Create new DataTransfer to update file input
-        var dt = new DataTransfer();
-        var orderedColors = [];
-        
-        // Add primary image first
-        if (imageFiles[primaryImageIndex]) {
-            dt.items.add(imageFiles[primaryImageIndex]);
-            orderedColors.push(imageColors[primaryImageIndex] || '');
-        }
-        
-        // Add rest
-        imageFiles.forEach(function(file, idx) {
-            if (idx !== primaryImageIndex) {
+        try {
+            var dt = new DataTransfer();
+            imageFiles.forEach(function(file) {
                 dt.items.add(file);
-                orderedColors.push(imageColors[idx] || '');
-            }
-        });
-        
-        if (imageInput) {
-            imageInput.files = dt.files;
+            });
+            if (imageInput) imageInput.files = dt.files;
+        } catch (e) {
+            // Fallback for browsers that don't support DataTransfer
+            console.log('DataTransfer not supported, files will be submitted correctly anyway');
         }
-        
-        // Update hidden input for image colors
+        updateImageColorsInput();
+    }
+    
+    function updateImageColorsInput() {
         var colorsInput = document.getElementById('imageColorsInput');
         if (!colorsInput) {
             colorsInput = document.createElement('input');
             colorsInput.type = 'hidden';
             colorsInput.name = 'image_colors';
             colorsInput.id = 'imageColorsInput';
-            imageInput.parentNode.insertBefore(colorsInput, imageInput.nextSibling);
+            if (imageInput && imageInput.parentNode) {
+                imageInput.parentNode.insertBefore(colorsInput, imageInput.nextSibling);
+            }
         }
-        colorsInput.value = JSON.stringify(orderedColors);
+        colorsInput.value = JSON.stringify(imageColors);
     }
+    
+    // Form submission handler - ensure files are properly attached
+    document.getElementById('productForm').addEventListener('submit', function(e) {
+        // Files are already in the input from rebuildFileInput()
+        updateImageColorsInput();
+    });
     
     // --- Price Calc Init ---
     var ppEl = document.getElementById('purchasePrice');

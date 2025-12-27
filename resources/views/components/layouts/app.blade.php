@@ -34,23 +34,26 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     
     @php
-        $authUser = Auth::user();
-        
-        // Notifications from custom table
-        try {
-            $notifications = $authUser 
-                ? \App\Models\Notification::where('user_id', $authUser->id)
-                    ->latest()
-                    ->take(10)
-                    ->get() 
-                : collect();
-            $hasNotifications = $notifications->count() > 0;
-            $notificationCount = $notifications->count();
-        } catch (\Exception $e) {
-            $notifications = collect();
-            $hasNotifications = false;
-            $notificationCount = 0;
-        }
+    // Get auth user from admin guard first, then web guard
+    $authUser = Auth::guard('admin')->user() ?? Auth::user();
+    $guardType = Auth::guard('admin')->check() ? 'admin' : 'user';
+    
+    // Notifications from custom table
+    try {
+        $notifications = $authUser 
+            ? \App\Models\Notification::where('user_id', $authUser->id)
+                ->where('user_type', $guardType)
+                ->latest('created_at')
+                ->take(10)
+                ->get() 
+            : collect();
+        $hasNotifications = $notifications->count() > 0;
+        $notificationCount = $notifications->where('is_read', false)->count();
+    } catch (\Exception $e) {
+        $notifications = collect();
+        $hasNotifications = false;
+        $notificationCount = 0;
+    }
         
         try {
             $activeModules = \App\Models\Module::where('is_active', true)->orderBy('sort_order')->get();

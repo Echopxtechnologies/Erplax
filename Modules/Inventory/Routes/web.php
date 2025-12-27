@@ -41,6 +41,11 @@ Route::middleware(['web', 'auth:admin', EnsureIsAdmin::class])
         Route::get('/{id}/variations', [InventoryController::class, 'getVariations'])->name('variations');
         Route::post('/{id}/generate-variations', [InventoryController::class, 'generateVariations'])->name('generate-variations');
         Route::post('/{id}/generate-variation-barcodes', [InventoryController::class, 'generateVariationBarcodes'])->name('generate-variation-barcodes');
+        
+        // Image management (AJAX)
+        Route::post('/{id}/images', [InventoryController::class, 'uploadProductImage'])->name('images.upload');
+        Route::delete('/{productId}/images/{imageId}', [InventoryController::class, 'deleteProductImage'])->name('images.delete');
+        Route::post('/{productId}/images/{imageId}/primary', [InventoryController::class, 'setProductPrimaryImage'])->name('images.primary');
     });
 
     // ==================== VARIATIONS ====================

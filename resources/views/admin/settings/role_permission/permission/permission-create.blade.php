@@ -1,4 +1,4 @@
-<x-layouts.app>
+{{-- <x-layouts.app> --}}
     <div style="max-width: 800px;">
         <h1 class="page-title" style="margin-bottom: 20px;">Create Permission</h1>
 
@@ -284,4 +284,4 @@
             cb.addEventListener('change', updateBulkPreview);
         });
     </script>
-</x-layouts.app>
+{{-- </x-layouts.app> --}}

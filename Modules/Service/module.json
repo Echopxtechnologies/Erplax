@@ -1,0 +1,12 @@
+{
+    "name": "Service",
+    "alias": "service",
+    "description": "Equipment service management module with scheduling and tracking",
+    "version": "1.0.0",
+    "keywords": ["service", "equipment", "maintenance", "scheduling"],
+    "active": 1,
+    "order": 0,
+    "providers": [
+        "Modules\\Service\\Providers\\ServiceServiceProvider"
+    ]
+}

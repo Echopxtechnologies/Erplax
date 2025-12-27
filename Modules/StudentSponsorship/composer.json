@@ -1,0 +1,11 @@
+{
+    "name": "modules/studentsponsorship",
+    "description": "Student Sponsorship Portal Module",
+    "type": "laravel-module",
+    "require": {},
+    "autoload": {
+        "psr-4": {
+            "Modules\\StudentSponsorship\\": ""
+        }
+    }
+}

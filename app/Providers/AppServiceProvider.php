@@ -25,6 +25,12 @@ class AppServiceProvider extends ServiceProvider
 
         // Apply mail settings from DB options (so it won't use mailpit)
         $this->applyMailConfigFromOptions();
+
+        // menu issue 
+        \Blade::directive('adminMenu', function ($expression) {
+        return "<?php echo admin_menu($expression); ?>";
+    });
+
     }
 
     protected function applyMailConfigFromOptions(): void

@@ -1617,7 +1617,7 @@
         </button>
     </div>
 
-    <form action="{{ route('inventory.products.update', $product->id) }}" method="POST" enctype="multipart/form-data" id="productForm">
+    <form action="{{ route('inventory.products.update', $product->id) }}" method="POST" enctype="multipart/form-data" id="productForm" novalidate>
         @csrf
         @method('PUT')
         <input type="hidden" name="primary_image_id" id="primaryImageId" value="{{ $product->images->where('is_primary', true)->first()?->id }}">
@@ -1823,7 +1823,7 @@
                             <label class="form-label">Profit Rate</label>
                             <div class="form-value">
                                 <div class="input-group">
-                                    <input type="number" name="default_profit_rate" id="profitRate" class="form-control with-suffix" step="0.01" placeholder="0" value="{{ old('default_profit_rate', $product->default_profit_rate) }}">
+                                    <input type="number" name="default_profit_rate" id="profitRate" class="form-control with-suffix" step="0.01" min="0" max="100" placeholder="0" value="{{ old('default_profit_rate', $product->default_profit_rate ?? 0) }}">
                                     <span class="input-suffix">%</span>
                                 </div>
                                 <div class="form-hint">Enter % to calculate sale price</div>
@@ -2025,13 +2025,10 @@
                 @endif
                 
                 <div class="section-title" style="margin-top: 24px;">Add New Images</div>
-                <div id="colorHint" style="display:none; margin-bottom: 16px; padding: 12px; background: #fef3c7; border: 1px solid #fcd34d; border-radius: 8px; font-size: 13px; color: #92400e;">
-                    💡 <strong>Tip:</strong> You have color variations. You can assign each image to a specific color below.
-                </div>
                 <div class="image-drop-zone" id="imageDropZone">
                     <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg>
                     <p><strong style="color:#3b82f6;">Click to browse</strong> or drag and drop images here</p>
-                    <p style="font-size:12px;margin-top:8px;color:var(--text-muted);">PNG, JPG, WEBP up to 2MB each • Select multiple files at once</p>
+                    <p style="font-size:12px;margin-top:8px;color:var(--text-muted);">PNG, JPG, WEBP up to 5MB each • Select multiple files at once</p>
                 </div>
                 <input type="file" name="images[]" id="imageInput" multiple accept="image/*" style="display:none !important;">
                 <div class="upload-info" id="uploadInfo" style="display:none;margin-top:16px;padding:12px;background:#f0fdf4;border:1px solid #86efac;border-radius:8px;">
@@ -3087,12 +3084,8 @@ document.addEventListener('DOMContentLoaded', function() {
         return colors;
     }
     
-    // Click to browse
+    // Click to browse - SINGLE handler only
     if (dropZone) {
-        dropZone.addEventListener('click', function() {
-            if (imageInput) imageInput.click();
-        });
-        
         // Drag and drop handlers
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(function(eventName) {
             dropZone.addEventListener(eventName, function(e) {
@@ -3113,8 +3106,9 @@ document.addEventListener('DOMContentLoaded', function() {
             }, false);
         });
         
-        // Click to open file browser
-        dropZone.addEventListener('click', function() {
+        // Single click handler for file browser
+        dropZone.addEventListener('click', function(e) {
+            e.stopPropagation();
             if (imageInput) imageInput.click();
         });
         
@@ -3127,19 +3121,18 @@ document.addEventListener('DOMContentLoaded', function() {
     if (imageInput) {
         imageInput.addEventListener('change', function() {
             if (this.files.length) addNewImageFiles(this.files);
-            this.value = ''; // Reset to allow selecting same files again
         });
     }
     
     function addNewImageFiles(files) {
         Array.from(files).forEach(function(file) {
             if (!file.type.startsWith('image/')) return;
-            if (file.size > 2 * 1024 * 1024) {
-                alert('File "' + file.name + '" is too large. Max 2MB.');
+            if (file.size > 5 * 1024 * 1024) {
+                alert('File "' + file.name + '" is too large. Max 5MB.');
                 return;
             }
             newImageFiles.push(file);
-            newImageColors.push(''); // No color assigned initially
+            newImageColors.push('');
         });
         renderNewImagePreviews();
         updateNewImageInput();
@@ -3163,42 +3156,21 @@ document.addEventListener('DOMContentLoaded', function() {
         if (newImageFiles.length === 0) {
             if (info) info.style.display = 'none';
             if (colorHint) colorHint.style.display = 'none';
+            updateHeaderCount();
             return;
         }
         
         if (info) info.style.display = 'block';
         if (count) count.textContent = newImageFiles.length;
         
-        // Get available colors
-        var colors = getSelectedColors();
-        
-        // Show/hide color hint
-        if (colorHint) {
-            colorHint.style.display = colors.length > 0 ? 'block' : 'none';
-        }
+        // Hide color hint - colors assigned after save in Images tab
+        if (colorHint) colorHint.style.display = 'none';
         
         newImageFiles.forEach(function(file, idx) {
             var reader = new FileReader();
             reader.onload = function(e) {
                 var sizeKB = Math.round(file.size / 1024);
                 var sizeStr = sizeKB > 1024 ? (sizeKB / 1024).toFixed(1) + 'MB' : sizeKB + 'KB';
-                
-                // Build color selector
-                var colorSelectHtml = '';
-                if (colors.length > 0) {
-                    var currentColor = newImageColors[idx] || '';
-                    var currentColorObj = colors.find(function(c) { return c.id === currentColor; });
-                    var dotColor = currentColorObj ? currentColorObj.code : '#ccc';
-                    
-                    colorSelectHtml = '<div class="image-color-select" style="position:relative;bottom:auto;left:auto;right:auto;margin-top:8px;">' +
-                        '<span class="color-dot" style="background:' + dotColor + '"></span>' +
-                        '<select onchange="setNewImageColor(' + idx + ', this.value)">' +
-                        '<option value="">No color</option>';
-                    colors.forEach(function(c) {
-                        colorSelectHtml += '<option value="' + c.id + '"' + (currentColor === c.id ? ' selected' : '') + '>' + c.name + '</option>';
-                    });
-                    colorSelectHtml += '</select></div>';
-                }
                 
                 var card = document.createElement('div');
                 card.className = 'image-card-enhanced';
@@ -3212,17 +3184,20 @@ document.addEventListener('DOMContentLoaded', function() {
                         '<div style="font-size:11px;color:var(--text-muted);text-align:center;padding:6px 0;">' +
                             file.name.substring(0, 20) + (file.name.length > 20 ? '...' : '') + ' (' + sizeStr + ')' +
                         '</div>' +
-                        colorSelectHtml +
                     '</div>';
                 grid.appendChild(card);
             };
             reader.readAsDataURL(file);
         });
         
-        // Update header image count
+        updateHeaderCount();
+    }
+    
+    function updateHeaderCount() {
         var imageCount = document.getElementById('imageCount');
         if (imageCount) {
-            imageCount.textContent = {{ $product->images->count() }} + newImageFiles.length;
+            var existingCount = {{ $product->images->count() }};
+            imageCount.textContent = existingCount + newImageFiles.length;
             imageCount.style.display = 'flex';
         }
     }
@@ -3239,31 +3214,28 @@ document.addEventListener('DOMContentLoaded', function() {
         newImageColors = [];
         renderNewImagePreviews();
         updateNewImageInput();
-        
-        // Reset header count
-        var imageCount = document.getElementById('imageCount');
-        if (imageCount) {
-            imageCount.textContent = {{ $product->images->count() }};
-        }
     };
     
     function updateNewImageInput() {
-        var dt = new DataTransfer();
-        newImageFiles.forEach(function(file) {
-            dt.items.add(file);
-        });
-        if (imageInput) {
-            imageInput.files = dt.files;
+        try {
+            var dt = new DataTransfer();
+            newImageFiles.forEach(function(file) {
+                dt.items.add(file);
+            });
+            if (imageInput) imageInput.files = dt.files;
+        } catch (e) {
+            console.log('DataTransfer not supported');
         }
         
-        // Update hidden input for image colors
         var colorsInput = document.getElementById('imageColorsInput');
         if (!colorsInput) {
             colorsInput = document.createElement('input');
             colorsInput.type = 'hidden';
             colorsInput.name = 'image_colors';
             colorsInput.id = 'imageColorsInput';
-            if (imageInput) imageInput.parentNode.insertBefore(colorsInput, imageInput.nextSibling);
+            if (imageInput && imageInput.parentNode) {
+                imageInput.parentNode.insertBefore(colorsInput, imageInput.nextSibling);
+            }
         }
         colorsInput.value = JSON.stringify(newImageColors);
     }

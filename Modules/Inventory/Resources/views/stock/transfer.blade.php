@@ -117,7 +117,6 @@
         <div class="form-card-body">
             <form action="{{ route('inventory.stock.transfer.store') }}" method="POST" id="mainForm">
                 @csrf
-                <input type="hidden" name="lot_id" id="lot_id" value="">
 
                 <div class="form-section">
                     <div class="form-section-title">📦 Product Selection</div>
@@ -177,7 +176,9 @@
 
                 <div class="lot-box" id="lotBox">
                     <div class="lot-box-title">📦 Select Lot (FEFO)</div>
-                    <div class="lot-list" id="lotList"><div style="color:var(--text-muted);padding:12px;">Select product and source warehouse first</div></div>
+                    <div class="form-group" style="margin:0;">
+                        <select name="lot_id" id="lot_id"><option value="">Select lot...</option></select>
+                    </div>
                 </div>
 
                 <div class="form-section">
@@ -205,16 +206,17 @@
 <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
 <script>
 var pData={},lots=[],selectedLot=null,baseStock=0,variations=[];
-var selProduct,selFromWh,selFromRack,selToWh,selToRack,selUnit,selVariation;
+var selProduct,selFromWh,selFromRack,selToWh,selToRack,selUnit,selVariation,selLot;
 
 document.addEventListener('DOMContentLoaded',function(){
     selProduct=new TomSelect('#product_id',{plugins:['dropdown_input'],create:false,onChange:onProduct});
     selFromWh=new TomSelect('#from_warehouse_id',{plugins:['dropdown_input'],create:false,onChange:onFromWarehouse});
-    selFromRack=new TomSelect('#from_rack_id',{plugins:['dropdown_input'],create:false,onChange:checkStock});
+    selFromRack=new TomSelect('#from_rack_id',{plugins:['dropdown_input'],create:false,onChange:function(){checkStock();}});
     selToWh=new TomSelect('#to_warehouse_id',{plugins:['dropdown_input'],create:false,onChange:onToWarehouse});
     selToRack=new TomSelect('#to_rack_id',{plugins:['dropdown_input'],create:false,onChange:validateLocations});
     selUnit=new TomSelect('#unit_id',{plugins:['dropdown_input'],create:false,onChange:updateUnit});
     selVariation=new TomSelect('#variation_id',{plugins:['dropdown_input'],create:false,onChange:onVariation});
+    selLot=new TomSelect('#lot_id',{plugins:['dropdown_input'],create:false,onChange:onLotChange});
     var w=document.getElementById('from_warehouse_id').value;if(w)loadRacks(w,'from');
 });
 
@@ -239,7 +241,14 @@ function onProduct(v){
         selVariation.clear();selVariation.clearOptions();
     }
     
-    if(o.dataset.batch==='1')document.getElementById('lotBox').classList.add('show');else document.getElementById('lotBox').classList.remove('show');
+    // Handle batch products
+    if(o.dataset.batch==='1'){
+        document.getElementById('lotBox').classList.add('show');
+        loadLots(v);
+    } else {
+        document.getElementById('lotBox').classList.remove('show');
+        selLot.clear();selLot.clearOptions();
+    }
     loadUnits(v);checkStock();
 }
 
@@ -278,33 +287,36 @@ function checkStock(){
         document.getElementById('availStock').textContent=baseStock+' '+(d.base_unit||'PCS');
         document.getElementById('pStock').textContent=baseStock+' '+(d.base_unit||'PCS');
         document.getElementById('stockDisplay').classList.add('show');
-        var o=document.querySelector('#product_id option[value="'+p+'"]');if(d.is_batch_managed||(o&&o.dataset.batch==='1'))loadLots(p,w,r);
         updateUnit();
     });
 }
 
-function loadLots(productId,warehouseId,rackId){
-    var url='{{ url("admin/inventory/stock/product-lots") }}?product_id='+productId+'&warehouse_id='+warehouseId;if(rackId)url+='&rack_id='+rackId;
-    fetch(url).then(r=>r.json()).then(d=>{lots=Array.isArray(d)?d:(d.lots||d.data||[]);renderLots();});
-}
-
-function renderLots(){
-    var c=document.getElementById('lotList');
-    if(!lots.length){c.innerHTML='<div style="color:var(--text-muted);padding:12px;">No lots with stock at source location</div>';return;}
-    var h='';
-    lots.forEach(function(lot,i){
-        var ec='ok';if(lot.expiry_date){var d=Math.ceil((new Date(lot.expiry_date)-new Date())/(1000*60*60*24));if(d<=0)ec='bad';else if(d<=30)ec='warn';}
-        var stockQty=lot.stock_display||lot.stock||lot.qty||'0';
-        h+='<label class="lot-item" onclick="pickLot('+lot.id+')"><input type="radio" name="ls" value="'+lot.id+'" '+(i===0?'checked':'')+'><div class="lot-info"><div class="lot-name">'+lot.lot_no+(lot.batch_no?' / '+lot.batch_no:'')+'</div><div class="lot-meta"><span class="lot-exp '+ec+'">'+(lot.expiry_date?'Exp: '+lot.expiry_date:'No expiry')+'</span></div></div><div class="lot-qty">'+stockQty+'</div></label>';
+function loadLots(productId){
+    var wh=document.getElementById('from_warehouse_id').value;
+    var rack=document.getElementById('from_rack_id').value;
+    var url='{{ url("admin/inventory/stock/product-lots") }}?product_id='+productId+'&with_stock=1';
+    if(wh)url+='&warehouse_id='+wh;
+    if(rack)url+='&rack_id='+rack;
+    fetch(url).then(r=>r.json()).then(d=>{
+        lots=Array.isArray(d)?d:(d.lots||d.data||[]);
+        selLot.clear();selLot.clearOptions();
+        selLot.addOption({value:'',text:'Select lot...'});
+        lots.forEach(l=>{
+            var label=l.lot_no;
+            if(l.batch_no)label+=' / '+l.batch_no;
+            if(l.expiry_date)label+=' • Exp: '+l.expiry_date;
+            var stockQty=l.stock_display||l.stock||l.qty||'0';
+            label+=' • '+stockQty+' PCS';
+            selLot.addOption({value:l.id,text:label});
+        });
+        if(lots.length>0){selLot.setValue(lots[0].id);onLotChange(lots[0].id);}
     });
-    c.innerHTML=h;if(lots.length)pickLot(lots[0].id);
 }
 
-function pickLot(id){
-    document.getElementById('lot_id').value=id;selectedLot=lots.find(l=>l.id==id);
-    document.querySelectorAll('.lot-item').forEach(i=>{i.classList.remove('selected');if(i.querySelector('input').value==id)i.classList.add('selected');});
-    if(selectedLot)document.getElementById('lotBadge').innerHTML='<span class="info-badge">'+selectedLot.lot_no+'</span>';else document.getElementById('lotBadge').innerHTML='';
-    checkStock();
+function onLotChange(v){
+    if(!v||v===''){selectedLot=null;document.getElementById('lotBadge').innerHTML='';checkStock();return;}
+    selectedLot=lots.find(l=>l.id==v);
+    if(selectedLot){document.getElementById('lotBadge').innerHTML='<span class="info-badge">'+selectedLot.lot_no+'</span>';checkStock();}
 }
 
 function validateLocations(){
@@ -321,7 +333,14 @@ function updateUnit(){
     document.getElementById('qtyHint').textContent='Max: '+baseStock;h.classList.remove('show');
 }
 
-function onFromWarehouse(){loadRacks(document.getElementById('from_warehouse_id').value,'from');checkStock();validateLocations();}
+function onFromWarehouse(){
+    loadRacks(document.getElementById('from_warehouse_id').value,'from');
+    // Reload lots for new warehouse
+    var p=document.getElementById('product_id').value;
+    var o=document.querySelector('#product_id option[value="'+p+'"]');
+    if(p&&o&&o.dataset.batch==='1'){loadLots(p);}
+    checkStock();validateLocations();
+}
 function onToWarehouse(){loadRacks(document.getElementById('to_warehouse_id').value,'to');validateLocations();}
 function loadRacks(wid,type){var sel=type==='from'?selFromRack:selToRack;sel.clear();sel.clearOptions();sel.addOption({value:'',text:'Select rack...'});if(!wid)return;fetch('{{ url("admin/inventory/racks/by-warehouse") }}/'+wid).then(r=>r.json()).then(d=>{d.forEach(r=>{sel.addOption({value:r.id,text:r.code+' - '+r.name});});});}
 document.getElementById('qty').addEventListener('input',updateUnit);

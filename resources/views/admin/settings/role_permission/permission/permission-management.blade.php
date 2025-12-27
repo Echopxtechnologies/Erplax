@@ -1,4 +1,4 @@
-<x-layouts.app>
+{{-- <x-layouts.app> --}}
     <div style="max-width: 1200px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
             <h1 class="page-title">Permissions</h1>
@@ -217,4 +217,4 @@
             }
         }
     </script>
-</x-layouts.app>
+{{-- </x-layouts.app> --}}

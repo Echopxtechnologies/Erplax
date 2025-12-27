@@ -1,0 +1,12 @@
+{
+    "name": "StudentSponsorship",
+    "alias": "studentsponsorship",
+    "description": "Student Sponsorship Portal - Manage school students, university students and sponsors",
+    "version": "1.0.0",
+    "keywords": ["students", "sponsors", "school", "university", "sponsorship"],
+    "active": 1,
+    "order": 0,
+    "providers": [
+        "Modules\\StudentSponsorship\\Providers\\StudentSponsorshipServiceProvider"
+    ]
+}

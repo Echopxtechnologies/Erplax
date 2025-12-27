@@ -1,6 +1,0 @@
-{
-    "name": "modules/website",
-    "description": "Website management module",
-    "type": "laravel-module",
-    "require": {}
-}

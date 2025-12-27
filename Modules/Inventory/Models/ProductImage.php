@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\File;
 use Illuminate\Http\UploadedFile;
 
 class ProductImage extends Model
@@ -40,149 +41,102 @@ class ProductImage extends Model
 
     // ==================== ACCESSORS ====================
 
-    /**
-     * Get full URL
-     */
     public function getUrlAttribute(): string
     {
         if (empty($this->image_path)) {
             return asset('images/no-image.png');
         }
+        
+        // Check if it's a full URL
+        if (filter_var($this->image_path, FILTER_VALIDATE_URL)) {
+            return $this->image_path;
+        }
+        
         return asset('storage/' . $this->image_path);
     }
 
-    /**
-     * Get thumbnail URL (assumes you have thumbnails stored)
-     */
     public function getThumbnailUrlAttribute(): string
     {
-        if (empty($this->image_path)) {
-            return asset('images/no-image.png');
-        }
-        
-        // If you generate thumbnails, use them. Otherwise return main image
-        $thumbPath = str_replace('products/', 'products/thumbs/', $this->image_path);
-        
-        if (Storage::disk('public')->exists($thumbPath)) {
-            return asset('storage/' . $thumbPath);
-        }
-        
-        return $this->url;
+        return $this->url; // Same as main for now
     }
 
-    // ==================== METHODS ====================
+    // ==================== STATIC METHODS ====================
 
     /**
-     * Set as primary image (unset others)
+     * Upload image for a product - SIMPLIFIED & ROBUST
      */
-    public function setAsPrimary(): void
-    {
-        // Remove primary from other images
-        self::where('product_id', $this->product_id)
-            ->where('id', '!=', $this->id)
-            ->update(['is_primary' => false]);
-
-        // Set this as primary
-        $this->is_primary = true;
-        $this->save();
-    }
-
-    /**
-     * Delete image file and record
-     */
-    public function deleteWithFile(): bool
+    public static function uploadForProduct(Product $product, $file, bool $isPrimary = false, ?int $variationId = null): ?self
     {
         try {
-            // Delete file
-            if ($this->image_path && Storage::disk('public')->exists($this->image_path)) {
-                Storage::disk('public')->delete($this->image_path);
-            }
-
-            // Delete thumbnail if exists
-            if ($this->image_path) {
-                $thumbPath = str_replace('products/', 'products/thumbs/', $this->image_path);
-                if (Storage::disk('public')->exists($thumbPath)) {
-                    Storage::disk('public')->delete($thumbPath);
-                }
-            }
-
-            return (bool) $this->delete();
-        } catch (\Exception $e) {
-            Log::error('Failed to delete product image: ' . $e->getMessage());
-            return false;
-        }
-    }
-
-    /**
-     * Upload and create image - IMPROVED VERSION
-     * 
-     * @param Product $product
-     * @param UploadedFile $file
-     * @param bool $isPrimary
-     * @return self|null
-     */
-    public static function uploadForProduct(Product $product, $file, bool $isPrimary = false): ?self
-    {
-        // Validate file
-        if (!$file || !($file instanceof UploadedFile)) {
-            Log::warning('ProductImage::uploadForProduct - Invalid file object');
-            return null;
-        }
-
-        if (!$file->isValid()) {
-            Log::warning('ProductImage::uploadForProduct - File is not valid: ' . $file->getErrorMessage());
-            return null;
-        }
-
-        // Validate mime type
-        $allowedMimes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-        if (!in_array($file->getMimeType(), $allowedMimes)) {
-            Log::warning('ProductImage::uploadForProduct - Invalid mime type: ' . $file->getMimeType());
-            return null;
-        }
-
-        // Validate size (max 2MB)
-        if ($file->getSize() > 2 * 1024 * 1024) {
-            Log::warning('ProductImage::uploadForProduct - File too large: ' . $file->getSize());
-            return null;
-        }
-
-        try {
-            // Generate unique filename
-            $extension = $file->getClientOriginalExtension() ?: 'jpg';
-            $filename = 'product_' . $product->id . '_' . time() . '_' . uniqid() . '.' . $extension;
-            
-            // Store file
-            $path = $file->storeAs('products', $filename, 'public');
-            
-            if (!$path) {
-                Log::error('ProductImage::uploadForProduct - Failed to store file');
+            // Validate file
+            if (!$file || !($file instanceof UploadedFile)) {
+                Log::warning('ProductImage: Invalid file object', ['product_id' => $product->id]);
                 return null;
             }
 
-            // Check if this is the first image for the product
+            if (!$file->isValid()) {
+                Log::warning('ProductImage: File not valid', [
+                    'product_id' => $product->id,
+                    'error' => $file->getErrorMessage()
+                ]);
+                return null;
+            }
+
+            // Validate mime type
+            $allowedMimes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/jpg'];
+            $mime = $file->getMimeType();
+            if (!in_array($mime, $allowedMimes)) {
+                Log::warning('ProductImage: Invalid mime type', ['mime' => $mime]);
+                return null;
+            }
+
+            // Validate size (max 5MB to be safe)
+            if ($file->getSize() > 5 * 1024 * 1024) {
+                Log::warning('ProductImage: File too large', ['size' => $file->getSize()]);
+                return null;
+            }
+
+            // Ensure storage directory exists
+            $storagePath = storage_path('app/public/products');
+            if (!File::isDirectory($storagePath)) {
+                File::makeDirectory($storagePath, 0755, true);
+            }
+
+            // Generate unique filename
+            $extension = $file->getClientOriginalExtension() ?: 'jpg';
+            $filename = 'product_' . $product->id . '_' . time() . '_' . uniqid() . '.' . strtolower($extension);
+            
+            // Store file using Laravel's storage
+            $path = $file->storeAs('products', $filename, 'public');
+            
+            if (!$path) {
+                Log::error('ProductImage: Failed to store file', ['product_id' => $product->id]);
+                return null;
+            }
+
+            // Check if this is the first image
             $existingCount = self::where('product_id', $product->id)->count();
             $isFirstImage = $existingCount === 0;
             
-            // Get next sort order
-            $sortOrder = $existingCount + 1;
-            
-            // If setting as primary or it's the first image, unset other primaries
+            // Determine if should be primary
             $shouldBePrimary = $isPrimary || $isFirstImage;
+            
+            // If setting as primary, unset others
             if ($shouldBePrimary) {
                 self::where('product_id', $product->id)->update(['is_primary' => false]);
             }
             
-            // Create the image record
+            // Create record
             $image = self::create([
                 'product_id' => $product->id,
+                'variation_id' => $variationId,
                 'image_path' => $path,
                 'alt_text' => $product->name,
-                'sort_order' => $sortOrder,
+                'sort_order' => $existingCount + 1,
                 'is_primary' => $shouldBePrimary,
             ]);
 
-            Log::info('ProductImage::uploadForProduct - Image uploaded successfully', [
+            Log::info('ProductImage: Uploaded successfully', [
                 'product_id' => $product->id,
                 'image_id' => $image->id,
                 'path' => $path,
@@ -192,8 +146,9 @@ class ProductImage extends Model
             return $image;
 
         } catch (\Exception $e) {
-            Log::error('ProductImage::uploadForProduct - Exception: ' . $e->getMessage(), [
+            Log::error('ProductImage: Upload exception', [
                 'product_id' => $product->id,
+                'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
             return null;
@@ -201,12 +156,7 @@ class ProductImage extends Model
     }
 
     /**
-     * Bulk upload images for a product
-     * 
-     * @param Product $product
-     * @param array $files
-     * @param int $primaryIndex
-     * @return array
+     * Upload multiple images
      */
     public static function uploadMultipleForProduct(Product $product, array $files, int $primaryIndex = 0): array
     {
@@ -214,13 +164,18 @@ class ProductImage extends Model
         $errors = [];
 
         foreach ($files as $index => $file) {
+            if (!$file || !$file->isValid()) {
+                $errors[] = "Invalid file at index {$index}";
+                continue;
+            }
+            
             $isPrimary = ($index === $primaryIndex);
             $image = self::uploadForProduct($product, $file, $isPrimary);
             
             if ($image) {
                 $uploaded[] = $image;
             } else {
-                $errors[] = "Failed to upload image at index {$index}";
+                $errors[] = "Failed to upload file at index {$index}";
             }
         }
 
@@ -232,19 +187,30 @@ class ProductImage extends Model
     }
 
     /**
-     * Reorder images
+     * Set as primary image
      */
-    public static function reorderImages(int $productId, array $imageIds): bool
+    public function setAsPrimary(): void
+    {
+        self::where('product_id', $this->product_id)
+            ->where('id', '!=', $this->id)
+            ->update(['is_primary' => false]);
+
+        $this->is_primary = true;
+        $this->save();
+    }
+
+    /**
+     * Delete image with file
+     */
+    public function deleteWithFile(): bool
     {
         try {
-            foreach ($imageIds as $order => $imageId) {
-                self::where('id', $imageId)
-                    ->where('product_id', $productId)
-                    ->update(['sort_order' => $order + 1]);
+            if ($this->image_path && Storage::disk('public')->exists($this->image_path)) {
+                Storage::disk('public')->delete($this->image_path);
             }
-            return true;
+            return (bool) $this->delete();
         } catch (\Exception $e) {
-            Log::error('ProductImage::reorderImages - Exception: ' . $e->getMessage());
+            Log::error('ProductImage: Delete failed', ['error' => $e->getMessage()]);
             return false;
         }
     }
@@ -266,6 +232,24 @@ class ProductImage extends Model
             if ($firstImage) {
                 $firstImage->update(['is_primary' => true]);
             }
+        }
+    }
+
+    /**
+     * Reorder images
+     */
+    public static function reorderImages(int $productId, array $imageIds): bool
+    {
+        try {
+            foreach ($imageIds as $order => $imageId) {
+                self::where('id', $imageId)
+                    ->where('product_id', $productId)
+                    ->update(['sort_order' => $order + 1]);
+            }
+            return true;
+        } catch (\Exception $e) {
+            Log::error('ProductImage: Reorder failed', ['error' => $e->getMessage()]);
+            return false;
         }
     }
 }

@@ -2130,76 +2130,55 @@ public function timezoneDestroy($id)
 }
 
 // ===================================================================================
-// BANK DETAILS
+// BANKS (Simple Master List)
 // ===================================================================================
 
 /**
- * Bank Details Index Page
+ * Banks Index Page
  */
-public function bankDetailsIndex()
+public function banksIndex()
 {
     $stats = [
-        'total' => \App\Models\Admin\BankDetail::count(),
-        'active' => \App\Models\Admin\BankDetail::where('is_active', true)->count(),
-        'vendors' => \App\Models\Admin\BankDetail::where('holder_type', 'vendor')->count(),
-        'customers' => \App\Models\Admin\BankDetail::where('holder_type', 'customer')->count(),
+        'total' => \App\Models\Admin\Bank::count(),
     ];
     
-    return view('admin.settings.bank-details.index', compact('stats'));
+    return view('admin.settings.banks.index', compact('stats'));
 }
 
 /**
- * Bank Details Data (DataTable)
+ * Banks Data (DataTable)
  */
-public function bankDetailsData(Request $request)
+public function banksData(Request $request)
 {
-    if ($request->isMethod('post') && $request->has('account_holder_name')) {
-        return $this->bankDetailStore($request);
+    // Handle Store (POST with form data)
+    if ($request->isMethod('post') && $request->has('name')) {
+        return $this->bankStore($request);
     }
 
-    $query = \App\Models\Admin\BankDetail::query();
+    // Build query
+    $query = \App\Models\Admin\Bank::query();
 
+    // Search
     if ($search = $request->get('search')) {
-        $query->where(function ($q) use ($search) {
-            $q->where('account_holder_name', 'like', "%{$search}%")
-              ->orWhere('bank_name', 'like', "%{$search}%")
-              ->orWhere('account_number', 'like', "%{$search}%")
-              ->orWhere('ifsc_code', 'like', "%{$search}%");
-        });
+        $query->where('name', 'like', "%{$search}%");
     }
 
-    if ($request->filled('holder_type')) {
-        $query->where('holder_type', $request->holder_type);
-    }
-
-    if ($request->filled('is_active')) {
-        $query->where('is_active', $request->is_active);
-    }
-
-    $sortField = $request->get('sort', 'id');
-    $sortDir = $request->get('dir', 'desc');
+    // Sorting
+    $sortField = $request->get('sort', 'name');
+    $sortDir = $request->get('dir', 'asc');
     $query->orderBy($sortField, $sortDir);
 
+    // Paginate
     $perPage = $request->get('per_page', 25);
     $data = $query->paginate($perPage);
 
     $items = collect($data->items())->map(function ($item) {
         return [
             'id' => $item->id,
-            'holder_type' => ucfirst($item->holder_type),
-            'holder_id' => $item->holder_id,
-            'account_holder_name' => $item->account_holder_name,
-            'bank_name' => $item->bank_name,
-            'account_number' => $item->account_number,
-            'ifsc_code' => $item->ifsc_code,
-            'branch_name' => $item->branch_name,
-            'upi_id' => $item->upi_id,
-            'account_type' => $item->account_type,
-            'is_primary' => $item->is_primary,
-            'is_active' => $item->is_active,
-            'created_at' => $item->created_at ? $item->created_at->format('d M Y') : '-',
-            '_edit_url' => route('admin.settings.bank-details.update', $item->id),
-            '_delete_url' => route('admin.settings.bank-details.destroy', $item->id),
+            'name' => $item->name,
+            'created_on' => $item->created_on ? \Carbon\Carbon::parse($item->created_on)->format('d M Y H:i') : '-',
+            '_edit_url' => route('admin.settings.banks.update', $item->id),
+            '_delete_url' => route('admin.settings.banks.destroy', $item->id),
         ];
     });
 
@@ -2212,109 +2191,67 @@ public function bankDetailsData(Request $request)
 }
 
 /**
- * Store Bank Detail
+ * Store Bank
  */
-public function bankDetailStore(Request $request)
+public function bankStore(Request $request)
 {
     $validated = $request->validate([
-        'holder_type' => 'required|string|in:vendor,customer,employee,company',
-        'holder_id' => 'required|integer',
-        'account_holder_name' => 'required|string|max:191',
-        'bank_name' => 'required|string|max:191',
-        'account_number' => 'required|string|max:50',
-        'ifsc_code' => 'nullable|string|max:20',
-        'branch_name' => 'nullable|string|max:191',
-        'upi_id' => 'nullable|string|max:100',
-        'account_type' => 'nullable|string|in:SAVINGS,CURRENT,OTHER',
-        'is_primary' => 'nullable|boolean',
-        'is_active' => 'nullable|boolean',
+        'name' => 'required|string|max:191|unique:tblbank,name',
     ]);
 
-    $validated['is_active'] = $request->has('is_active') || $request->is_active == '1';
-    $validated['is_primary'] = $request->has('is_primary') || $request->is_primary == '1';
-
-    // If setting as primary, unset others for same holder
-    if ($validated['is_primary']) {
-        \App\Models\Admin\BankDetail::where('holder_type', $validated['holder_type'])
-            ->where('holder_id', $validated['holder_id'])
-            ->where('is_primary', true)
-            ->update(['is_primary' => false]);
-    }
-
-    $bank = \App\Models\Admin\BankDetail::create($validated);
+    $bank = \App\Models\Admin\Bank::create($validated);
 
     if ($request->expectsJson()) {
         return response()->json([
             'success' => true,
-            'message' => 'Bank detail created successfully!',
+            'message' => 'Bank created successfully!',
             'data' => $bank,
         ]);
     }
 
-    return redirect()->route('admin.settings.bank-details.index')->with('success', 'Bank detail created successfully!');
+    return redirect()->route('admin.settings.banks.index')->with('success', 'Bank created successfully!');
 }
 
 /**
- * Update Bank Detail
+ * Update Bank
  */
-public function bankDetailUpdate(Request $request, $id)
+public function bankUpdate(Request $request, $id)
 {
-    $bank = \App\Models\Admin\BankDetail::findOrFail($id);
+    $bank = \App\Models\Admin\Bank::findOrFail($id);
 
     $validated = $request->validate([
-        'holder_type' => 'required|string|in:vendor,customer,employee,company',
-        'holder_id' => 'required|integer',
-        'account_holder_name' => 'required|string|max:191',
-        'bank_name' => 'required|string|max:191',
-        'account_number' => 'required|string|max:50',
-        'ifsc_code' => 'nullable|string|max:20',
-        'branch_name' => 'nullable|string|max:191',
-        'upi_id' => 'nullable|string|max:100',
-        'account_type' => 'nullable|string|in:SAVINGS,CURRENT,OTHER',
-        'is_primary' => 'nullable|boolean',
-        'is_active' => 'nullable|boolean',
+        'name' => 'required|string|max:191|unique:tblbank,name,' . $id,
     ]);
-
-    $validated['is_active'] = $request->has('is_active') || $request->is_active == '1';
-    $validated['is_primary'] = $request->has('is_primary') || $request->is_primary == '1';
-
-    // If setting as primary, unset others for same holder
-    if ($validated['is_primary'] && !$bank->is_primary) {
-        \App\Models\Admin\BankDetail::where('holder_type', $validated['holder_type'])
-            ->where('holder_id', $validated['holder_id'])
-            ->where('is_primary', true)
-            ->update(['is_primary' => false]);
-    }
 
     $bank->update($validated);
 
     if ($request->expectsJson()) {
         return response()->json([
             'success' => true,
-            'message' => 'Bank detail updated successfully!',
+            'message' => 'Bank updated successfully!',
             'data' => $bank,
         ]);
     }
 
-    return redirect()->route('admin.settings.bank-details.index')->with('success', 'Bank detail updated successfully!');
+    return redirect()->route('admin.settings.banks.index')->with('success', 'Bank updated successfully!');
 }
 
 /**
- * Delete Bank Detail
+ * Delete Bank
  */
-public function bankDetailDestroy($id)
+public function bankDestroy($id)
 {
-    $bank = \App\Models\Admin\BankDetail::findOrFail($id);
+    $bank = \App\Models\Admin\Bank::findOrFail($id);
     $bank->delete();
 
     if (request()->expectsJson()) {
         return response()->json([
             'success' => true,
-            'message' => 'Bank detail deleted successfully!',
+            'message' => 'Bank deleted successfully!',
         ]);
     }
 
-    return redirect()->route('admin.settings.bank-details.index')->with('success', 'Bank detail deleted successfully!');
+    return redirect()->route('admin.settings.banks.index')->with('success', 'Bank deleted successfully!');
 }
     /*
     |--------------------------------------------------------------------------

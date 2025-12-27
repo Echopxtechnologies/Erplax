@@ -1,0 +1,11 @@
+{
+    "name": "Test2",
+    "alias": "test2",
+    "description": "Test module 2 - Depends on Test1 with foreign key",
+    "version": "1.0.0",
+    "priority": 2,
+    "is_core": false,
+    "requires": [
+        "Test1"
+    ]
+}

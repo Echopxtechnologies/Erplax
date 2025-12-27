@@ -50,6 +50,53 @@ class Product extends Model
         'is_active' => 'boolean',
     ];
 
+    // ==================== IMAGE HELPERS ====================
+
+    /**
+     * Get primary image URL
+     */
+    public function getPrimaryImageUrlAttribute(): string
+    {
+        $primary = $this->images()->where('is_primary', true)->first();
+        if ($primary) return $primary->url;
+        
+        $first = $this->images()->first();
+        if ($first) return $first->url;
+        
+        return asset('images/no-image.png');
+    }
+
+    /**
+     * Get thumbnail URL
+     */
+    public function getThumbnailUrlAttribute(): string
+    {
+        return $this->primary_image_url;
+    }
+
+    /**
+     * Get all image URLs
+     */
+    public function getAllImageUrls(): array
+    {
+        return $this->images->map(function($img) {
+            return [
+                'id' => $img->id,
+                'url' => $img->url,
+                'thumb' => $img->url,
+                'is_primary' => $img->is_primary,
+            ];
+        })->toArray();
+    }
+
+    /**
+     * Ensure product has a primary image
+     */
+    public function ensurePrimaryImage(): void
+    {
+        ProductImage::ensurePrimaryImage($this->id);
+    }
+
     // ==================== RELATIONSHIPS ====================
 
     public function category(): BelongsTo
@@ -227,12 +274,6 @@ class Product extends Model
     {
         return $this->images()->where('is_primary', true)->first() 
             ?? $this->images()->first();
-    }
-
-    public function getPrimaryImageUrlAttribute(): ?string
-    {
-        $image = $this->primary_image;
-        return $image ? asset('storage/' . $image->image_path) : null;
     }
 
     // Tax Accessors
@@ -477,14 +518,6 @@ class Product extends Model
     public function getImageCountAttribute(): int
     {
         return $this->images()->count();
-    }
-
-    /**
-     * Ensure product has a primary image set
-     */
-    public function ensurePrimaryImage(): void
-    {
-        ProductImage::ensurePrimaryImage($this->id);
     }
 
     // ==================== TAG METHODS ====================

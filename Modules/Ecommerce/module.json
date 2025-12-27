@@ -1,0 +1,12 @@
+{
+    "name": "Ecommerce",
+    "alias": "ecommerce",
+    "description": "Complete Ecommerce module with shop, cart, checkout, orders, variations, stock management",
+    "keywords": ["ecommerce", "shop", "cart", "orders", "variations"],
+    "priority": 0,
+    "providers": [
+        "Modules\\Ecommerce\\Providers\\EcommerceServiceProvider"
+    ],
+    "files": [],
+    "requires": []
+}

@@ -30,7 +30,7 @@ class ProductController extends AdminController
             'active' => Product::active()->count(),
             'inactive' => Product::where('is_active', false)->count(),
         ];
-        return $this->moduleView('product::index', compact('stats'));
+        return view('product::index', compact('stats'));
     }
 
     /**
@@ -785,7 +785,7 @@ class ProductController extends AdminController
      */
     public function create()
     {
-        return $this->moduleView('product::create');
+        return view('product::create');
     }
 
     /**
@@ -815,7 +815,7 @@ class ProductController extends AdminController
     public function show($id)
     {
         $product = Product::findOrFail($id);
-        return $this->moduleView('product::show', compact('product'));
+        return view('product::show', compact('product'));
     }
 
     /**
@@ -824,7 +824,7 @@ class ProductController extends AdminController
     public function edit($id)
     {
         $product = Product::findOrFail($id);
-        return $this->moduleView('product::edit', compact('product'));
+        return view('product::edit', compact('product'));
     }
 
     /**

@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\Auth\AdminLoginController;
 use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\ModuleController;
 use App\Http\Middleware\EnsureIsAdmin;
+use App\Http\Middleware\ValidateAdminSession;
 use App\Http\Middleware\AllowAdminRegistration;
 use App\Livewire\Admin\Settings\Permission;
 use App\Http\Controllers\Admin\PermissionController;
@@ -31,6 +32,7 @@ use App\Http\Controllers\Admin\Sales\InvoicesIndexController;
 use App\Http\Controllers\Admin\Sales\InvoicesFormController;
 use App\Http\Controllers\Admin\Sales\InvoicesController;
 use App\Http\Controllers\Admin\Sales\PaymentsIndexController;
+use App\Http\Controllers\Admin\Lead\LeadController;
 
 
 Route::get('/admin', [AdminLoginController::class, 'showLoginForm'])->name('login');
@@ -42,7 +44,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         }
         return redirect()->route('admin.login');
     })->name('index');
-
+    
     // ✅ Setup routes - only accessible when no admins exist
     Route::middleware('admin.registration.allowed')->group(function () {
         Route::get('/setup', [AdminRegisterController::class, 'showRegisterForm'])->name('setup');
@@ -76,7 +78,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
     
     // Protected Admin Routes - Only EnsureIsAdmin middleware
-    Route::middleware([EnsureIsAdmin::class])->group(function () {
+    Route::middleware([ValidateAdminSession::class ,EnsureIsAdmin::class])->group(function () {
         
         Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('dashboard');
         Route::post('/logout', [AdminLoginController::class, 'logout'])->name('logout');
@@ -87,6 +89,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('/upload', [ModuleController::class, 'uploadZip'])->name('upload');
             Route::post('/{alias}/install', [ModuleController::class, 'install'])->name('install');
             Route::post('/{alias}/activate', [ModuleController::class, 'activate'])->name('activate');
+             Route::post('/{alias}/migrate', [ModuleController::class, 'runMigration'])->name('migrate');
             Route::post('/{alias}/deactivate', [ModuleController::class, 'deactivate'])->name('deactivate');
             Route::delete('/{alias}/uninstall', [ModuleController::class, 'uninstall'])->name('uninstall');
             Route::delete('/{alias}/delete', [ModuleController::class, 'delete'])->name('delete');
@@ -175,14 +178,16 @@ Route::prefix('payment-methods')->name('payment-methods.')->group(function () {
     Route::put('/{id}', [AdminController::class, 'paymentMethodUpdate'])->name('update');
     Route::delete('/{id}', [AdminController::class, 'paymentMethodDestroy'])->name('destroy');
 });
-// Bank Details (add after payment-methods routes)
-Route::prefix('bank-details')->name('bank-details.')->group(function () {
-    Route::get('/', [AdminController::class, 'bankDetailsIndex'])->name('index');
-    Route::match(['get', 'post'], '/data', [AdminController::class, 'bankDetailsData'])->name('data');
-    Route::post('/', [AdminController::class, 'bankDetailStore'])->name('store');
-    Route::put('/{id}', [AdminController::class, 'bankDetailUpdate'])->name('update');
-    Route::delete('/{id}', [AdminController::class, 'bankDetailDestroy'])->name('destroy');
+
+// Banks
+Route::prefix('banks')->name('banks.')->group(function () {
+    Route::get('/', [AdminController::class, 'banksIndex'])->name('index');
+    Route::match(['get', 'post'], '/data', [AdminController::class, 'banksData'])->name('data');
+    Route::post('/', [AdminController::class, 'bankStore'])->name('store');
+    Route::put('/{id}', [AdminController::class, 'bankUpdate'])->name('update');
+    Route::delete('/{id}', [AdminController::class, 'bankDestroy'])->name('destroy');
 });
+
 // Timezones (MATCHING TAX PATTERN)
 Route::prefix('timezones')->name('timezones.')->group(function () {
     Route::get('/', [AdminController::class, 'timezonesIndex'])->name('index');
@@ -211,6 +216,39 @@ Route::prefix('timezones')->name('timezones.')->group(function () {
             Route::get('/logs/all', [CronJobController::class, 'logs'])->name('logs');
             Route::delete('/logs/clear', [CronJobController::class, 'clearLogs'])->name('clear-logs');
         });
+
+
+
+Route::prefix('leads')->name('leads.')->group(function () {
+    Route::get('/', [LeadController::class, 'index'])->name('index');
+
+
+    // ADD THIS LINE - AJAX endpoint for DataTable
+    Route::get('/data', [LeadController::class, 'data'])->name('data');
+
+    Route::get('/create', [LeadController::class, 'create'])->name('create');
+    Route::post('/', [LeadController::class, 'store'])->name('store');
+
+
+    Route::post('/{id}/convert-to-customer', [LeadController::class, 'convertToCustomer'])->name('convert');
+
+    // Quick Create Status/Source - ADD THESE
+    Route::post('/status/quick-create', [LeadController::class, 'quickCreateStatus'])->name('status.quick-create');
+    Route::post('/source/quick-create', [LeadController::class, 'quickCreateSource'])->name('source.quick-create');
+
+    Route::post('/{id}/update-status', [LeadController::class, 'updateStatus'])->name('update-status');
+    Route::get('/{id}', [LeadController::class, 'show'])->name('show');
+    Route::get('/{id}/edit', [LeadController::class, 'edit'])->name('edit');
+    Route::put('/{id}', [LeadController::class, 'update'])->name('update');
+    Route::delete('/{id}', [LeadController::class, 'destroy'])->name('destroy');
+});
+
+
+
+
+
+
+
 
   // ============================================
 // CUSTOMERS ROUTES (Main)

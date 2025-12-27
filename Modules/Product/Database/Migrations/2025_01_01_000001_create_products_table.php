@@ -8,6 +8,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (Schema::hasTable('products')) {
+            return; // Table already exists, skip creation
+        }
+
         Schema::create('products', function (Blueprint $table) {
             $table->id();
             $table->string('name', 191);
