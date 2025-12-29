@@ -880,10 +880,10 @@
                     <label class="form-label">Subject <span class="required">*</span></label>
                     <input type="text" name="subject" class="form-control" value="{{ $invoice->subject ?? '' }}" placeholder="Enter invoice subject" required>
                 </div>
-                <div class="form-group">
-                    <label class="form-label">Invoice Number</label>
-                    <input type="text" name="invoice_number" class="form-control" value="{{ $invoice->invoice_number ?? $invoiceNumber }}" readonly>
-                </div>
+              <div class="form-group">
+    <label class="form-label">Invoice Number</label>
+    <input type="text" class="form-control" value="{{ $invoice->invoice_number ?? $invoiceNumber }}" readonly style="background: #f3f4f6; cursor: not-allowed;">
+</div>
             </div>
             <div class="form-row">
                 <div class="form-group">

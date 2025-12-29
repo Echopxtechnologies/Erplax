@@ -5,747 +5,679 @@ namespace Modules\StudentSponsorship\Http\Controllers;
 use App\Http\Controllers\Admin\AdminController;
 use Modules\StudentSponsorship\Models\SchoolStudent;
 use Modules\StudentSponsorship\Models\SchoolName;
+use Modules\StudentSponsorship\Helpers\HashId;
+use Modules\Core\Traits\DataTableTrait;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Response;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Validator;
-use PhpOffice\PhpSpreadsheet\Spreadsheet;
-use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
-use PhpOffice\PhpSpreadsheet\IOFactory;
-use PhpOffice\PhpSpreadsheet\Style\Fill;
-use PhpOffice\PhpSpreadsheet\Style\Border;
-use PhpOffice\PhpSpreadsheet\Style\Alignment;
-use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
-use Barryvdh\DomPDF\Facade\Pdf;
 
 class SchoolStudentController extends AdminController
 {
+    use DataTableTrait;
+
+    // =========================================
+    // ID RESOLUTION HELPER
+    // =========================================
+    
     /**
-     * DataTable endpoint - handles list, export, import, template
+     * Resolve hashed ID to actual ID
+     * Accepts both hashed string and numeric ID for backwards compatibility
      */
-    public function dataTable(Request $request)
+    private function resolveId($hashOrId): int
     {
-        // Import
-        if ($request->isMethod('post') && $request->hasFile('file')) {
-            return $this->importStudents($request);
+        // If numeric, return as is (backwards compatibility)
+        if (is_numeric($hashOrId)) {
+            return (int) $hashOrId;
         }
-
-        // Template Download
-        if ($request->has('template')) {
-            return $this->downloadTemplate();
+        
+        // Decode hash
+        $id = HashId::decode($hashOrId);
+        
+        if (!$id) {
+            abort(404, 'Invalid student ID');
         }
-
-        // Export - supports CSV, XLSX, PDF
-        if ($request->has('export')) {
-            return $this->exportStudents($request);
-        }
-
-        // List with pagination
-        return $this->listStudents($request);
+        
+        return $id;
     }
 
+    // =========================================
+    // SECURITY HELPERS
+    // =========================================
+    
     /**
-     * List students with search, filters, sorting, pagination
+     * Sanitize string input - removes XSS, SQL injection attempts
      */
-    protected function listStudents(Request $request)
+    private function sanitizeString($value)
     {
-        $query = SchoolStudent::query()->with(['school', 'country']);
-
-        // Search
-        if ($search = $request->input('search')) {
-            $query->where(function ($q) use ($search) {
-                $q->where('full_name', 'LIKE', "%{$search}%")
-                  ->orWhere('email', 'LIKE', "%{$search}%")
-                  ->orWhere('phone', 'LIKE', "%{$search}%")
-                  ->orWhere('school_internal_id', 'LIKE', "%{$search}%");
-            });
+        if (is_null($value)) return null;
+        
+        // Remove null bytes
+        $value = str_replace("\0", '', $value);
+        
+        // Strip HTML tags
+        $value = strip_tags($value);
+        
+        // Convert special chars to HTML entities
+        $value = htmlspecialchars($value, ENT_QUOTES | ENT_HTML5, 'UTF-8', false);
+        
+        // Trim whitespace
+        $value = trim($value);
+        
+        return $value;
+    }
+    
+    /**
+     * Sanitize all string inputs in request
+     */
+    private function sanitizeRequest(Request $request, array $fields)
+    {
+        $sanitized = [];
+        foreach ($fields as $field) {
+            $value = $request->input($field);
+            if (is_string($value)) {
+                $sanitized[$field] = $this->sanitizeString($value);
+            } else {
+                $sanitized[$field] = $value;
+            }
         }
-
-        // Filters
-        $this->applyFilters($query, $request);
-
-        // Sort
-        $sortCol = $request->input('sort', 'id');
-        $sortDir = $request->input('dir', 'desc');
-        $sortable = ['id', 'school_internal_id', 'full_name', 'email', 'grade', 'age', 'status', 'created_at'];
-        if (in_array($sortCol, $sortable)) {
-            $query->orderBy($sortCol, $sortDir);
-        } else {
-            $query->orderBy('id', 'desc');
+        return $sanitized;
+    }
+    
+    /**
+     * Validate uploaded file is safe
+     */
+    private function validateFileContent($file, array $allowedMimes)
+    {
+        try {
+            // Check file size (max 5MB)
+            if ($file->getSize() > 5 * 1024 * 1024) {
+                return ['valid' => false, 'error' => 'File too large. Maximum 5MB allowed.'];
+            }
+            
+            // Check if file is empty
+            if ($file->getSize() === 0) {
+                return ['valid' => false, 'error' => 'File is empty.'];
+            }
+            
+            // Get MIME type - use Laravel's method which is reliable
+            $actualMime = $file->getMimeType();
+            
+            // Map of allowed MIME types
+            $mimeMap = [
+                'pdf' => ['application/pdf'],
+                'jpg' => ['image/jpeg', 'image/jpg'],
+                'jpeg' => ['image/jpeg', 'image/jpg'],
+                'png' => ['image/png'],
+                'gif' => ['image/gif'],
+            ];
+            
+            $allowedMimeTypes = [];
+            foreach ($allowedMimes as $ext) {
+                if (isset($mimeMap[$ext])) {
+                    $allowedMimeTypes = array_merge($allowedMimeTypes, $mimeMap[$ext]);
+                }
+            }
+            
+            // Allow if MIME type matches
+            if (in_array($actualMime, $allowedMimeTypes)) {
+                return ['valid' => true, 'mime' => $actualMime];
+            }
+            
+            // Also check by extension as fallback for some edge cases
+            $extension = strtolower($file->getClientOriginalExtension());
+            if (in_array($extension, $allowedMimes)) {
+                return ['valid' => true, 'mime' => $actualMime];
+            }
+            
+            return ['valid' => false, 'error' => 'Invalid file type. Allowed: ' . implode(', ', $allowedMimes)];
+            
+        } catch (\Exception $e) {
+            \Log::error('File validation error', ['error' => $e->getMessage()]);
+            // On error, let Laravel's validation handle it
+            return ['valid' => true, 'mime' => 'application/octet-stream'];
         }
+    }
 
-        // Paginate
-        $perPage = $request->input('per_page', 10);
-        $data = $query->paginate($perPage);
+    // =========================================
+    // DATATABLE v2.0 CONFIGURATION
+    // =========================================
+    
+    protected $model = SchoolStudent::class;
+    protected $with = ['school'];
+    protected $searchable = ['full_name', 'email', 'phone', 'school_internal_id'];
+    protected $sortable = ['id', 'school_internal_id', 'full_name', 'email', 'grade', 'age', 'status', 'created_at'];
+    protected $filterable = ['status', 'grade', 'school_id'];
+    protected $routePrefix = 'admin.studentsponsorship.school-students';
+    protected $uniqueField = 'school_internal_id';  // For import upsert (update if exists)
 
-        // Map rows
-        $items = collect($data->items())->map(function ($item) {
+    // =========================================
+    // IMPORT CONFIGURATION
+    // =========================================
+
+    // Validation rules for import
+    protected $importable = [
+        'school_internal_id'     => 'required|string|max:50',
+        'school_student_id'      => 'required|integer',
+        'full_name'              => 'required|string|max:255',
+        'age'                    => 'required|integer|min:4|max:25',
+        'grade'                  => 'required|integer|min:1|max:14',
+        'email'                  => 'nullable|email',
+        'phone'                  => 'nullable|string|max:30',
+        'dob'                    => 'nullable|date',
+        'country_name'           => 'nullable|string|max:100',
+        'address'                => 'nullable|string|max:500',
+        'city'                   => 'nullable|string|max:100',
+        'postal_code'            => 'nullable|string|max:20',
+        'school_name'            => 'nullable|string|max:255',
+        'school_type'            => 'nullable|in:Type 1AB,Type 1C,Type 2,Type 3',
+        'current_state'          => 'nullable|in:inprogress,complete',
+        'grade_mismatch_reason'  => 'nullable|string|max:255',
+        'sponsorship_start_date' => 'nullable|date',
+        'sponsorship_end_date'   => 'nullable|date',
+        'introduced_by'          => 'nullable|string|max:255',
+        'introducer_phone'       => 'nullable|string|max:30',
+        'bank_name'              => 'nullable|string|max:255',
+        'bank_account_number'    => 'nullable|string|max:50',
+        'bank_branch_number'     => 'nullable|string|max:20',
+        'bank_branch_info'       => 'nullable|string|max:255',
+        'father_name'            => 'nullable|string|max:255',
+        'father_income'          => 'nullable|numeric|min:0',
+        'mother_name'            => 'nullable|string|max:255',
+        'mother_income'          => 'nullable|numeric|min:0',
+        'guardian_name'          => 'nullable|string|max:255',
+        'guardian_income'        => 'nullable|numeric|min:0',
+        'background_info'        => 'nullable|string',
+        'internal_comment'       => 'nullable|string',
+        'external_comment'       => 'nullable|string',
+        'status'                 => 'nullable',
+    ];
+
+    // Auto-lookup: Import by name → saves as ID
+    protected $importLookups = [
+        'school_name' => [
+            'table'   => 'school_names',
+            'search'  => 'name',
+            'return'  => 'id',
+            'save_as' => 'school_id',
+            'create'  => true,  // Auto-create if not exists
+        ],
+        'country_name' => [
+            'table'   => 'countries',
+            'search'  => 'short_name',
+            'return'  => 'country_id',
+            'save_as' => 'country_id',
+            // No create - countries should exist
+        ],
+        'bank_name' => [
+            'table'   => 'banks',
+            'search'  => 'name',
+            'return'  => 'id',
+            'save_as' => 'bank_id',
+            'create'  => true,  // Auto-create if not exists
+            'create_data' => ['created_on' => null],  // Will be set to now() by trait
+        ],
+    ];
+
+    // Default values for empty import columns
+    protected $importDefaults = [
+        'status'        => 1,
+        'current_state' => 'inprogress',
+    ];
+
+    // Bulk action buttons
+    protected $bulkActions = [
+        'delete'     => ['label' => 'Delete', 'confirm' => true, 'color' => 'red'],
+        'activate'   => ['label' => 'Activate', 'color' => 'green'],
+        'deactivate' => ['label' => 'Deactivate', 'color' => 'yellow'],
+    ];
+
+    // =========================================
+    // OVERRIDE: Custom Row Mapping
+    // =========================================
+
+    /**
+     * Custom row mapping for list
+     */
+    protected function mapRow($item)
+    {
+        try {
+            $hashId = HashId::encode($item->id);
+            
             return [
                 'id' => $item->id,
-                'school_internal_id' => $item->school_internal_id,
-                'full_name' => $item->full_name,
+                'hash_id' => $hashId,
+                'school_internal_id' => $item->school_internal_id ?? '',
+                'full_name' => $item->full_name ?? '',
                 'email' => $item->email ?? '',
                 'phone' => $item->phone ?? '',
-                'school_name' => $item->school_name_display,
+                'school_name' => $item->school->name ?? 'N/A',
                 'grade' => $item->grade ?? '',
                 'current_state' => $item->current_state ?? 'inprogress',
                 'age' => $item->age ?? '',
-                'status' => $item->status,
-                'profile_photo_url' => $item->profile_photo_url ?? '',
-                '_edit_url' => route('admin.studentsponsorship.school-students.edit', $item->id),
-                '_show_url' => route('admin.studentsponsorship.school-students.show', $item->id),
+                'status' => $item->status ? 1 : 0,
+                'profile_photo_url' => $item->hasMedia('profile_photo') ? $item->getFirstMediaUrl('profile_photo') : null,
+                '_show_url' => route('admin.studentsponsorship.school-students.show', $hashId),
+                '_edit_url' => route('admin.studentsponsorship.school-students.edit', $hashId),
+                '_delete_url' => route('admin.studentsponsorship.school-students.destroy', $hashId),
             ];
-        });
-
-        return response()->json([
-            'data' => $items,
-            'total' => $data->total(),
-            'current_page' => $data->currentPage(),
-            'last_page' => $data->lastPage(),
-        ]);
-    }
-
-    /**
-     * Apply filters from request
-     */
-    protected function applyFilters($query, Request $request)
-    {
-        if ($request->filled('status')) {
-            $query->where('status', $request->input('status'));
-        }
-        if ($grade = $request->input('grade')) {
-            $query->where('grade', $grade);
-        }
-        if ($schoolId = $request->input('school_id')) {
-            $query->where('school_id', $schoolId);
-        }
-        if ($countryId = $request->input('country_id')) {
-            $query->where('country_id', $countryId);
-        }
-        if ($fromDate = $request->input('from_date')) {
-            $query->whereDate('created_at', '>=', $fromDate);
-        }
-        if ($toDate = $request->input('to_date')) {
-            $query->whereDate('created_at', '<=', $toDate);
-        }
-    }
-
-    /**
-     * Export students - CSV, Excel, PDF
-     */
-    protected function exportStudents(Request $request)
-    {
-        $format = strtolower($request->get('export', 'csv'));
-        $query = SchoolStudent::query()->with(['school', 'country']);
-
-        $this->applyFilters($query, $request);
-
-        if ($search = $request->input('search')) {
-            $query->where(function ($q) use ($search) {
-                $q->where('full_name', 'LIKE', "%{$search}%")
-                  ->orWhere('email', 'LIKE', "%{$search}%")
-                  ->orWhere('phone', 'LIKE', "%{$search}%")
-                  ->orWhere('school_internal_id', 'LIKE', "%{$search}%");
-            });
-        }
-
-        $sortCol = $request->input('sort', 'id');
-        $sortDir = $request->input('dir', 'desc');
-        $query->orderBy($sortCol, $sortDir);
-
-        if ($request->filled('ids')) {
-            $ids = array_filter(explode(',', $request->ids));
-            if (!empty($ids)) {
-                $query->whereIn('id', $ids);
-            }
-        }
-
-        $data = $query->get();
-        $filename = 'school_students_' . date('Y-m-d_His');
-        $title = 'School Students Export';
-
-        switch ($format) {
-            case 'xlsx':
-            case 'excel':
-                return $this->exportToExcel($data, $filename, $title);
-            case 'pdf':
-                return $this->exportToPdf($data, $filename, $title);
-            case 'csv':
-            default:
-                return $this->exportToCsv($data, $filename);
-        }
-    }
-
-    protected function getExportData($data)
-    {
-        $headers = ['ID', 'Student ID', 'Full Name', 'Email', 'Phone', 'DOB', 'Age', 'Country', 'City', 'Grade', 'Current State', 'School', 'Status', 'Created At'];
-        
-        $rows = $data->map(function ($item) {
-            return [
-                'ID' => $item->id,
-                'Student ID' => $item->school_internal_id,
-                'Full Name' => $item->full_name,
-                'Email' => $item->email,
-                'Phone' => $item->phone,
-                'DOB' => $item->dob?->format('Y-m-d'),
-                'Age' => $item->age,
-                'Country' => $item->country_name,
-                'City' => $item->city,
-                'Grade' => $item->grade,
-                'Current State' => $item->current_state === 'complete' ? 'Complete' : 'In Progress',
-                'School' => $item->school_name_display,
-                'Status' => $item->status ? 'Active' : 'Inactive',
-                'Created At' => $item->created_at?->format('Y-m-d H:i'),
-            ];
-        })->toArray();
-
-        return [$headers, $rows];
-    }
-
-    protected function exportToCsv($data, $filename)
-    {
-        [$headers, $rows] = $this->getExportData($data);
-
-        $callback = function () use ($headers, $rows) {
-            $file = fopen('php://output', 'w');
-            fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF));
-            fputcsv($file, $headers);
-            foreach ($rows as $row) {
-                fputcsv($file, array_values($row));
-            }
-            fclose($file);
-        };
-
-        return Response::stream($callback, 200, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
-            'Content-Disposition' => "attachment; filename={$filename}.csv",
-        ]);
-    }
-
-    protected function exportToExcel($data, $filename, $title)
-    {
-        [$headers, $rows] = $this->getExportData($data);
-
-        $spreadsheet = new Spreadsheet();
-        $sheet = $spreadsheet->getActiveSheet();
-        $sheet->setTitle('Students');
-
-        if (empty($rows)) {
-            $sheet->setCellValue('A1', 'No data to export');
-            return $this->streamExcel($spreadsheet, $filename . '.xlsx');
-        }
-
-        $lastCol = Coordinate::stringFromColumnIndex(count($headers));
-        $sheet->mergeCells("A1:{$lastCol}1");
-        $sheet->setCellValue('A1', $title . ' - ' . date('d M Y H:i'));
-        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
-        $sheet->getStyle('A1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        $sheet->getRowDimension(1)->setRowHeight(25);
-
-        foreach ($headers as $index => $header) {
-            $colLetter = Coordinate::stringFromColumnIndex($index + 1);
-            $sheet->setCellValue("{$colLetter}3", $header);
-            $sheet->getStyle("{$colLetter}3")->applyFromArray([
-                'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
-                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '4F46E5']],
-                'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
-                'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]
-            ]);
-            $sheet->getColumnDimension($colLetter)->setAutoSize(true);
-        }
-
-        $rowNum = 4;
-        foreach ($rows as $row) {
-            $colIndex = 1;
-            foreach ($row as $value) {
-                $colLetter = Coordinate::stringFromColumnIndex($colIndex);
-                $sheet->setCellValue("{$colLetter}{$rowNum}", $value);
-                if ($rowNum % 2 === 0) {
-                    $sheet->getStyle("{$colLetter}{$rowNum}")->getFill()
-                        ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('F9FAFB');
-                }
-                $sheet->getStyle("{$colLetter}{$rowNum}")->getBorders()
-                    ->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
-                $colIndex++;
-            }
-            $rowNum++;
-        }
-
-        $rowNum++;
-        $sheet->setCellValue("A{$rowNum}", "Total Records: " . count($rows));
-        $sheet->getStyle("A{$rowNum}")->getFont()->setBold(true)->setItalic(true);
-
-        return $this->streamExcel($spreadsheet, $filename . '.xlsx');
-    }
-
-    protected function streamExcel($spreadsheet, $filename)
-    {
-        $writer = new Xlsx($spreadsheet);
-        return response()->streamDownload(function () use ($writer) {
-            $writer->save('php://output');
-        }, $filename, [
-            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'Cache-Control' => 'max-age=0',
-        ]);
-    }
-
-    protected function exportToPdf($data, $filename, $title)
-    {
-        [$headers, $rows] = $this->getExportData($data);
-        $html = $this->generatePdfHtml($title, $headers, $rows);
-        $pdf = Pdf::loadHTML($html)->setPaper('a4', 'landscape');
-        return $pdf->download($filename . '.pdf');
-    }
-
-    protected function generatePdfHtml($title, $headers, $rows, $modelName = 'students')
-    {
-        $companyName = config('app.name', 'ERP System');
-        $date = date('d M Y H:i');
-        $totalRecords = count($rows);
-
-        $html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' . e($title) . '</title>
-        <style>
-            * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { font-family: DejaVu Sans, sans-serif; font-size: 10px; color: #333; padding: 15px; }
-            .header { text-align: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #4F46E5; }
-            .header h1 { font-size: 18px; color: #4F46E5; margin-bottom: 5px; }
-            .header .subtitle { font-size: 12px; color: #666; }
-            .meta { margin-bottom: 15px; font-size: 9px; color: #666; }
-            table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
-            th { background: #4F46E5; color: white; padding: 8px 6px; text-align: left; font-size: 9px; font-weight: bold; border: 1px solid #4F46E5; }
-            td { padding: 6px; border: 1px solid #ddd; font-size: 9px; word-wrap: break-word; }
-            tr:nth-child(even) { background: #f9fafb; }
-            .footer { margin-top: 20px; padding-top: 10px; border-top: 1px solid #ddd; font-size: 9px; color: #666; text-align: center; }
-            .total { font-weight: bold; margin-top: 10px; }
-            .status-active { color: #16a34a; font-weight: bold; }
-            .status-inactive { color: #dc2626; font-weight: bold; }
-        </style></head><body>
-        <div class="header"><h1>' . e($companyName) . '</h1><div class="subtitle">' . e($title) . '</div></div>
-        <div class="meta"><span>Generated: ' . $date . '</span> | <span>Total Records: ' . $totalRecords . '</span></div>';
-
-        if (empty($rows)) {
-            $html .= '<div style="text-align:center;padding:30px;color:#666;">No data to export</div>';
-        } else {
-            $html .= '<table><thead><tr>';
-            foreach ($headers as $header) { $html .= '<th>' . e($header) . '</th>'; }
-            $html .= '</tr></thead><tbody>';
-            foreach ($rows as $row) {
-                $html .= '<tr>';
-                foreach ($row as $key => $value) {
-                    $class = ($key === 'Status') ? ' class="status-' . strtolower($value) . '"' : '';
-                    $html .= '<td' . $class . '>' . e($value ?? '') . '</td>';
-                }
-                $html .= '</tr>';
-            }
-            $html .= '</tbody></table>';
-        }
-
-        $html .= '<div class="footer"><div class="total">Total Records: ' . $totalRecords . '</div>
-            <div>Generated by ' . e($companyName) . ' on ' . $date . '</div></div></body></html>';
-
-        return $html;
-    }
-
-    protected function downloadTemplate()
-    {
-        $spreadsheet = new Spreadsheet();
-        $sheet = $spreadsheet->getActiveSheet();
-        $sheet->setTitle('Import Data');
-
-        $headers = ['school_internal_id', 'full_name', 'email', 'phone', 'dob', 'age', 'country_id', 'city', 'grade', 'current_state', 'school_id'];
-        $hints = [
-            'Required, Unique ID',
-            'Required, Text (max 255)',
-            'Optional, Valid Email',
-            'Optional, Phone Number',
-            'Optional, Date (YYYY-MM-DD)',
-            'Required, Number (1-100)',
-            'Optional, Country ID (see Reference)',
-            'Optional, City Name',
-            'Required, Grade Code (see Reference)',
-            'Optional, inprogress or complete (default: inprogress)',
-            'Optional, School ID (see Reference)',
-        ];
-
-        foreach ($headers as $index => $header) {
-            $colLetter = Coordinate::stringFromColumnIndex($index + 1);
-            $cell = $sheet->getCell("{$colLetter}1");
-            $cell->setValue($header);
-            $cell->getStyle()->getFont()->setBold(true)->getColor()->setRGB('FFFFFF');
-            $cell->getStyle()->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('4F46E5');
-            $sheet->getColumnDimension($colLetter)->setAutoSize(true);
-        }
-
-        foreach ($hints as $index => $hint) {
-            $colLetter = Coordinate::stringFromColumnIndex($index + 1);
-            $cell = $sheet->getCell("{$colLetter}2");
-            $cell->setValue($hint);
-            $cell->getStyle()->getFont()->setItalic(true)->getColor()->setRGB('9CA3AF');
-        }
-
-        $sampleData = ['STU001', 'John Doe', 'john@example.com', '771234567', '2010-05-15', '14', '144', 'Colombo', '10', 'inprogress', ''];
-        // Note: Age 14 = Grade 10 (correct mapping)
-        foreach ($sampleData as $index => $value) {
-            $colLetter = Coordinate::stringFromColumnIndex($index + 1);
-            $sheet->setCellValue("{$colLetter}3", $value);
-        }
-
-        $this->addReferenceSheet($spreadsheet);
-        $spreadsheet->setActiveSheetIndex(0);
-        $writer = new Xlsx($spreadsheet);
-
-        return response()->streamDownload(function () use ($writer) {
-            $writer->save('php://output');
-        }, 'school_students_import_template.xlsx', [
-            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        ]);
-    }
-
-    protected function addReferenceSheet($spreadsheet)
-    {
-        $infoSheet = $spreadsheet->createSheet();
-        $infoSheet->setTitle('Reference Data');
-        $infoSheet->setCellValue('A1', 'REFERENCE DATA (Use ID in import)');
-        $infoSheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
-
-        $row = 3;
-        
-        // Age-Grade Mapping (Important for validation)
-        $infoSheet->setCellValue("A{$row}", 'AGE-GRADE MAPPING (Expected age range for each grade):');
-        $infoSheet->getStyle("A{$row}")->getFont()->setBold(true)->getColor()->setRGB('DC2626');
-        $row++;
-        $infoSheet->setCellValue("A{$row}", 'Grade');
-        $infoSheet->setCellValue("B{$row}", 'Label');
-        $infoSheet->setCellValue("C{$row}", 'Min Age');
-        $infoSheet->setCellValue("D{$row}", 'Max Age');
-        $infoSheet->getStyle("A{$row}:D{$row}")->getFont()->setBold(true);
-        $row++;
-        
-        $gradeAgeMapping = config('studentsponsorship.grade_age_mapping', []);
-        $grades = config('studentsponsorship.school_grades', []);
-        foreach ($gradeAgeMapping as $gradeNum => $ageRange) {
-            $infoSheet->setCellValue("A{$row}", $gradeNum);
-            $infoSheet->setCellValue("B{$row}", $grades[(string)$gradeNum] ?? "Grade {$gradeNum}");
-            $infoSheet->setCellValue("C{$row}", $ageRange['min']);
-            $infoSheet->setCellValue("D{$row}", $ageRange['max']);
-            $row++;
-        }
-        
-        $row += 2;
-        $infoSheet->setCellValue("A{$row}", 'SCHOOLS (for school_id):');
-        $infoSheet->getStyle("A{$row}")->getFont()->setBold(true);
-        $row++;
-        $infoSheet->setCellValue("A{$row}", 'ID');
-        $infoSheet->setCellValue("B{$row}", 'Name');
-        $row++;
-
-        $schools = SchoolName::active()->orderBy('name')->limit(100)->get(['id', 'name']);
-        foreach ($schools as $school) {
-            $infoSheet->setCellValue("A{$row}", $school->id);
-            $infoSheet->setCellValue("B{$row}", $school->name);
-            $row++;
-        }
-
-        $row += 2;
-        $infoSheet->setCellValue("A{$row}", 'COUNTRIES (for country_id):');
-        $infoSheet->getStyle("A{$row}")->getFont()->setBold(true);
-        $row++;
-        $infoSheet->setCellValue("A{$row}", 'ID');
-        $infoSheet->setCellValue("B{$row}", 'Name');
-        $infoSheet->setCellValue("C{$row}", 'Calling Code');
-        $row++;
-
-        $countries = DB::table('countries')->orderBy('short_name')->limit(50)->get(['country_id', 'short_name', 'calling_code']);
-        foreach ($countries as $country) {
-            $infoSheet->setCellValue("A{$row}", $country->country_id);
-            $infoSheet->setCellValue("B{$row}", $country->short_name);
-            $infoSheet->setCellValue("C{$row}", '+' . $country->calling_code);
-            $row++;
-        }
-
-        $row += 2;
-        $infoSheet->setCellValue("A{$row}", 'GRADE OPTIONS:');
-        $infoSheet->getStyle("A{$row}")->getFont()->setBold(true);
-        $row++;
-        foreach ($grades as $key => $label) {
-            $infoSheet->setCellValue("A{$row}", $key);
-            $infoSheet->setCellValue("B{$row}", $label);
-            $row++;
-        }
-
-        $infoSheet->getColumnDimension('A')->setAutoSize(true);
-        $infoSheet->getColumnDimension('B')->setAutoSize(true);
-        $infoSheet->getColumnDimension('C')->setAutoSize(true);
-        $infoSheet->getColumnDimension('D')->setAutoSize(true);
-    }
-
-    protected function importStudents(Request $request)
-    {
-        $request->validate(['file' => 'required|file|mimes:xlsx,xls,csv|max:10240']);
-
-        try {
-            $rows = $this->parseFile($request->file('file'));
-            
-            if (empty($rows)) {
-                return response()->json(['success' => false, 'message' => 'No data found in file'], 400);
-            }
-
-            $results = ['total' => 0, 'success' => 0, 'failed' => 0, 'errors' => [], 'warnings' => []];
-            DB::beginTransaction();
-
-            foreach ($rows as $index => $row) {
-                $rowNum = $index + 3;
-                
-                if ($this->isRowEmpty($row)) continue;
-                if ($index === 0 && $this->isHintRow($row)) continue;
-
-                $results['total']++;
-
-                $rules = [
-                    'school_internal_id' => 'required|string|max:50|unique:school_students,school_internal_id',
-                    'full_name' => 'required|string|max:255',
-                    'email' => 'nullable|email|unique:school_students,email',
-                    'phone' => 'nullable|string|max:30',
-                    'dob' => 'nullable|date',
-                    'age' => 'required|integer|min:1|max:100',
-                    'country_id' => 'nullable|integer',
-                    'city' => 'nullable|string|max:255',
-                    'grade' => 'required|string|max:20',
-                    'current_state' => 'nullable|in:inprogress,complete',
-                    'school_id' => 'nullable|exists:school_names,id',
-                ];
-
-                $validator = Validator::make($row, $rules);
-                
-                if ($validator->fails()) {
-                    $results['failed']++;
-                    $results['errors'][] = "Row {$rowNum}: " . $validator->errors()->first();
-                    continue;
-                }
-
-                // Check age-grade mismatch (warning only, still imports)
-                if (isset($row['age']) && isset($row['grade'])) {
-                    $ageGradeCheck = $this->validateAgeGrade((int)$row['age'], $row['grade']);
-                    if (!$ageGradeCheck['is_valid']) {
-                        $suggested = $ageGradeCheck['suggested_grade'];
-                        $results['warnings'][] = "Row {$rowNum}: Age {$row['age']} mismatch with Grade {$row['grade']} (expected {$suggested['label']})";
-                    }
-                }
-
-                try {
-                    $data = array_filter($row, fn($v) => $v !== '' && $v !== null);
-                    $data['status'] = true;
-                    // Default current_state to inprogress if not provided
-                    if (!isset($data['current_state']) || empty($data['current_state'])) {
-                        $data['current_state'] = 'inprogress';
-                    }
-                    SchoolStudent::create($data);
-                    $results['success']++;
-                } catch (\Exception $e) {
-                    $results['failed']++;
-                    $results['errors'][] = "Row {$rowNum}: " . $e->getMessage();
-                }
-            }
-
-            if ($results['success'] === 0 && $results['failed'] > 0) {
-                DB::rollBack();
-                return response()->json(['success' => false, 'message' => 'Import failed - no records imported', 'results' => $results], 422);
-            }
-
-            DB::commit();
-            
-            $message = "{$results['success']} of {$results['total']} students imported successfully";
-            if (count($results['warnings']) > 0) {
-                $message .= ". " . count($results['warnings']) . " age-grade mismatches found.";
-            }
-            
-            return response()->json(['success' => true, 'message' => $message, 'results' => $results]);
         } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+            \Log::error('mapRow error', ['id' => $item->id ?? 'unknown', 'error' => $e->getMessage()]);
+            return [
+                'id' => $item->id ?? 0,
+                'hash_id' => '',
+                'school_internal_id' => '',
+                'full_name' => 'Error loading',
+                'email' => '',
+                'phone' => '',
+                'school_name' => 'N/A',
+                'grade' => '',
+                'current_state' => 'inprogress',
+                'age' => '',
+                'status' => 0,
+                'profile_photo_url' => null,
+                '_show_url' => '#',
+                '_edit_url' => '#',
+                '_delete_url' => '#',
+            ];
         }
     }
 
-    protected function parseFile($file)
+    /**
+     * Custom export row mapping
+     * Column names match import template for easy re-import
+     */
+    protected function mapExportRow($item)
     {
-        $ext = strtolower($file->getClientOriginalExtension());
-        return $ext === 'csv' ? $this->parseCsv($file) : $this->parseExcel($file);
+        return [
+            'school_internal_id'     => $item->school_internal_id,
+            'school_student_id'      => $item->school_student_id,
+            'full_name'              => $item->full_name,
+            'age'                    => $item->age,
+            'grade'                  => $item->grade,
+            'email'                  => $item->email,
+            'phone'                  => $item->phone,
+            'dob'                    => $item->dob?->format('Y-m-d'),
+            'country_name'           => $item->country_name,
+            'address'                => $item->address,
+            'city'                   => $item->city,
+            'postal_code'            => $item->postal_code,
+            'school_name'            => $item->school_name_display,
+            'school_type'            => $item->school_type,
+            'current_state'          => $item->current_state,
+            'grade_mismatch_reason'  => $item->grade_mismatch_reason,
+            'sponsorship_start_date' => $item->sponsorship_start_date?->format('Y-m-d'),
+            'sponsorship_end_date'   => $item->sponsorship_end_date?->format('Y-m-d'),
+            'introduced_by'          => $item->introduced_by,
+            'introducer_phone'       => $item->introducer_phone,
+            'bank_name'              => $item->bank_name_display,
+            'bank_account_number'    => $item->bank_account_number,
+            'bank_branch_number'     => $item->bank_branch_number,
+            'bank_branch_info'       => $item->bank_branch_info,
+            'father_name'            => $item->father_name,
+            'father_income'          => $item->father_income,
+            'mother_name'            => $item->mother_name,
+            'mother_income'          => $item->mother_income,
+            'guardian_name'          => $item->guardian_name,
+            'guardian_income'        => $item->guardian_income,
+            'background_info'        => $item->background_info,
+            'internal_comment'       => $item->internal_comment,
+            'external_comment'       => $item->external_comment,
+            'status'                 => $item->status ? 'Active' : 'Inactive',
+        ];
     }
 
-    protected function parseExcel($file)
+    // =========================================
+    // CUSTOM BULK ACTIONS
+    // =========================================
+
+    /**
+     * Get bulk actions configuration
+     */
+    public function getBulkActionsConfig(): JsonResponse
     {
-        $spreadsheet = IOFactory::load($file->getPathname());
-        $sheet = $spreadsheet->getActiveSheet();
-        $rows = [];
-        $headers = [];
-        
-        foreach ($sheet->getRowIterator() as $rowIndex => $row) {
-            $cellIterator = $row->getCellIterator();
-            $cellIterator->setIterateOnlyExistingCells(false);
+        return response()->json([
+            'actions' => $this->bulkActions ?? [],
+            'route' => route('admin.studentsponsorship.school-students.bulk-action'),
+        ]);
+    }
+
+    /**
+     * Handle bulk actions from DataTable
+     */
+    public function handleBulkAction(Request $request): JsonResponse
+    {
+        $action = $request->input('action');
+        $ids = $request->input('ids', []);
+
+        if (empty($ids)) {
+            return response()->json(['success' => false, 'message' => 'No items selected'], 400);
+        }
+
+        switch ($action) {
+            case 'delete':
+                $count = SchoolStudent::whereIn('id', $ids)->delete();
+                return response()->json(['success' => true, 'message' => "{$count} students deleted"]);
             
-            $rowData = [];
-            foreach ($cellIterator as $cell) {
-                $rowData[] = trim($cell->getValue() ?? '');
-            }
+            case 'activate':
+                $count = SchoolStudent::whereIn('id', $ids)->update(['status' => 1]);
+                return response()->json(['success' => true, 'message' => "{$count} students activated"]);
             
-            if ($rowIndex === 1) {
-                $headers = $rowData;
-                continue;
-            }
+            case 'deactivate':
+                $count = SchoolStudent::whereIn('id', $ids)->update(['status' => 0]);
+                return response()->json(['success' => true, 'message' => "{$count} students deactivated"]);
             
-            $assoc = [];
-            foreach ($headers as $i => $h) {
-                if (!empty($h)) {
-                    $assoc[$h] = $rowData[$i] ?? '';
-                }
-            }
-            $rows[] = $assoc;
+            default:
+                return response()->json(['success' => false, 'message' => 'Unknown action'], 400);
         }
-        
-        return $rows;
     }
 
-    protected function parseCsv($file)
+    /**
+     * Bulk activate students
+     */
+    public function bulkActivate(Request $request)
     {
-        $rows = [];
-        $headers = [];
-        
-        if (($handle = fopen($file->getPathname(), 'r')) !== false) {
-            $line = 0;
-            while (($data = fgetcsv($handle)) !== false) {
-                $line++;
-                if ($line === 1) {
-                    $headers = array_map('trim', $data);
-                    continue;
-                }
-                $row = [];
-                foreach ($headers as $i => $h) {
-                    $row[$h] = trim($data[$i] ?? '');
-                }
-                $rows[] = $row;
-            }
-            fclose($handle);
+        $ids = $request->input('ids', []);
+        if (empty($ids)) {
+            return response()->json(['success' => false, 'message' => 'No items selected'], 400);
         }
-        
-        return $rows;
+        $count = SchoolStudent::whereIn('id', $ids)->update(['status' => 1]);
+        return response()->json(['success' => true, 'message' => "{$count} students activated"]);
     }
 
-    protected function isRowEmpty($row)
+    /**
+     * Bulk deactivate students
+     */
+    public function bulkDeactivate(Request $request)
     {
-        foreach ($row as $v) {
-            if (!empty(trim($v))) return false;
+        $ids = $request->input('ids', []);
+        if (empty($ids)) {
+            return response()->json(['success' => false, 'message' => 'No items selected'], 400);
         }
-        return true;
+        $count = SchoolStudent::whereIn('id', $ids)->update(['status' => 0]);
+        return response()->json(['success' => true, 'message' => "{$count} students deactivated"]);
     }
 
-    protected function isHintRow($row)
+    /**
+     * Bulk delete students
+     */
+    public function bulkDelete(Request $request)
     {
-        $first = reset($row);
-        return str_contains(strtolower($first), 'required') || str_contains(strtolower($first), 'optional');
+        $ids = $request->input('ids', []);
+        if (empty($ids)) {
+            return response()->json(['success' => false, 'message' => 'No items selected'], 400);
+        }
+        $deleted = SchoolStudent::whereIn('id', $ids)->delete();
+        return response()->json(['success' => true, 'message' => "{$deleted} students deleted"]);
     }
+
+    // =========================================
+    // INDEX PAGE
+    // =========================================
 
     public function index()
     {
+        // Stats for in-progress students only
         $stats = [
-            'total' => SchoolStudent::count(),
-            'active' => SchoolStudent::where('status', true)->count(),
-            'inactive' => SchoolStudent::where('status', false)->count(),
+            'total' => DB::table('school_students')->where('current_state', 'inprogress')->count(),
+            'active' => DB::table('school_students')->where('current_state', 'inprogress')->where('status', 1)->count(),
+            'inactive' => DB::table('school_students')->where('current_state', 'inprogress')->where('status', 0)->count(),
         ];
-        $schools = SchoolName::active()->orderBy('name')->get();
+
+        $schools = SchoolName::where('status', 1)->orderBy('name')->get();
         $grades = config('studentsponsorship.school_grades', []);
-        return view('studentsponsorship::school-students.index', compact('stats', 'schools', 'grades'));
+        $currentState = 'inprogress';
+        $pageTitle = 'School Students';
+        
+        return view('studentsponsorship::school-students.index', compact('stats', 'schools', 'grades', 'currentState', 'pageTitle'));
     }
+
+    public function completed()
+    {
+        // Stats for completed students only
+        $stats = [
+            'total' => DB::table('school_students')->where('current_state', 'complete')->count(),
+            'active' => DB::table('school_students')->where('current_state', 'complete')->where('status', 1)->count(),
+            'inactive' => DB::table('school_students')->where('current_state', 'complete')->where('status', 0)->count(),
+        ];
+
+        $schools = SchoolName::where('status', 1)->orderBy('name')->get();
+        $grades = config('studentsponsorship.school_grades', []);
+        
+        return view('studentsponsorship::school-students.completed', compact('stats', 'schools', 'grades'));
+    }
+
+    // =========================================
+    // DATATABLE HANDLER
+    // =========================================
+
+    public function handleData(Request $request)
+    {
+        // Import (POST with file) - delegate to trait
+        if ($request->isMethod('post') && $request->hasFile('file')) {
+            return $this->dtImport($request);
+        }
+
+        // Template Download - delegate to trait
+        if ($request->has('template')) {
+            return $this->dtTemplate();
+        }
+
+        // Export - delegate to trait
+        if ($request->has('export')) {
+            return $this->dtExport($request);
+        }
+
+        // Get bulk actions config
+        if ($request->has('bulk_actions')) {
+            return $this->getBulkActionsConfig();
+        }
+
+        // List with search, filter, sort, pagination
+        try {
+            $query = SchoolStudent::with(['school']);
+
+            // ALWAYS filter by inprogress (completed has its own endpoint)
+            $query->where('current_state', 'inprogress');
+
+            // Search
+            $search = $request->input('search.value') ?? $request->input('search');
+            if ($search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('full_name', 'like', "%{$search}%")
+                      ->orWhere('email', 'like', "%{$search}%")
+                      ->orWhere('phone', 'like', "%{$search}%")
+                      ->orWhere('school_internal_id', 'like', "%{$search}%");
+                });
+            }
+
+            // Filters
+            if ($request->filled('status')) {
+                $status = $request->input('status');
+                $query->where('status', $status == '1' || $status == 'active');
+            }
+            if ($request->filled('grade')) {
+                $query->where('grade', $request->grade);
+            }
+            if ($request->filled('school_id')) {
+                $query->where('school_name_id', $request->school_id);
+            }
+
+            $totalRecords = SchoolStudent::where('current_state', 'inprogress')->count();
+            $filteredRecords = $query->count();
+
+            // Sorting
+            $sortCol = $request->input('sort', 'id');
+            $sortDir = $request->input('dir', 'desc');
+            
+            if (in_array($sortCol, ['id', 'full_name', 'email', 'grade', 'status', 'age', 'created_at'])) {
+                $query->orderBy($sortCol, $sortDir);
+            } else {
+                $query->orderBy('id', 'desc');
+            }
+
+            // Pagination
+            $perPage = min($request->input('per_page', 10), 100);
+            $page = $request->input('page', 1);
+            
+            $data = $query->paginate($perPage);
+            
+            // Calculate starting row number for this page
+            $startRow = ($data->currentPage() - 1) * $data->perPage() + 1;
+
+            $items = collect($data->items())->map(function ($student, $index) use ($startRow) {
+                $row = $this->mapRow($student);
+                $row['_row_num'] = $startRow + $index;
+                return $row;
+            });
+
+            return response()->json([
+                'data' => $items,
+                'total' => $data->total(),
+                'current_page' => $data->currentPage(),
+                'last_page' => $data->lastPage(),
+                'per_page' => $data->perPage(),
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('SchoolStudent DataTable Error: ' . $e->getMessage());
+            return response()->json([
+                'data' => [],
+                'total' => 0,
+                'current_page' => 1,
+                'last_page' => 1,
+                'per_page' => 10,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Handle completed students data (separate endpoint for completed page)
+     */
+    public function handleCompletedData(Request $request)
+    {
+        // Export - delegate to trait
+        if ($request->has('export')) {
+            // Temporarily set current_state for export
+            $request->merge(['current_state' => 'complete']);
+            return $this->dtExport($request);
+        }
+
+        // List with search, filter, sort, pagination - ONLY COMPLETE STUDENTS
+        try {
+            $query = SchoolStudent::with(['school']);
+
+            // ALWAYS filter by complete state
+            $query->where('current_state', 'complete');
+
+            // Search
+            $search = $request->input('search.value') ?? $request->input('search');
+            if ($search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('full_name', 'like', "%{$search}%")
+                      ->orWhere('email', 'like', "%{$search}%")
+                      ->orWhere('phone', 'like', "%{$search}%")
+                      ->orWhere('school_internal_id', 'like', "%{$search}%");
+                });
+            }
+
+            // Filters
+            if ($request->filled('status')) {
+                $status = $request->input('status');
+                $query->where('status', $status == '1' || $status == 'active');
+            }
+            if ($request->filled('grade')) {
+                $query->where('grade', $request->grade);
+            }
+            if ($request->filled('school_id')) {
+                $query->where('school_name_id', $request->school_id);
+            }
+
+            $totalRecords = SchoolStudent::where('current_state', 'complete')->count();
+            $filteredRecords = $query->count();
+
+            // Sorting
+            $sortCol = $request->input('sort', 'id');
+            $sortDir = $request->input('dir', 'desc');
+            
+            if (in_array($sortCol, ['id', 'full_name', 'email', 'grade', 'status', 'age', 'created_at'])) {
+                $query->orderBy($sortCol, $sortDir);
+            } else {
+                $query->orderBy('id', 'desc');
+            }
+
+            // Pagination
+            $perPage = min($request->input('per_page', 10), 100);
+            
+            $data = $query->paginate($perPage);
+            
+            // Calculate starting row number for this page
+            $startRow = ($data->currentPage() - 1) * $data->perPage() + 1;
+
+            $items = collect($data->items())->map(function ($student, $index) use ($startRow) {
+                $row = $this->mapRow($student);
+                $row['_row_num'] = $startRow + $index;
+                return $row;
+            });
+
+            return response()->json([
+                'data' => $items,
+                'total' => $data->total(),
+                'current_page' => $data->currentPage(),
+                'last_page' => $data->lastPage(),
+                'per_page' => $data->perPage(),
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('SchoolStudent Completed DataTable Error: ' . $e->getMessage());
+            return response()->json([
+                'data' => [],
+                'total' => 0,
+                'current_page' => 1,
+                'last_page' => 1,
+                'per_page' => 10,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    // =========================================
+    // CRUD METHODS (unchanged)
+    // =========================================
 
     public function create()
     {
-        $schools = SchoolName::active()->orderBy('name')->get();
+        $schools = SchoolName::where('status', 1)->orderBy('name')->get();
         $countries = DB::table('countries')->orderBy('short_name')->get();
         $banks = DB::table('banks')->orderBy('name')->get();
         $grades = config('studentsponsorship.school_grades', []);
-        $schoolTypes = config('studentsponsorship.school_types', []);
+        $schoolTypes = config('studentsponsorship.school_types', [
+            'Type 1AB' => 'Type 1AB',
+            'Type 1C' => 'Type 1C',
+            'Type 2' => 'Type 2',
+            'Type 3' => 'Type 3',
+        ]);
         $gradeAgeMapping = config('studentsponsorship.grade_age_mapping', []);
+        
         return view('studentsponsorship::school-students.create', compact('schools', 'countries', 'banks', 'grades', 'schoolTypes', 'gradeAgeMapping'));
-    }
-
-    /**
-     * Check if age matches expected grade range
-     */
-    protected function validateAgeGrade($age, $grade)
-    {
-        $mapping = config('studentsponsorship.grade_age_mapping', []);
-        
-        // Convert grade to numeric (handle strings like "O/L", "A/L1" etc)
-        $gradeNum = is_numeric($grade) ? (int)$grade : null;
-        if ($gradeNum === null) {
-            // Handle special grade names
-            $gradeMap = ['11' => 11, '12' => 12, '13' => 13, '14' => 14];
-            $gradeNum = $gradeMap[$grade] ?? null;
-        }
-        
-        if ($gradeNum && isset($mapping[$gradeNum])) {
-            $expectedMin = $mapping[$gradeNum]['min'];
-            $expectedMax = $mapping[$gradeNum]['max'];
-            return [
-                'is_valid' => $age >= $expectedMin && $age <= $expectedMax,
-                'expected_min' => $expectedMin,
-                'expected_max' => $expectedMax,
-                'difference' => $age < $expectedMin ? ($expectedMin - $age) : ($age > $expectedMax ? ($age - $expectedMax) : 0),
-                'suggested_grade' => $this->getSuggestedGrade($age)
-            ];
-        }
-        
-        return ['is_valid' => true, 'difference' => 0];
-    }
-
-    /**
-     * Get suggested grade for an age
-     */
-    protected function getSuggestedGrade($age)
-    {
-        $mapping = config('studentsponsorship.grade_age_mapping', []);
-        $grades = config('studentsponsorship.school_grades', []);
-        
-        foreach ($mapping as $grade => $range) {
-            if ($age >= $range['min'] && $age <= $range['max']) {
-                return [
-                    'grade' => (string)$grade,
-                    'label' => $grades[(string)$grade] ?? "Grade {$grade}"
-                ];
-            }
-        }
-        return null;
-    }
-
-    /**
-     * AJAX: Validate age-grade combination
-     */
-    public function validateAgeGradeAjax(Request $request)
-    {
-        $age = (int)$request->input('age');
-        $grade = $request->input('grade');
-        
-        $result = $this->validateAgeGrade($age, $grade);
-        
-        return response()->json($result);
     }
 
     public function store(Request $request)
     {
-        // First check if age-grade mismatch requires reason
         $age = (int)$request->input('age');
         $grade = $request->input('grade');
         $ageGradeCheck = $this->validateAgeGrade($age, $grade);
-        
-        // Build validation rules
+
         $rules = [
             'school_internal_id' => 'required|string|max:50|unique:school_students,school_internal_id',
+            'school_student_id' => 'required|integer|unique:school_students,school_student_id',
             'full_name' => 'required|string|max:255',
-            'email' => 'nullable|email|unique:school_students,email',
+            'email' => 'nullable|email|max:255|unique:school_students,email',
             'phone' => 'nullable|string|max:30',
             'dob' => 'nullable|date',
             'age' => 'required|integer|min:1|max:100',
             'country_id' => 'nullable|integer',
-            'address' => 'nullable|string',
+            'address' => 'nullable|string|max:1000',
             'city' => 'nullable|string|max:255',
             'postal_code' => 'nullable|string|max:20',
             'grade' => 'required|string|max:20',
@@ -760,68 +692,102 @@ class SchoolStudentController extends AdminController
             'bank_id' => 'nullable|integer',
             'bank_account_number' => 'nullable|string|max:50',
             'bank_branch_number' => 'nullable|string|max:50',
-            'bank_branch_info' => 'nullable|string',
+            'bank_branch_info' => 'nullable|string|max:500',
             'father_name' => 'nullable|string|max:255',
             'father_income' => 'nullable|numeric|min:0',
             'mother_name' => 'nullable|string|max:255',
             'mother_income' => 'nullable|numeric|min:0',
             'guardian_name' => 'nullable|string|max:255',
             'guardian_income' => 'nullable|numeric|min:0',
-            'background_info' => 'nullable|string',
-            'internal_comment' => 'nullable|string',
-            'external_comment' => 'nullable|string',
-            'profile_photo' => 'nullable|image|max:2048',
+            'background_info' => 'nullable|string|max:5000',
+            'internal_comment' => 'nullable|string|max:5000',
+            'external_comment' => 'nullable|string|max:5000',
+            'profile_photo' => 'nullable|image|mimes:jpeg,jpg,png|max:2048',
             'status' => 'boolean',
         ];
         
-        // If age is 1+ year off from expected, require mismatch reason
-        if (!$ageGradeCheck['is_valid'] && $ageGradeCheck['difference'] >= 1) {
+        if ($ageGradeCheck['is_too_young']) {
+            return back()->withErrors(['age' => "Age {$age} is too young for Grade {$grade}. Minimum age is {$ageGradeCheck['expected_min']}."])->withInput();
+        }
+        if ($ageGradeCheck['is_too_old']) {
+            return back()->withErrors(['age' => "Age {$age} is too old for Grade {$grade}. Maximum allowed is {$ageGradeCheck['max_allowed']} (1 year older with reason)."])->withInput();
+        }
+        
+        if ($ageGradeCheck['is_one_year_older']) {
             $rules['grade_mismatch_reason'] = 'required|string|max:255';
         }
         
         $validated = $request->validate($rules);
-
         $validated['status'] = $request->boolean('status', true);
+        
+        if ($ageGradeCheck['is_valid']) {
+            $validated['grade_mismatch_reason'] = null;
+        }
+
         $student = SchoolStudent::create($validated);
 
         if ($request->hasFile('profile_photo')) {
-            $student->addMediaFromRequest('profile_photo')->toMediaCollection('profile_photo');
+            try {
+                $student->addMediaFromRequest('profile_photo')->toMediaCollection('profile_photo');
+            } catch (\Exception $e) {
+                \Log::error('Profile photo upload failed on create', ['id' => $student->id, 'error' => $e->getMessage()]);
+                // Continue without photo - don't fail the whole operation
+            }
         }
 
-        return redirect()->route('admin.studentsponsorship.school-students.edit', $student->id)
-            ->with('success', 'Student created successfully! ID: ' . $student->school_internal_id);
+        return redirect()->route('admin.studentsponsorship.school-students.edit', HashId::encode($student->id))
+            ->with('success', 'Student created successfully!');
     }
 
-    public function show($id)
+    public function show($hash)
     {
-        $student = SchoolStudent::with(['school', 'country', 'bank'])->findOrFail($id);
-        return view('studentsponsorship::school-students.show', compact('student'));
+        $id = $this->resolveId($hash);
+        $student = SchoolStudent::with(['school', 'country'])->findOrFail($id);
+        $hashId = HashId::encode($id);
+        
+        $reportCards = DB::table('school_report_cards')
+            ->where('student_school_id', $student->school_student_id)
+            ->orderBy('upload_date', 'desc')
+            ->get()
+            ->map(function ($card) use ($hashId) {
+                $card->url = route('admin.studentsponsorship.school-students.view-report-card', [$hashId, $card->id]);
+                $card->term_display = str_replace(['Term1','Term2','Term3'], ['Term 1','Term 2','Term 3'], $card->term);
+                return $card;
+            });
+        
+        return view('studentsponsorship::school-students.show', compact('student', 'reportCards'));
     }
 
-    public function edit($id)
+    public function edit($hash)
     {
-        $student = SchoolStudent::findOrFail($id);
-        $schools = SchoolName::active()->orderBy('name')->get();
+        $id = $this->resolveId($hash);
+        $student = SchoolStudent::with(['school', 'country'])->findOrFail($id);
+        $schools = SchoolName::where('status', 1)->orderBy('name')->get();
         $countries = DB::table('countries')->orderBy('short_name')->get();
         $banks = DB::table('banks')->orderBy('name')->get();
         $grades = config('studentsponsorship.school_grades', []);
-        $schoolTypes = config('studentsponsorship.school_types', []);
+        $schoolTypes = config('studentsponsorship.school_types', [
+            'Type 1AB' => 'Type 1AB',
+            'Type 1C' => 'Type 1C',
+            'Type 2' => 'Type 2',
+            'Type 3' => 'Type 3',
+        ]);
         $gradeAgeMapping = config('studentsponsorship.grade_age_mapping', []);
         return view('studentsponsorship::school-students.edit', compact('student', 'schools', 'countries', 'banks', 'grades', 'schoolTypes', 'gradeAgeMapping'));
     }
 
-    public function update(Request $request, $id)
+    public function update(Request $request, $hash)
     {
+        $id = $this->resolveId($hash);
         $student = SchoolStudent::findOrFail($id);
 
-        // First check if age-grade mismatch requires reason
         $age = (int)$request->input('age');
         $grade = $request->input('grade');
         $ageGradeCheck = $this->validateAgeGrade($age, $grade);
 
-        // Build validation rules
         $rules = [
             'school_internal_id' => 'required|string|max:50|unique:school_students,school_internal_id,' . $id,
+            'school_student_id' => 'required|integer|unique:school_students,school_student_id,' . $id,
             'full_name' => 'required|string|max:255',
             'email' => 'nullable|email|unique:school_students,email,' . $id,
             'phone' => 'nullable|string|max:30',
@@ -857,8 +823,14 @@ class SchoolStudentController extends AdminController
             'status' => 'boolean',
         ];
         
-        // If age is 1+ year off from expected, require mismatch reason
-        if (!$ageGradeCheck['is_valid'] && $ageGradeCheck['difference'] >= 1) {
+        if ($ageGradeCheck['is_too_young']) {
+            return back()->withErrors(['age' => "Age {$age} is too young for Grade {$grade}. Minimum age is {$ageGradeCheck['expected_min']}."])->withInput();
+        }
+        if ($ageGradeCheck['is_too_old']) {
+            return back()->withErrors(['age' => "Age {$age} is too old for Grade {$grade}. Maximum allowed is {$ageGradeCheck['max_allowed']} (1 year older with reason)."])->withInput();
+        }
+        
+        if ($ageGradeCheck['is_one_year_older']) {
             $rules['grade_mismatch_reason'] = 'required|string|max:255';
         }
         
@@ -866,7 +838,6 @@ class SchoolStudentController extends AdminController
 
         $validated['status'] = $request->boolean('status', true);
         
-        // Clear mismatch reason if age now matches grade
         if ($ageGradeCheck['is_valid']) {
             $validated['grade_mismatch_reason'] = null;
         }
@@ -874,16 +845,23 @@ class SchoolStudentController extends AdminController
         $student->update($validated);
 
         if ($request->hasFile('profile_photo')) {
-            $student->clearMediaCollection('profile_photo');
-            $student->addMediaFromRequest('profile_photo')->toMediaCollection('profile_photo');
+            try {
+                $student->clearMediaCollection('profile_photo');
+                $student->addMediaFromRequest('profile_photo')->toMediaCollection('profile_photo');
+            } catch (\Exception $e) {
+                \Log::error('Profile photo upload failed', ['id' => $id, 'error' => $e->getMessage()]);
+                return redirect()->route('admin.studentsponsorship.school-students.edit', HashId::encode($student->id))
+                    ->with('warning', 'Student updated but photo upload failed: ' . $e->getMessage());
+            }
         }
 
-        return redirect()->route('admin.studentsponsorship.school-students.edit', $student->id)
+        return redirect()->route('admin.studentsponsorship.school-students.edit', HashId::encode($student->id))
             ->with('success', 'Student updated successfully!');
     }
 
-    public function destroy($id)
+    public function destroy($hash)
     {
+        $id = $this->resolveId($hash);
         $student = SchoolStudent::findOrFail($id);
         $student->delete();
 
@@ -893,15 +871,9 @@ class SchoolStudentController extends AdminController
         return redirect()->route('admin.studentsponsorship.school-students.index')->with('success', 'Student deleted successfully!');
     }
 
-    public function bulkDelete(Request $request)
-    {
-        $ids = $request->input('ids', []);
-        if (empty($ids)) {
-            return response()->json(['success' => false, 'message' => 'No items selected'], 400);
-        }
-        $deleted = SchoolStudent::whereIn('id', $ids)->delete();
-        return response()->json(['success' => true, 'message' => $deleted . ' students deleted']);
-    }
+    // =========================================
+    // AJAX ENDPOINTS
+    // =========================================
 
     public function addSchool(Request $request)
     {
@@ -910,46 +882,637 @@ class SchoolStudentController extends AdminController
         return response()->json(['success' => true, 'id' => $school->id, 'name' => $school->name]);
     }
 
-    public function uploadReportCard(Request $request, $id)
+    public function addBank(Request $request)
     {
+        $request->validate(['name' => 'required|string|max:255']);
+        
+        try {
+            $bank = DB::table('banks')->insertGetId([
+                'name' => $request->name,
+                'created_on' => now(),
+            ]);
+            return response()->json(['success' => true, 'id' => $bank, 'name' => $request->name]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Failed to add bank: ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function validateAgeGradeAjax(Request $request)
+    {
+        $age = (int)$request->input('age');
+        $grade = $request->input('grade');
+        return response()->json($this->validateAgeGrade($age, $grade));
+    }
+
+    /**
+     * Remove profile photo
+     */
+    public function removeProfilePhoto($hash)
+    {
+        try {
+            $id = $this->resolveId($hash);
+            $student = SchoolStudent::findOrFail($id);
+            
+            if ($student->hasProfilePhoto()) {
+                $student->clearMediaCollection('profile_photo');
+                return response()->json(['success' => true, 'message' => 'Photo removed successfully']);
+            }
+            
+            return response()->json(['success' => false, 'message' => 'No photo to remove'], 404);
+        } catch (\Exception $e) {
+            \Log::error('Remove profile photo error', ['hash' => $hash, 'error' => $e->getMessage()]);
+            return response()->json(['success' => false, 'message' => 'Failed to remove photo'], 500);
+        }
+    }
+
+    // =========================================
+    // REPORT CARDS
+    // =========================================
+
+    public function uploadReportCard(Request $request, $hash)
+    {
+        try {
+            // Resolve hashed ID
+            $id = $this->resolveId($hash);
+            $hashId = HashId::encode($id);
+            
+            // Validate student exists
+            $student = SchoolStudent::findOrFail($id);
+            
+            // Basic validation
+            $validator = \Validator::make($request->all(), [
+                'report_card' => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120',
+                'title' => 'required|string|max:255',
+                'term' => 'required|string|in:Term1,Term2,Term3',
+                'upload_date' => 'required|date|before_or_equal:today',
+            ]);
+            
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $validator->errors()->first(),
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $file = $request->file('report_card');
+            
+            // Enhanced file security validation
+            $fileValidation = $this->validateFileContent($file, ['pdf', 'jpg', 'jpeg', 'png']);
+            if (!$fileValidation['valid']) {
+                \Log::warning('Report card upload security check failed', [
+                    'student_id' => $id,
+                    'filename' => $file->getClientOriginalName(),
+                    'error' => $fileValidation['error']
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => $fileValidation['error']
+                ], 422);
+            }
+            
+            // Sanitize filename
+            $filename = $this->sanitizeString($request->input('title'));
+            $filename = preg_replace('/[^a-zA-Z0-9\s\-_\.]/', '', $filename);
+            $filename = substr($filename, 0, 255);
+            
+            $fileContent = file_get_contents($file->getRealPath());
+            $sha256 = hash('sha256', $fileContent);
+            $mimeType = $fileValidation['mime']; // Use validated MIME type
+            $fileSize = $file->getSize();
+            $term = $request->input('term');
+            $uploadDate = $request->input('upload_date');
+            
+            // Check for duplicate (same file for same student/term)
+            $exists = DB::table('school_report_cards')
+                ->where('student_school_id', $student->school_student_id)
+                ->where('sha256', $sha256)
+                ->exists();
+                
+            if ($exists) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This exact file has already been uploaded for this student.'
+                ], 422);
+            }
+            
+            $reportCardId = DB::table('school_report_cards')->insertGetId([
+                'student_school_id' => $student->school_student_id,
+                'filename' => $filename,
+                'term' => $term,
+                'upload_date' => $uploadDate,
+                'report_card_file' => null,
+                'file_blob' => $fileContent,
+                'mime_type' => $mimeType,
+                'file_size' => $fileSize,
+                'sha256' => $sha256,
+                'created_on' => now(),
+            ]);
+
+            \Log::info('Report card uploaded successfully', [
+                'student_id' => $id,
+                'report_card_id' => $reportCardId,
+                'file_size' => $fileSize
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Report card uploaded successfully',
+                'report_card' => [
+                    'id' => $reportCardId, 
+                    'filename' => $filename, 
+                    'term' => str_replace(['Term1','Term2','Term3'], ['Term 1','Term 2','Term 3'], $term),
+                    'upload_date' => $uploadDate,
+                    'url' => url('admin/studentsponsorship/school-students/'.$hashId.'/report-cards/'.$reportCardId.'/view')
+                ]
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Student not found'
+            ], 404);
+        } catch (\Illuminate\Database\QueryException $e) {
+            $errorCode = $e->errorInfo[1] ?? 0;
+            $errorMessage = 'Database error';
+            
+            if ($errorCode == 1406) {
+                $errorMessage = 'File too large for database column. Please run: ALTER TABLE school_report_cards MODIFY COLUMN file_blob LONGBLOB;';
+            } elseif ($errorCode == 1062) {
+                $errorMessage = 'Duplicate entry';
+            } else {
+                $errorMessage = 'Database error: ' . ($e->errorInfo[2] ?? 'Unknown error');
+            }
+            
+            \Log::error('Report card upload database error', ['error_code' => $errorCode, 'student_id' => $id]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => $errorMessage
+            ], 500);
+        } catch (\Exception $e) {
+            \Log::error('Report card upload error', ['error' => $e->getMessage(), 'student_id' => $id]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Upload failed. Please try again.'
+            ], 500);
+        }
+    }
+
+    public function viewReportCard($hash, $reportCardId)
+    {
+        $id = $this->resolveId($hash);
         $student = SchoolStudent::findOrFail($id);
-        $request->validate([
-            'report_card' => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120',
-            'title' => 'required|string|max:255',
-            'term' => 'required|string|in:Term 1,Term 2,Term 3',
-            'upload_date' => 'required|date',
-        ]);
-
-        $media = $student->addMediaFromRequest('report_card')
-            ->usingName($request->input('title'))
-            ->withCustomProperties([
-                'term' => $request->input('term'),
-                'upload_date' => $request->input('upload_date'),
-            ])
-            ->toMediaCollection('report_cards');
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Report card uploaded successfully',
-            'media' => [
-                'id' => $media->id, 
-                'name' => $media->name, 
-                'term' => $media->getCustomProperty('term'),
-                'upload_date' => $media->getCustomProperty('upload_date'),
-                'url' => $media->getUrl()
-            ]
+        $reportCard = DB::table('school_report_cards')
+            ->where('id', $reportCardId)
+            ->where('student_school_id', $student->school_student_id)
+            ->first();
+            
+        if (!$reportCard || !$reportCard->file_blob) {
+            abort(404, 'Report card not found');
+        }
+        
+        // Get file extension from mime type
+        $extensions = [
+            'application/pdf' => 'pdf',
+            'image/jpeg' => 'jpg',
+            'image/png' => 'png',
+            'image/gif' => 'gif',
+        ];
+        $extension = $extensions[$reportCard->mime_type] ?? 'pdf';
+        
+        // Build filename with extension if not present
+        $filename = $reportCard->filename;
+        if (!str_contains($filename, '.')) {
+            $filename .= '.' . $extension;
+        }
+        
+        // Use stream response for binary data
+        return response()->stream(function () use ($reportCard) {
+            echo $reportCard->file_blob;
+        }, 200, [
+            'Content-Type' => $reportCard->mime_type,
+            'Content-Length' => strlen($reportCard->file_blob),
+            'Content-Disposition' => 'inline; filename="' . $filename . '"',
+            'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
+            'Pragma' => 'no-cache',
+            'Expires' => '0',
         ]);
     }
 
-    public function deleteReportCard($id, $mediaId)
+    public function downloadReportCard($hash, $reportCardId)
     {
+        $id = $this->resolveId($hash);
         $student = SchoolStudent::findOrFail($id);
-        $media = $student->getMedia('report_cards')->where('id', $mediaId)->first();
+        $reportCard = DB::table('school_report_cards')
+            ->where('id', $reportCardId)
+            ->where('student_school_id', $student->school_student_id)
+            ->first();
+            
+        if (!$reportCard || !$reportCard->file_blob) {
+            abort(404, 'Report card not found');
+        }
         
-        if ($media) {
-            $media->delete();
+        // Get file extension from mime type
+        $extensions = [
+            'application/pdf' => 'pdf',
+            'image/jpeg' => 'jpg',
+            'image/png' => 'png',
+            'image/gif' => 'gif',
+        ];
+        $extension = $extensions[$reportCard->mime_type] ?? 'pdf';
+        
+        // Build filename with extension if not present
+        $filename = $reportCard->filename;
+        if (!str_contains($filename, '.')) {
+            $filename .= '.' . $extension;
+        }
+        
+        // Use stream response for binary data
+        return response()->stream(function () use ($reportCard) {
+            echo $reportCard->file_blob;
+        }, 200, [
+            'Content-Type' => $reportCard->mime_type,
+            'Content-Length' => strlen($reportCard->file_blob),
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
+            'Pragma' => 'no-cache',
+            'Expires' => '0',
+        ]);
+    }
+
+    public function deleteReportCard($hash, $reportCardId)
+    {
+        $id = $this->resolveId($hash);
+        $student = SchoolStudent::findOrFail($id);
+        $deleted = DB::table('school_report_cards')
+            ->where('id', $reportCardId)
+            ->where('student_school_id', $student->school_student_id)
+            ->delete();
+        
+        if ($deleted) {
             return response()->json(['success' => true]);
         }
         return response()->json(['success' => false, 'message' => 'Not found'], 404);
+    }
+
+    public function approveReportCard($hash, $reportCardId)
+    {
+        $id = $this->resolveId($hash);
+        $student = SchoolStudent::findOrFail($id);
+        
+        // Get report card info
+        $reportCard = DB::table('school_report_cards')
+            ->where('id', $reportCardId)
+            ->where('student_school_id', $student->school_student_id)
+            ->first();
+        
+        if (!$reportCard) {
+            return response()->json(['success' => false, 'message' => 'Not found'], 404);
+        }
+        
+        $updated = DB::table('school_report_cards')
+            ->where('id', $reportCardId)
+            ->where('student_school_id', $student->school_student_id)
+            ->update([
+                'status' => 'approved',
+                'approved_at' => now(),
+                'approved_by' => auth()->id()
+            ]);
+        
+        if ($updated) {
+            // If student has portal account, create notification
+            if ($student->user_id) {
+                DB::table('notifications')->insert([
+                    'user_id' => $student->user_id,
+                    'user_type' => 'user',
+                    'from_user_id' => auth()->id(),
+                    'from_user_type' => 'admin',
+                    'title' => 'Report Card Approved ✓',
+                    'message' => "Great news! Your report card \"{$reportCard->filename}\" ({$reportCard->term}) has been approved.",
+                    'type' => 'success',
+                    'url' => '/client/student-portal/my-form',
+                    'is_read' => 0,
+                    'created_at' => now(),
+                ]);
+            }
+            return response()->json(['success' => true, 'message' => 'Report card approved']);
+        }
+        return response()->json(['success' => false, 'message' => 'Not found'], 404);
+    }
+
+    public function rejectReportCard(Request $request, $hash, $reportCardId)
+    {
+        $id = $this->resolveId($hash);
+        $student = SchoolStudent::findOrFail($id);
+        
+        // Get the report card before deleting
+        $reportCard = DB::table('school_report_cards')
+            ->where('id', $reportCardId)
+            ->where('student_school_id', $student->school_student_id)
+            ->first();
+        
+        if (!$reportCard) {
+            return response()->json(['success' => false, 'message' => 'Not found'], 404);
+        }
+        
+        $reason = $request->input('reason', 'No reason provided');
+        
+        // If student has portal account, create notification
+        if ($student->user_id) {
+            DB::table('notifications')->insert([
+                'user_id' => $student->user_id,
+                'user_type' => 'user',
+                'from_user_id' => auth()->id(),
+                'from_user_type' => 'admin',
+                'title' => 'Report Card Rejected',
+                'message' => "Your report card \"{$reportCard->filename}\" ({$reportCard->term}) has been rejected. Reason: {$reason}. Please upload a new report card.",
+                'type' => 'warning',
+                'url' => '/client/student-portal/my-form',
+                'is_read' => 0,
+                'created_at' => now(),
+            ]);
+        }
+        
+        // Delete the report card
+        DB::table('school_report_cards')
+            ->where('id', $reportCardId)
+            ->delete();
+        
+        return response()->json(['success' => true, 'message' => 'Report card rejected and student notified']);
+    }
+
+    // =========================================
+    // HELPER METHODS
+    // =========================================
+
+    protected function validateAgeGrade($age, $grade)
+    {
+        $gradeAgeMapping = config('studentsponsorship.grade_age_mapping', []);
+        
+        if (!isset($gradeAgeMapping[$grade])) {
+            return [
+                'is_valid' => true,
+                'is_too_young' => false,
+                'is_too_old' => false,
+                'is_one_year_older' => false,
+                'expected_min' => null,
+                'expected_max' => null,
+                'max_allowed' => null,
+                'message' => 'Grade not found in mapping',
+            ];
+        }
+
+        $range = $gradeAgeMapping[$grade];
+        $expectedMin = $range['min'];
+        $expectedMax = $range['max'];
+        $maxAllowed = $expectedMax + 1;
+
+        $isValid = ($age >= $expectedMin && $age <= $expectedMax);
+        $isTooYoung = ($age < $expectedMin);
+        $isTooOld = ($age > $maxAllowed);
+        $isOneYearOlder = ($age == $maxAllowed);
+
+        $message = $isValid ? 'Age is within expected range' : 
+                   ($isTooYoung ? 'Age is below minimum' : 
+                   ($isOneYearOlder ? 'Age is 1 year older - reason required' : 
+                   ($isTooOld ? 'Age exceeds maximum allowed' : 'Unknown')));
+
+        return [
+            'is_valid' => $isValid,
+            'is_too_young' => $isTooYoung,
+            'is_too_old' => $isTooOld,
+            'is_one_year_older' => $isOneYearOlder,
+            'expected_min' => $expectedMin,
+            'expected_max' => $expectedMax,
+            'max_allowed' => $maxAllowed,
+            'message' => $message,
+        ];
+    }
+
+    // =========================================
+    // STUDENT PORTAL ACCESS METHODS
+    // =========================================
+
+    /**
+     * Check if email is available for portal account
+     */
+    public function checkEmailAvailability(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email',
+            'student_hash' => 'required|string',
+        ]);
+
+        $email = strtolower(trim($request->email));
+        
+        // Check in users table
+        $existsInUsers = \DB::table('users')->where('email', $email)->exists();
+        if ($existsInUsers) {
+            return response()->json([
+                'available' => false,
+                'message' => 'This email already exists in the system. Not available.'
+            ]);
+        }
+
+        // Check in university_students table (different student)
+        $studentId = $this->resolveId($request->student_hash);
+        $existsInUni = \DB::table('university_students')
+            ->where('email', $email)
+            ->exists();
+        if ($existsInUni) {
+            return response()->json([
+                'available' => false,
+                'message' => 'This email is already used by a university student. Not available.'
+            ]);
+        }
+
+        return response()->json([
+            'available' => true,
+            'message' => 'Email is available.'
+        ]);
+    }
+
+    /**
+     * Create portal account for school student
+     */
+    public function createPortalAccount(Request $request, $hash)
+    {
+        $request->validate([
+            'email' => 'required|email',
+            'password' => 'required|min:6|confirmed',
+        ]);
+
+        $id = $this->resolveId($hash);
+        $student = SchoolStudent::findOrFail($id);
+
+        $email = strtolower(trim($request->email));
+
+        // Check if student already has portal account
+        if ($student->user_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Student already has a portal account.'
+            ], 422);
+        }
+
+        // Check email availability in users
+        if (\DB::table('users')->where('email', $email)->exists()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This email already exists. Not available.'
+            ], 422);
+        }
+
+        // Check email in university_students
+        if (\DB::table('university_students')->where('email', $email)->exists()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This email is used by a university student. Not available.'
+            ], 422);
+        }
+
+        try {
+            \DB::beginTransaction();
+
+            // Create user account
+            $userId = \DB::table('users')->insertGetId([
+                'name' => $student->full_name,
+                'email' => $email,
+                'password' => \Hash::make($request->password),
+                'is_active' => 1,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            // Link user to student
+            $student->user_id = $userId;
+            $student->save();
+
+            \DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Portal account created successfully.',
+                'user_id' => $userId
+            ]);
+
+        } catch (\Exception $e) {
+            \DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to create portal account: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get portal account status for a student
+     */
+    public function getPortalStatus($hash)
+    {
+        $id = $this->resolveId($hash);
+        $student = SchoolStudent::findOrFail($id);
+
+        if ($student->user_id) {
+            $user = \DB::table('users')->where('id', $student->user_id)->first();
+            return response()->json([
+                'has_account' => true,
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'is_active' => $user->is_active,
+                    'created_at' => $user->created_at,
+                ]
+            ]);
+        }
+
+        return response()->json([
+            'has_account' => false,
+            'suggested_email' => $student->email
+        ]);
+    }
+
+    /**
+     * Deactivate portal account
+     */
+    public function deactivatePortalAccount($hash)
+    {
+        $id = $this->resolveId($hash);
+        $student = SchoolStudent::findOrFail($id);
+
+        if (!$student->user_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Student does not have a portal account.'
+            ], 422);
+        }
+
+        \DB::table('users')->where('id', $student->user_id)->update([
+            'is_active' => 0,
+            'updated_at' => now()
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Portal account deactivated.'
+        ]);
+    }
+
+    /**
+     * Activate portal account
+     */
+    public function activatePortalAccount($hash)
+    {
+        $id = $this->resolveId($hash);
+        $student = SchoolStudent::findOrFail($id);
+
+        if (!$student->user_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Student does not have a portal account.'
+            ], 422);
+        }
+
+        \DB::table('users')->where('id', $student->user_id)->update([
+            'is_active' => 1,
+            'updated_at' => now()
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Portal account activated.'
+        ]);
+    }
+
+    /**
+     * Reset portal account password
+     */
+    public function resetPortalPassword(Request $request, $hash)
+    {
+        $request->validate([
+            'password' => 'required|min:6|confirmed',
+        ]);
+
+        $id = $this->resolveId($hash);
+        $student = SchoolStudent::findOrFail($id);
+
+        if (!$student->user_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Student does not have a portal account.'
+            ], 422);
+        }
+
+        \DB::table('users')->where('id', $student->user_id)->update([
+            'password' => \Hash::make($request->password),
+            'updated_at' => now()
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Password reset successfully.'
+        ]);
     }
 }

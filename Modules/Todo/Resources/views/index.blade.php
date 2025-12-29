@@ -392,9 +392,39 @@
         return formatted;
     };
     
-    // Filter by status (from stat cards)
+    // Filter by overdue - using DataTable v2.0 API
+    function filterByOverdue() {
+        // Reset status filter
+        document.getElementById('statusFilter').value = '';
+        
+        // Use DataTable v2.0 instance API
+        if (window.dtInstance && window.dtInstance.todoTable) {
+            window.dtInstance.todoTable.setFilter('overdue', '1');
+        } else {
+            // Fallback to legacy API
+            var table = document.getElementById('todoTable');
+            if (table && table.dtSetFilter) {
+                table.dtSetFilter('overdue', '1');
+            }
+        }
+        
+        // Update active card
+        document.querySelectorAll('.stat-card').forEach(function(card) {
+            card.classList.remove('active');
+            if (card.dataset.filter === 'overdue') {
+                card.classList.add('active');
+            }
+        });
+    }
+    
+    // Clear overdue filter when clicking other stat cards
     function filterByStatus(status) {
         document.getElementById('statusFilter').value = status;
+        
+        // Clear overdue filter using DataTable v2.0 API
+        if (window.dtInstance && window.dtInstance.todoTable) {
+            window.dtInstance.todoTable.setFilter('overdue', '');
+        }
         
         // Trigger change event
         var event = new Event('change', { bubbles: true });
@@ -404,26 +434,6 @@
         document.querySelectorAll('.stat-card').forEach(function(card) {
             card.classList.remove('active');
             if ((status === '' && card.dataset.filter === 'all') || card.dataset.filter === status) {
-                card.classList.add('active');
-            }
-        });
-    }
-    
-    // Filter by overdue
-    function filterByOverdue() {
-        // Reset status filter
-        document.getElementById('statusFilter').value = '';
-        
-        // Use the table's setFilter method if available
-        var table = document.getElementById('todoTable');
-        if (table && table.dtSetFilter) {
-            table.dtSetFilter('overdue', '1');
-        }
-        
-        // Update active card
-        document.querySelectorAll('.stat-card').forEach(function(card) {
-            card.classList.remove('active');
-            if (card.dataset.filter === 'overdue') {
                 card.classList.add('active');
             }
         });

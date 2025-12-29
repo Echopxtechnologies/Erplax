@@ -4,17 +4,76 @@ namespace Modules\StudentSponsorship\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
+use Modules\StudentSponsorship\Helpers\HashId;
 
 class SchoolStudent extends Model implements HasMedia
 {
-    use SoftDeletes, InteractsWithMedia;
+    use InteractsWithMedia;
+
+    /**
+     * The table associated with the model.
+     */
+    protected $table = 'school_students';
+
+    /**
+     * Get hashed ID for URLs
+     */
+    public function getHashIdAttribute(): string
+    {
+        return HashId::encode($this->id);
+    }
+
+    /**
+     * Find by hashed ID
+     */
+    public static function findByHash($hash)
+    {
+        $id = HashId::decode($hash);
+        
+        if (!$id) {
+            return null;
+        }
+        
+        return static::find($id);
+    }
+
+    /**
+     * Find by hashed ID or fail
+     */
+    public static function findByHashOrFail($hash)
+    {
+        $id = HashId::decode($hash);
+        
+        if (!$id) {
+            abort(404, 'Student not found');
+        }
+        
+        return static::findOrFail($id);
+    }
+
+    /**
+     * Encode an ID to hash
+     */
+    public static function encodeId($id): string
+    {
+        return HashId::encode($id);
+    }
+
+    /**
+     * Decode hash to ID
+     */
+    public static function decodeHash($hash): ?int
+    {
+        return HashId::decode($hash);
+    }
 
     protected $fillable = [
         'school_internal_id',
+        'school_student_id',
+        'user_id',
         
         // Student Info - Basic
         'full_name',
@@ -165,8 +224,7 @@ class SchoolStudent extends Model implements HasMedia
         $prefix = 'SCH';
         $year = date('Y');
         
-        $lastStudent = self::withTrashed()
-            ->where('school_internal_id', 'LIKE', "{$prefix}{$year}%")
+        $lastStudent = self::where('school_internal_id', 'LIKE', "{$prefix}{$year}%")
             ->orderBy('school_internal_id', 'desc')
             ->first();
         
@@ -186,12 +244,7 @@ class SchoolStudent extends Model implements HasMedia
     public function registerMediaCollections(): void
     {
         $this->addMediaCollection('profile_photo')
-            ->singleFile()
-            ->useFallbackUrl('/images/default-avatar.png')
-            ->useFallbackPath(public_path('/images/default-avatar.png'));
-        
-        // For report cards
-        $this->addMediaCollection('report_cards');
+            ->singleFile();
         
         // Other documents
         $this->addMediaCollection('documents');
@@ -218,21 +271,21 @@ class SchoolStudent extends Model implements HasMedia
     /**
      * Get profile photo URL
      */
-    public function getProfilePhotoUrlAttribute(): string
+    public function getProfilePhotoUrlAttribute(): ?string
     {
         return $this->getFirstMediaUrl('profile_photo', 'medium') 
             ?: $this->getFirstMediaUrl('profile_photo') 
-            ?: asset('images/default-avatar.png');
+            ?: null;
     }
 
     /**
      * Get profile photo thumbnail URL
      */
-    public function getProfilePhotoThumbAttribute(): string
+    public function getProfilePhotoThumbAttribute(): ?string
     {
         return $this->getFirstMediaUrl('profile_photo', 'thumb') 
             ?: $this->getFirstMediaUrl('profile_photo') 
-            ?: asset('images/default-avatar.png');
+            ?: null;
     }
 
     /**
@@ -244,11 +297,14 @@ class SchoolStudent extends Model implements HasMedia
     }
 
     /**
-     * Get report cards
+     * Get report cards from database table
      */
-    public function getReportCardsAttribute()
+    public function getReportCardsFromDb()
     {
-        return $this->getMedia('report_cards');
+        return \DB::table('school_report_cards')
+            ->where('student_school_id', $this->id)
+            ->orderBy('created_on', 'desc')
+            ->get();
     }
 
     /**

@@ -414,24 +414,20 @@ class ServiceController extends AdminController
                 if (!empty($material['material_name']) || !empty($material['product_id'])) {
                     $quantity = floatval($material['quantity'] ?? 1);
                     $unitPrice = floatval($material['unit_price'] ?? 0);
-                    $subtotal = $quantity * $unitPrice;
+                    $total = $quantity * $unitPrice; // Base total without tax
                     
-                    // Calculate tax amount
+                    // Parse tax_ids for storing (invoice will calculate tax)
                     $taxIds = $material['tax_ids'] ?? null;
-                    $taxAmount = 0;
                     $taxIdsJson = null;
                     
-                    if ($taxIds && $taxIds !== '') {
-                        // Parse tax_ids - could be single value, array, or JSON string
+                    if ($taxIds && $taxIds !== '' && $taxIds !== '[]') {
                         $taxIdsArray = [];
                         
                         if (is_array($taxIds)) {
                             $taxIdsArray = $taxIds;
                         } elseif (is_numeric($taxIds)) {
-                            // Single tax ID selected from dropdown
                             $taxIdsArray = [intval($taxIds)];
                         } else {
-                            // Try JSON decode
                             $decoded = json_decode($taxIds, true);
                             if (is_array($decoded)) {
                                 $taxIdsArray = $decoded;
@@ -440,15 +436,6 @@ class ServiceController extends AdminController
                             }
                         }
                         
-                        // Calculate tax if we have valid tax IDs
-                        if (!empty($taxIdsArray) && Schema::hasTable('taxes')) {
-                            $taxes = DB::table('taxes')->whereIn('id', $taxIdsArray)->get();
-                            foreach ($taxes as $tax) {
-                                $taxAmount += ($subtotal * $tax->rate / 100);
-                            }
-                        }
-                        
-                        // Store as JSON
                         $taxIdsJson = !empty($taxIdsArray) ? json_encode($taxIdsArray) : null;
                     }
                     
@@ -458,9 +445,9 @@ class ServiceController extends AdminController
                         'material_name' => $material['material_name'] ?? '',
                         'quantity' => $quantity,
                         'unit_price' => $unitPrice,
-                        'total' => $subtotal + $taxAmount, // Include tax in total
-                        'tax_ids' => $taxIdsJson,
-                        'tax_amount' => $taxAmount,
+                        'total' => $total, // Base total - no tax calculated here
+                        'tax_ids' => $taxIdsJson, // Store tax IDs for invoice to use
+                        'tax_amount' => 0, // Tax will be calculated by invoice
                         'notes' => $material['notes'] ?? null,
                     ]);
                 }
@@ -547,8 +534,29 @@ class ServiceController extends AdminController
             
             foreach ($record->materials as $material) {
                 if ($material->quantity > 0 && $material->unit_price > 0) {
-                    $materialsSubtotal += ($material->quantity * $material->unit_price);
-                    $totalTaxAmount += floatval($material->tax_amount ?? 0);
+                    $lineSubtotal = $material->quantity * $material->unit_price;
+                    $materialsSubtotal += $lineSubtotal;
+                    
+                    // Calculate tax from tax_ids
+                    $taxIds = $material->tax_ids;
+                    if ($taxIds) {
+                        $taxIdsArray = [];
+                        if (is_array($taxIds)) {
+                            $taxIdsArray = $taxIds;
+                        } elseif (is_string($taxIds)) {
+                            $decoded = json_decode($taxIds, true);
+                            if (is_array($decoded)) {
+                                $taxIdsArray = $decoded;
+                            }
+                        }
+                        
+                        if (!empty($taxIdsArray) && Schema::hasTable('taxes')) {
+                            $taxes = DB::table('taxes')->whereIn('id', $taxIdsArray)->get();
+                            foreach ($taxes as $tax) {
+                                $totalTaxAmount += ($lineSubtotal * floatval($tax->rate) / 100);
+                            }
+                        }
+                    }
                 }
             }
             
@@ -739,10 +747,9 @@ class ServiceController extends AdminController
                         $productName = $product->name ?? 'Material';
                     }
                     
-                    // Calculate amounts
+                    // Calculate amounts - tax calculated here from tax_ids
                     $lineSubtotal = $material->quantity * $material->unit_price;
-                    $lineTaxAmount = floatval($material->tax_amount ?? 0);
-                    $lineAmount = $lineSubtotal + $lineTaxAmount;
+                    $lineTaxAmount = $lineSubtotal * $taxRate / 100; // Calculate tax here
                     
                     $materialItemData = [
                         'invoice_id' => $invoiceId,
@@ -756,7 +763,7 @@ class ServiceController extends AdminController
                         'tax_ids' => $taxIdsJson,
                         'tax_rate' => $taxRate,
                         'tax_amount' => $lineTaxAmount,
-                        'amount' => $lineAmount,
+                        'amount' => $lineSubtotal, // Store subtotal only - invoice system handles tax
                         'sort_order' => $sortOrder++,
                         'created_at' => now(),
                         'updated_at' => now(),

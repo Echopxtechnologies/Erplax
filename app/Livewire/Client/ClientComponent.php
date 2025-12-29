@@ -266,4 +266,25 @@ abstract class ClientComponent extends Component
     {
         return \App\Http\Controllers\Client\ClientController::renderMenu($menu);
     }
+    /*
+    |--------------------------------------------------------------------------
+    | Profile view helper 
+    |--------------------------------------------------------------------------
+    */
+
+    public function updatePassword(Request $request)
+    {
+        $request->validate([
+            'current_password' => 'required|current_password',
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        $this->client->update([
+            'password' => bcrypt($request->password),
+        ]);
+
+        $this->logAction('Changed password');
+
+        return $this->backWithSuccess('Password changed successfully.');
+    }
 }

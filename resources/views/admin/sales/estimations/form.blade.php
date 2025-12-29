@@ -880,10 +880,10 @@
                     <label class="form-label">Subject <span class="required">*</span></label>
                     <input type="text" name="subject" class="form-control" value="{{ $estimation->subject ?? '' }}" placeholder="Enter estimation subject" required>
                 </div>
-                <div class="form-group">
-                    <label class="form-label">Estimation Number</label>
-                    <input type="text" name="estimation_number" class="form-control" value="{{ $estimation->estimation_number ?? $nextNumber ?? 'Auto-generated' }}" readonly>
-                </div>
+              <div class="form-group">
+    <label class="form-label">Estimation Number</label>
+    <input type="text" class="form-control" value="{{ $estimation->estimation_number ?? $nextNumber ?? 'Auto-generated' }}" readonly style="background: #f3f4f6; cursor: not-allowed;">
+</div>
             </div>
             <div class="form-row">
                 <div class="form-group">

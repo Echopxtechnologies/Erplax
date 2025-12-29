@@ -1,4 +1,4 @@
-<x-layouts.app>
+{{-- <x-layouts.app> --}}
     <style>
         .settings-page { max-width: 900px; margin: 0 auto; }
         .settings-header { margin-bottom: 24px; }
@@ -232,4 +232,4 @@
             </div>
         </form>
     </div>
-</x-layouts.app>
+{{-- </x-layouts.app> --}}

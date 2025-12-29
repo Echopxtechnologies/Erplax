@@ -3,6 +3,10 @@
 return [
     'name' => 'StudentSponsorship',
     
+    // HashID salt for URL obfuscation - CHANGE THIS IN PRODUCTION!
+    // Uses APP_KEY as fallback for security
+    'hashid_salt' => env('STUDENT_HASHID_SALT', env('APP_KEY', 'StudentSponsorship2024!@#')),
+    
     // Grade to age mapping for Sri Lankan education system
     'grade_age_mapping' => [
         1 => ['min' => 5, 'max' => 6],
@@ -43,5 +47,26 @@ return [
         'Type 1C' => 'Type 1C',
         'Type 2' => 'Type 2',
         'Type 3' => 'Type 3',
+    ],
+    
+    // University Year/Semester options
+    'university_years' => [
+        '1Y1S' => 'Year 1 - Semester 1',
+        '1Y2S' => 'Year 1 - Semester 2',
+        '2Y1S' => 'Year 2 - Semester 1',
+        '2Y2S' => 'Year 2 - Semester 2',
+        '3Y1S' => 'Year 3 - Semester 1',
+        '3Y2S' => 'Year 3 - Semester 2',
+        '4Y1S' => 'Year 4 - Semester 1',
+        '4Y2S' => 'Year 4 - Semester 2',
+        '5Y1S' => 'Year 5 - Semester 1',
+        '5Y2S' => 'Year 5 - Semester 2',
+    ],
+    
+    // Report card terms
+    'school_terms' => [
+        'Term1' => 'Term 1',
+        'Term2' => 'Term 2',
+        'Term3' => 'Term 3',
     ],
 ];

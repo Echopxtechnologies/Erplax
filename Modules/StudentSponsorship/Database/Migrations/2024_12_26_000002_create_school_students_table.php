@@ -11,6 +11,7 @@ return new class extends Migration
         Schema::create('school_students', function (Blueprint $table) {
             $table->id();
             $table->string('school_internal_id')->unique()->comment('Internal tracking ID');
+            $table->integer('school_student_id')->unique()->comment('School Student ID - links to report cards');
             
             // ========== STUDENT INFO TAB ==========
             // Basic Information

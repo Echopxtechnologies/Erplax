@@ -7,6 +7,7 @@ use App\Http\Controllers\Client\Auth\ClientForgotPasswordController;
 use App\Http\Controllers\Client\Auth\ClientResetPasswordController;
 use App\Http\Controllers\Client\Auth\ClientEmailVerificationController;
 use App\Http\Controllers\Client\ClientController;
+use App\Http\Controllers\Admin\NotificationController;
 use App\Http\Middleware\EnsureIsClient;
 
 /*
@@ -70,6 +71,18 @@ Route::prefix('client')->name('client.')->group(function () {
             Route::put('/avatar', [ClientController::class, 'updateAvatar'])->name('avatar.update');
         });
 
+          // =============================================
+        // NOTIFICATION ROUTES
+        // =============================================
+        Route::delete('/notifications/clear-all', [NotificationController::class, 'clearAll'])->name('notifications.clear-all');
+        Route::delete('/notifications/{id}', [NotificationController::class, 'destroy'])->name('notifications.destroy');
+
+        Route::prefix('profile')->name('profile.')->group(function () {
+        Route::get('/', [ClientController::class, 'profile'])->name('show');
+        Route::put('/', [ClientController::class, 'updateProfile'])->name('update');
+        Route::put('/avatar', [ClientController::class, 'updateAvatar'])->name('avatar.update');
+        Route::put('/password', [ClientController::class, 'updatePassword'])->name('password.update');  // ADD THIS
+    });
         // Logout
         Route::post('/logout', [ClientLoginController::class, 'logout'])->name('logout');
     });

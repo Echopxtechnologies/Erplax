@@ -95,7 +95,13 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::delete('/{alias}/delete', [ModuleController::class, 'delete'])->name('delete');
         });
 
+        // =============================================
+        // NOTIFICATION ROUTES - ADD THIS!
+        // =============================================
+        Route::delete('/notifications/clear-all', [App\Http\Controllers\Admin\NotificationController::class, 'clearAll'])->name('notifications.clear-all');
+        Route::delete('/notifications/{id}', [App\Http\Controllers\Admin\NotificationController::class, 'destroy'])->name('notifications.destroy');
         Route::prefix('settings')->name('settings.')->group(function () {
+
             Route::get('/general', [AdminController::class, 'settingsGeneral'])->name('general');
             Route::post('/general', [AdminController::class, 'saveSettingsGeneral'])->name('general.save');
             Route::get('/email', [AdminController::class, 'settingsEmail'])->name('email');

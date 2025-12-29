@@ -1,190 +1,220 @@
-# Todo Module
+# Todo Module v2.0
 
-A professional task management module with user-based access control.
+A complete task management module using **DataTable v2.0** with full CRUD, export (CSV/Excel/PDF), import with auto-lookup, and multiple bulk actions.
 
 ## Features
 
-- ✅ Personal task management
-- ✅ User-based access (each user sees only their own tasks)
-- ✅ Admin view (admin can see all users' tasks)
+- ✅ Task creation, editing, deletion
 - ✅ Priority levels (Low, Medium, High)
 - ✅ Status tracking (Pending, In Progress, Completed)
-- ✅ Due dates with overdue alerts
-- ✅ Dashboard stats cards
-- ✅ DataTable with search, export, bulk actions
-- ✅ Professional UI with dark/light mode
+- ✅ Due date with overdue detection
+- ✅ Task assignment (Admin only)
+- ✅ Access control (Admin sees all, users see own + assigned)
+- ✅ Search & filtering
+- ✅ Export to CSV, Excel, PDF
+- ✅ Import from Excel/CSV with auto-lookup
+- ✅ Multiple bulk actions (Delete, Mark Completed, Mark Pending, Mark In Progress)
+- ✅ Overdue notifications
+- ✅ Real-time stats dashboard
+
+---
+
+## Requirements
+
+- Laravel 10+
+- Core Module with `DataTableTrait` v2.0
+- PhpSpreadsheet (for Excel export/import)
+- DomPDF (for PDF export)
+
+---
 
 ## Installation
 
-### Step 1: Copy Module
-Copy the `Todo` folder to your `Modules/` directory:
-```
-Modules/
-└── Todo/
-```
+1. Copy the `Todo` folder to `Modules/`
+2. Run migrations:
+   ```bash
+   php artisan migrate
+   ```
+3. Clear cache:
+   ```bash
+   php artisan optimize:clear
+   ```
 
-### Step 2: Run Migration
-```bash
-php artisan migrate
-```
+---
 
-### Step 3: Register Module (if not auto-discovered)
-Add to `config/app.php` providers:
-```php
-Modules\Todo\Providers\TodoServiceProvider::class,
-```
-
-Or add to your modules database table:
-```sql
-INSERT INTO modules (name, alias, description, is_active, sort_order) 
-VALUES ('Todo', 'todo', 'Personal task management', 1, 10);
-```
-
-### Step 4: Clear Cache
-```bash
-php artisan config:clear
-php artisan cache:clear
-php artisan view:clear
-```
-
-## Access Control
-
-| User Type | Can See |
-|-----------|---------|
-| Regular User (`is_admin = 0`) | Only their own tasks |
-| Admin User (`is_admin = 1`) | All users' tasks |
-
-## Database Schema
-
-### `todos` Table
-| Column | Type | Description |
-|--------|------|-------------|
-| id | bigint | Primary key |
-| user_id | bigint | Foreign key to users |
-| title | string | Task title |
-| description | text | Task description (nullable) |
-| priority | enum | low, medium, high |
-| status | enum | pending, in_progress, completed |
-| due_date | date | Due date (nullable) |
-| completed_at | timestamp | When task was completed |
-| created_at | timestamp | Created timestamp |
-| updated_at | timestamp | Updated timestamp |
-
-## Routes
-
-| Method | URL | Name | Description |
-|--------|-----|------|-------------|
-| GET | /admin/todo | admin.todo.index | List tasks |
-| GET | /admin/todo/data | admin.todo.data | DataTable JSON |
-| GET | /admin/todo/create | admin.todo.create | Create form |
-| POST | /admin/todo | admin.todo.store | Store task |
-| GET | /admin/todo/{id} | admin.todo.show | View task |
-| GET | /admin/todo/{id}/edit | admin.todo.edit | Edit form |
-| PUT | /admin/todo/{id} | admin.todo.update | Update task |
-| DELETE | /admin/todo/{id} | admin.todo.destroy | Delete task |
-| POST | /admin/todo/bulk-delete | admin.todo.bulk-delete | Bulk delete |
-
-## Files Structure
+## File Structure
 
 ```
 Todo/
 ├── Config/
 │   └── config.php
-├── Database/
-│   └── Migrations/
-│       └── 2024_12_05_000001_create_todos_table.php
-├── Http/
-│   └── Controllers/
-│       └── TodoController.php
+├── Console/Commands/
+│   └── CheckOverdueTasks.php
+├── Database/Migrations/
+│   └── 2024_12_05_000001_create_todos_table.php
+├── Http/Controllers/
+│   ├── Client/
+│   │   └── ClientTodoController.php
+│   └── TodoController.php          ← Uses DataTableTrait v2.0
 ├── Models/
 │   └── Todo.php
 ├── Providers/
-│   ├── TodoServiceProvider.php
-│   └── RouteServiceProvider.php
-├── Resources/
-│   └── views/
-│       ├── index.blade.php      (list with stats)
-│       ├── create.blade.php     (create form)
-│       ├── edit.blade.php       (edit form)
-│       ├── show.blade.php       (view details)
-│       └── menu.blade.php       (sidebar menu)
+│   ├── RouteServiceProvider.php
+│   └── TodoServiceProvider.php
+├── Resources/views/
+│   ├── client/
+│   │   ├── index.blade.php
+│   │   └── show.blade.php
+│   ├── create.blade.php
+│   ├── edit.blade.php
+│   ├── index.blade.php             ← DataTable UI
+│   ├── menu.blade.php
+│   └── show.blade.php
 ├── Routes/
-│   ├── web.php
-│   └── api.php
+│   ├── api.php
+│   ├── client.php
+│   └── web.php
 ├── composer.json
 ├── module.json
 └── README.md
 ```
 
-## UI Features
+---
 
-### Dashboard Stats
-- Total Tasks
-- Pending Tasks
-- In Progress Tasks
-- Completed Tasks
-- Overdue Tasks
+## DataTable v2.0 Configuration
 
-### DataTable Features
-- Search by title/description
-- Sort by any column
-- Export to CSV
-- Bulk delete
-- Checkbox selection
-- Pagination
+The `TodoController` uses `DataTableTrait` with these configurations:
 
-### Priority Visual
-- 🟢 Low - Green
-- 🟡 Medium - Yellow/Orange
-- 🔴 High - Red
-
-### Status Visual
-- ⏳ Pending - Warning color
-- 🔄 In Progress - Blue
-- ✅ Completed - Green
-
-## Usage
-
-### Create Task
-1. Click "Add New Task"
-2. Enter title (required)
-3. Add description (optional)
-4. Select priority
-5. Set status
-6. Set due date (optional)
-7. Click "Create Task"
-
-### Edit Task
-1. Click "Edit" button on task
-2. Modify fields
-3. Click "Update Task"
-
-### Delete Task
-- Single: Click "Delete" button
-- Bulk: Select checkboxes → Click "Delete Selected"
-
-### Export Tasks
-- All: Click "Export All"
-- Selected: Select checkboxes → Click "Export Selected"
-
-## Customization
-
-### Add More Statuses
-Edit the migration and model:
 ```php
-// Migration
-$table->enum('status', ['pending', 'in_progress', 'completed', 'cancelled']);
+use DataTableTrait;
 
-// Add badge style in datatable.blade.php
-.dt-badge-cancelled { background: var(--danger-light); color: var(--danger); }
+protected $model = Todo::class;
+protected $with = ['user', 'assignee'];
+protected $searchable = ['title', 'description'];
+protected $sortable = ['id', 'title', 'priority', 'status', 'due_date', 'created_at'];
+protected $filterable = ['status', 'priority', 'assigned_to', 'user_id'];
+protected $routePrefix = 'admin.todo';
+
+// Import with validation
+protected $importable = [
+    'title'       => 'required|string|max:255',
+    'description' => 'nullable|string',
+    'priority'    => 'in:low,medium,high',
+    'status'      => 'in:pending,in_progress,completed',
+    'due_date'    => 'nullable|date',
+];
+
+// Auto-lookup: Excel has "assignee_name" → saves as "assigned_to" ID
+protected $importLookups = [
+    'assignee_name' => [
+        'table'   => 'users',
+        'search'  => 'name',
+        'return'  => 'id',
+        'save_as' => 'assigned_to',
+    ],
+];
+
+// Default values
+protected $importDefaults = [
+    'priority' => 'medium',
+    'status'   => 'pending',
+];
+
+// Bulk actions dropdown
+protected $bulkActions = [
+    'delete'      => ['label' => 'Delete', 'confirm' => true, 'color' => 'red'],
+    'complete'    => ['label' => 'Mark Completed', 'color' => 'green'],
+    'pending'     => ['label' => 'Mark Pending', 'color' => 'yellow'],
+    'in_progress' => ['label' => 'Mark In Progress', 'color' => 'blue'],
+];
 ```
 
-### Add Categories
-1. Create `todo_categories` table
-2. Add `category_id` to `todos` table
-3. Add relationship in model
-4. Update controller and views
+---
 
-## Support
+## Routes
 
-For issues or questions, contact your administrator.
+| Method | URI | Name | Description |
+|--------|-----|------|-------------|
+| GET | `/admin/todo` | admin.todo.index | List page |
+| GET/POST | `/admin/todo/data` | admin.todo.data | DataTable endpoint |
+| POST | `/admin/todo/bulk-action` | admin.todo.bulk-action | Bulk actions |
+| GET | `/admin/todo/create` | admin.todo.create | Create form |
+| POST | `/admin/todo` | admin.todo.store | Store new task |
+| GET | `/admin/todo/{id}` | admin.todo.show | View task |
+| GET | `/admin/todo/{id}/edit` | admin.todo.edit | Edit form |
+| PUT | `/admin/todo/{id}` | admin.todo.update | Update task |
+| DELETE | `/admin/todo/{id}` | admin.todo.destroy | Delete task |
+| POST | `/admin/todo/{id}/toggle-status` | admin.todo.toggle-status | Quick status change |
+
+---
+
+## Access Control
+
+- **Admin users** (`is_admin = true`): See all tasks, can assign to any user
+- **Regular users**: See only their own tasks + tasks assigned to them
+
+This is implemented by overriding `dtList()` and `getExportData()` methods.
+
+---
+
+## Import Template
+
+Download the import template from the DataTable UI. The template includes:
+
+| Column | Description |
+|--------|-------------|
+| title | Task title (required) |
+| description | Task description |
+| priority | low, medium, high |
+| status | pending, in_progress, completed |
+| due_date | Date (YYYY-MM-DD) |
+| assignee_name | User name (auto-converted to ID) |
+
+**Auto-Lookup**: Enter the user's name in `assignee_name` column - it will automatically find the user and save their ID.
+
+---
+
+## Bulk Actions
+
+Select tasks using checkboxes, then choose an action from the dropdown:
+
+- **Delete** - Permanently delete selected tasks (with confirmation)
+- **Mark Completed** - Set status to "completed"
+- **Mark Pending** - Set status to "pending"  
+- **Mark In Progress** - Set status to "in_progress"
+
+---
+
+## Overdue Detection
+
+Tasks are considered overdue when:
+- `due_date` is in the past
+- `status` is NOT "completed"
+
+The system can send notifications for overdue tasks via:
+```bash
+php artisan todo:check-overdue
+```
+
+Add to scheduler in `app/Console/Kernel.php`:
+```php
+$schedule->command('todo:check-overdue')->dailyAt('08:00');
+```
+
+---
+
+## Changelog
+
+### v2.0
+- Upgraded to DataTable v2.0
+- Added import lookups (auto convert names to IDs)
+- Added multiple bulk actions dropdown
+- Added import defaults
+- Improved code organization
+
+### v1.0
+- Initial release
+- Basic CRUD operations
+- Export to CSV/Excel/PDF
+- Import from Excel
+- Single bulk delete action

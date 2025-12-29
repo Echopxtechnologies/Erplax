@@ -293,10 +293,10 @@
                     <label class="required">Subject</label>
                     <input type="text" name="subject" class="form-control" value="{{ old('subject', $proposal->subject ?? '') }}" placeholder="Proposal subject" required>
                 </div>
-                <div class="form-group">
-                    <label>Proposal Number</label>
-                    <input type="text" class="form-control" value="{{ $proposal->proposal_number ?? $nextNumber ?? 'Auto-generated' }}" readonly style="background: var(--gray-100);">
-                </div>
+             <div class="form-group">
+    <label>Proposal Number</label>
+    <input type="text" class="form-control" value="{{ $proposal->proposal_number ?? $nextNumber ?? 'Auto-generated' }}" readonly style="background: var(--gray-100); cursor: not-allowed;">
+</div>
                 <div class="form-group">
                     <label>Status</label>
                     <select name="status" class="form-control">

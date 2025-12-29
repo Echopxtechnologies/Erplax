@@ -2,17 +2,20 @@
 
 use Illuminate\Support\Facades\Route;
 use Modules\Todo\Http\Controllers\TodoController;
-use App\Http\Middleware\EnsureIsAdmin; // ← USE THIS!
+use App\Http\Middleware\EnsureIsAdmin;
 
 Route::prefix('admin/todo')
-    ->middleware([EnsureIsAdmin::class]) // ← NOT 'auth'!
+    ->middleware([EnsureIsAdmin::class])
     ->name('admin.todo.')
     ->group(function () {
-        // List & DataTable (GET for list/export, POST for import)
+        // List & DataTable v2.0 (GET for list/export, POST for import)
         Route::get('/', [TodoController::class, 'index'])->name('index');
-        Route::match(['get', 'post'], '/data', [TodoController::class, 'dataTable'])->name('data');
+        Route::match(['get', 'post'], '/data', [TodoController::class, 'handleData'])->name('data');
         
-        // Bulk Operations
+        // Bulk Actions (DataTable v2.0)
+        Route::post('/bulk-action', [TodoController::class, 'handleBulkAction'])->name('bulk-action');
+        
+        // Legacy bulk delete (backward compatibility)
         Route::post('/bulk-delete', [TodoController::class, 'bulkDelete'])->name('bulk-delete');
         
         // Check overdue tasks (for scheduler/cron)

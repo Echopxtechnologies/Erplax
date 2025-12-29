@@ -130,12 +130,21 @@ class ServiceRecord extends Model
         $prefix = 'SR';
         $year = date('y');
         $month = date('m');
-        $lastRecord = self::whereYear('created_at', date('Y'))
-                         ->whereMonth('created_at', date('m'))
-                         ->latest()
-                         ->first();
-        $nextNumber = $lastRecord ? (intval(substr($lastRecord->reference_no, -4)) + 1) : 1;
-        return $prefix . '/' . $year . $month . '/' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
+        $pattern = $prefix . '/' . $year . $month . '/';
+        
+        // Find the highest reference number for this month
+        $lastRef = self::where('reference_no', 'LIKE', $pattern . '%')
+                      ->orderBy('reference_no', 'desc')
+                      ->value('reference_no');
+        
+        $nextNumber = 1;
+        if ($lastRef) {
+            // Extract the last 4 digits from the reference
+            $lastNumber = (int) substr($lastRef, -4);
+            $nextNumber = $lastNumber + 1;
+        }
+        
+        return $pattern . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
     }
 
     /**

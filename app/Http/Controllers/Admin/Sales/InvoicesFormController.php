@@ -17,6 +17,25 @@ use Barryvdh\DomPDF\Facade\Pdf;
 
 class InvoicesFormController extends AdminController
 {
+    /**
+     * Generate unique invoice number using MAX to find the highest number
+     */
+    protected function generateInvoiceNumber(): string
+    {
+        $prefix = 'INV-' . date('Y') . '-';
+        $prefixLength = strlen($prefix);
+        
+        // Use raw query to get the MAX numeric value after the prefix
+        $maxNumber = DB::table('invoices')
+            ->where('invoice_number', 'like', $prefix . '%')
+            ->selectRaw('MAX(CAST(SUBSTRING(invoice_number, ?) AS UNSIGNED)) as max_num', [$prefixLength + 1])
+            ->value('max_num');
+        
+        $nextNumber = ($maxNumber ?? 0) + 1;
+        
+        return $prefix . str_pad($nextNumber, 6, '0', STR_PAD_LEFT);
+    }
+
     public function create()
     {
         $customers = Customer::orderBy('name')->get();
@@ -24,7 +43,9 @@ class InvoicesFormController extends AdminController
         $products = Product::all();
         $taxes = Tax::where('active', 1)->orderBy('name')->get();
         $invoice = null;
-        $invoiceNumber = 'INV-' . date('Y') . '-' . str_pad((Invoice::count() + 1), 6, '0', STR_PAD_LEFT);
+        
+        // Generate preview invoice number (actual number generated on save)
+        $invoiceNumber = $this->generateInvoiceNumber();
 
         return view('admin.sales.invoices.form', compact('customers', 'admins', 'products', 'taxes', 'invoice', 'invoiceNumber'));
     }
@@ -34,7 +55,6 @@ class InvoicesFormController extends AdminController
         $validated = $request->validate([
             'customer_id' => 'required|exists:customers,id',
             'subject' => 'required|string|max:255',
-            'invoice_number' => 'nullable|string|max:50',
             'date' => 'required|date',
             'due_date' => 'nullable|date',
             'currency' => 'required|string|max:10',
@@ -56,10 +76,8 @@ class InvoicesFormController extends AdminController
 
         DB::beginTransaction();
         try {
-            if (empty($validated['invoice_number'])) {
-                $validated['invoice_number'] = 'INV-' . date('Y') . '-' . str_pad((Invoice::count() + 1), 6, '0', STR_PAD_LEFT);
-            }
-
+            // Generate fresh invoice number inside transaction to prevent duplicates
+            $validated['invoice_number'] = $this->generateInvoiceNumber();
             $validated['created_by'] = auth()->user()->name ?? null;
 
             // Load all taxes for calculation
@@ -71,9 +89,6 @@ class InvoicesFormController extends AdminController
             
             $items = $request->input('items', []);
             
-            // Debug log
-            Log::info('Invoice items received:', ['items' => $items]);
-            
             foreach ($items as $item) {
                 if (($item['item_type'] ?? '') === 'product') {
                     $qty = floatval($item['quantity'] ?? 0);
@@ -83,7 +98,6 @@ class InvoicesFormController extends AdminController
                     
                     // Calculate tax from multiple tax_ids
                     $taxIds = $this->parseTaxIds($item['tax_ids'] ?? '');
-                    Log::info('Parsed tax_ids for item:', ['original' => $item['tax_ids'] ?? '', 'parsed' => $taxIds]);
                     
                     foreach ($taxIds as $taxId) {
                         $taxRate = $taxesMap[$taxId] ?? 0;
@@ -175,9 +189,6 @@ class InvoicesFormController extends AdminController
             
             $items = $request->input('items', []);
             
-            // Debug log
-            Log::info('Invoice update items received:', ['items' => $items]);
-            
             foreach ($items as $item) {
                 if (($item['item_type'] ?? '') === 'product') {
                     $qty = floatval($item['quantity'] ?? 0);
@@ -187,7 +198,6 @@ class InvoicesFormController extends AdminController
                     
                     // Calculate tax from multiple tax_ids
                     $taxIds = $this->parseTaxIds($item['tax_ids'] ?? '');
-                    Log::info('Update - Parsed tax_ids for item:', ['original' => $item['tax_ids'] ?? '', 'parsed' => $taxIds]);
                     
                     foreach ($taxIds as $taxId) {
                         $taxRate = $taxesMap[$taxId] ?? 0;
@@ -225,47 +235,32 @@ class InvoicesFormController extends AdminController
         }
     }
 
-    // public function destroy(Invoice $invoice)
-    // {
-    //     try {
-    //         $invoice->delete();
-    //         return redirect()->route('admin.sales.invoices.index')
-    //             ->with('success', 'Invoice deleted successfully.');
-    //     } catch (\Exception $e) {
-    //         return back()->with('error', 'Error deleting invoice: ' . $e->getMessage());
-    //     }
-    // }
-
-
     public function destroy(Invoice $invoice)
-{
-    try {
-        $invoice->delete();
-        
-        // ⭐ Check if request wants JSON (AJAX)
-        if (request()->wantsJson() || request()->ajax()) {
-            return response()->json([
-                'success' => true,
-                'message' => 'Invoice deleted successfully.'
-            ]);
-        }
-        
-        // Regular browser request
-        return redirect()->route('admin.sales.invoices.index')
-            ->with('success', 'Invoice deleted successfully.');
+    {
+        try {
+            $invoice->delete();
             
-    } catch (\Exception $e) {
-        // ⭐ Also return JSON for errors
-        if (request()->wantsJson() || request()->ajax()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error deleting invoice: ' . $e->getMessage()
-            ], 500);
+            if (request()->wantsJson() || request()->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Invoice deleted successfully.'
+                ]);
+            }
+            
+            return redirect()->route('admin.sales.invoices.index')
+                ->with('success', 'Invoice deleted successfully.');
+                
+        } catch (\Exception $e) {
+            if (request()->wantsJson() || request()->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error deleting invoice: ' . $e->getMessage()
+                ], 500);
+            }
+            
+            return back()->with('error', 'Error deleting invoice: ' . $e->getMessage());
         }
-        
-        return back()->with('error', 'Error deleting invoice: ' . $e->getMessage());
     }
-}
 
     /**
      * Parse tax_ids from various formats (JSON array, comma-separated, single value)
@@ -279,7 +274,6 @@ class InvoicesFormController extends AdminController
         }
         
         if (is_string($taxIds)) {
-            // Clean the string
             $taxIds = trim($taxIds);
             
             // Try JSON decode first
@@ -316,7 +310,6 @@ class InvoicesFormController extends AdminController
             ];
 
             if ($item['item_type'] === 'product') {
-                // Handle product_id - convert empty string to null
                 $productId = $item['product_id'] ?? null;
                 $itemData['product_id'] = (!empty($productId) && $productId !== '') ? (int)$productId : null;
                 
@@ -326,22 +319,8 @@ class InvoicesFormController extends AdminController
                 $itemData['rate'] = floatval($item['rate'] ?? 0);
                 $itemData['amount'] = $itemData['quantity'] * $itemData['rate'];
                 
-                // Store multiple tax_ids as JSON array
                 $taxIds = $this->parseTaxIds($item['tax_ids'] ?? '');
-                
-                // Store as JSON string
-                if (!empty($taxIds)) {
-                    $itemData['tax_ids'] = json_encode(array_values($taxIds));
-                } else {
-                    $itemData['tax_ids'] = null;
-                }
-                
-                Log::info('Saving item with tax_ids:', [
-                    'description' => $itemData['description'],
-                    'original_tax_ids' => $item['tax_ids'] ?? '',
-                    'parsed_tax_ids' => $taxIds,
-                    'stored_tax_ids' => $itemData['tax_ids']
-                ]);
+                $itemData['tax_ids'] = !empty($taxIds) ? json_encode(array_values($taxIds)) : null;
                 
             } elseif ($item['item_type'] === 'section') {
                 $itemData['description'] = $item['description'] ?? 'Section';
@@ -349,16 +328,7 @@ class InvoicesFormController extends AdminController
                 $itemData['long_description'] = $item['long_description'] ?? '';
             }
 
-            try {
-                $createdItem = InvoiceItem::create($itemData);
-                Log::info('Item created successfully:', ['id' => $createdItem->id]);
-            } catch (\Exception $e) {
-                Log::error('Failed to create invoice item:', [
-                    'error' => $e->getMessage(),
-                    'itemData' => $itemData
-                ]);
-                throw $e;
-            }
+            InvoiceItem::create($itemData);
         }
     }
 
@@ -374,65 +344,58 @@ class InvoicesFormController extends AdminController
             'zip_code' => $customer->zip_code,
         ]);
     }
+    
     public function print(Invoice $invoice)
-{
-    $invoice->load(['customer', 'items']);
-    
-    // Get taxes for breakdown
-    $taxesMap = \App\Models\Tax::where('active', 1)->pluck('name', 'id')->toArray();
-    $taxRatesMap = \App\Models\Tax::where('active', 1)->pluck('rate', 'id')->toArray();
-    
-    // Calculate tax breakdown
-    $taxBreakdown = [];
-    foreach ($invoice->items as $item) {
-        if (($item->item_type ?? 'product') !== 'product') continue;
+    {
+        $invoice->load(['customer', 'items']);
         
-        $taxIds = $this->parseTaxIds($item->tax_ids);
-        foreach ($taxIds as $taxId) {
-            $taxName = $taxesMap[$taxId] ?? 'Tax';
-            $taxRate = $taxRatesMap[$taxId] ?? 0;
-            $taxAmount = ($item->amount * $taxRate) / 100;
-            $key = $taxId;
+        $taxesMap = \App\Models\Tax::where('active', 1)->pluck('name', 'id')->toArray();
+        $taxRatesMap = \App\Models\Tax::where('active', 1)->pluck('rate', 'id')->toArray();
+        
+        $taxBreakdown = [];
+        foreach ($invoice->items as $item) {
+            if (($item->item_type ?? 'product') !== 'product') continue;
             
-            if (!isset($taxBreakdown[$key])) {
-                $taxBreakdown[$key] = [
-                    'name' => $taxName,
-                    'rate' => $taxRate,
-                    'amount' => 0
-                ];
+            $taxIds = $this->parseTaxIds($item->tax_ids);
+            foreach ($taxIds as $taxId) {
+                $taxName = $taxesMap[$taxId] ?? 'Tax';
+                $taxRate = $taxRatesMap[$taxId] ?? 0;
+                $taxAmount = ($item->amount * $taxRate) / 100;
+                $key = $taxId;
+                
+                if (!isset($taxBreakdown[$key])) {
+                    $taxBreakdown[$key] = [
+                        'name' => $taxName,
+                        'rate' => $taxRate,
+                        'amount' => 0
+                    ];
+                }
+                $taxBreakdown[$key]['amount'] += $taxAmount;
             }
-            $taxBreakdown[$key]['amount'] += $taxAmount;
         }
+        
+        $company = [
+            'name' => \App\Models\Option::get('company_name', 'Your Company'),
+            'email' => \App\Models\Option::get('company_email', ''),
+            'phone' => \App\Models\Option::get('company_phone', ''),
+            'address' => \App\Models\Option::get('company_address', ''),
+            'gst' => \App\Models\Option::get('company_gst', ''),
+            'logo' => \App\Models\Option::get('company_logo', ''),
+        ];
+        
+        $pdf = Pdf::loadView('admin.sales.invoices.print', [
+            'invoice' => $invoice,
+            'company' => $company,
+            'taxBreakdown' => $taxBreakdown,
+            'taxesMap' => $taxesMap,
+            'taxRatesMap' => $taxRatesMap,
+        ]);
+        
+        $pdf->setPaper('a4', 'portrait');
+        
+        return $pdf->stream("invoice-{$invoice->invoice_number}.pdf");
     }
-    
-    // Company details from options
-    $company = [
-        'name' => \App\Models\Option::get('company_name', 'Your Company'),
-        'email' => \App\Models\Option::get('company_email', ''),
-        'phone' => \App\Models\Option::get('company_phone', ''),
-        'address' => \App\Models\Option::get('company_address', ''),
-        'gst' => \App\Models\Option::get('company_gst', ''),
-        'logo' => \App\Models\Option::get('company_logo', ''),
-    ];
-    
-    $pdf = Pdf::loadView('admin.sales.invoices.print', [
-        'invoice' => $invoice,
-        'company' => $company,
-        'taxBreakdown' => $taxBreakdown,
-        'taxesMap' => $taxesMap,
-        'taxRatesMap' => $taxRatesMap,
-    ]);
-    
-    // Optional: Set paper size
-    $pdf->setPaper('a4', 'portrait');
-    
-    // Return PDF for download or inline view
-    // For download: return $pdf->download("invoice-{$invoice->invoice_number}.pdf");
-    // For inline view:
-    return $pdf->stream("invoice-{$invoice->invoice_number}.pdf");
-}
 
-    // Search products - include tax_ids info
     public function searchProducts(Request $request)
     {
         $search = $request->input('q', '');
@@ -447,7 +410,6 @@ class InvoicesFormController extends AdminController
         }
         
         $products = $query->limit(20)->get()->map(function ($product) {
-            // Parse product tax_ids to return as array
             $taxIds = [];
             if ($product->tax_ids) {
                 $taxIds = $this->parseTaxIds($product->tax_ids);

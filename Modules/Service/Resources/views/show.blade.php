@@ -106,76 +106,95 @@
 .sv-empty-i{width:50px;height:50px;margin:0 auto 10px;background:#f1f5f9;border-radius:50%;display:flex;align-items:center;justify-content:center}
 .sv-empty-i svg{width:22px;height:22px;opacity:.5}
 .sv-empty p{margin-bottom:10px;font-size:13px}
-.sv-modal{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;padding:15px}
-.sv-modal.active{display:flex}
-.sv-modal-box{background:#fff;border-radius:12px;width:100%;max-width:680px;max-height:90vh;overflow:hidden;display:flex;flex-direction:column}
-.sv-modal-h{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid #e2e8f0;flex-shrink:0}
-.sv-modal-h h3{font-size:16px;font-weight:600;margin:0}
-.sv-modal-x{width:30px;height:30px;background:#f1f5f9;border:none;border-radius:8px;cursor:pointer;font-size:18px;color:#64748b}
-.sv-modal-b{padding:18px;overflow-y:auto;flex:1}
-.sv-modal-f{display:flex;justify-content:flex-end;gap:8px;padding:12px 18px;border-top:1px solid #e2e8f0;background:#f8fafc;flex-shrink:0}
-.sv-alert{display:flex;gap:10px;padding:10px 12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;margin-bottom:14px;font-size:12px;color:#1e40af}
+/* Modal - Absolute positioning with internal scroll */
+.sv-modal{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:1000}
+.sv-modal.active{display:block}
+.sv-modal-box{position:absolute;top:80px;left:50%;transform:translateX(-50%);background:#fff;border-radius:12px;width:calc(100% - 40px);max-width:700px;max-height:calc(100vh - 100px);display:flex;flex-direction:column;box-shadow:0 25px 50px -12px rgba(0,0,0,.25)}
+.sv-modal-h{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid #e2e8f0;background:#fff;border-radius:12px 12px 0 0;flex-shrink:0}
+.sv-modal-h h3{font-size:16px;font-weight:600;margin:0;color:#1e293b}
+.sv-modal-x{width:28px;height:28px;background:#f1f5f9;border:none;border-radius:6px;cursor:pointer;font-size:18px;color:#64748b;display:flex;align-items:center;justify-content:center;transition:all .2s}
+.sv-modal-x:hover{background:#e2e8f0;color:#1e293b}
+.sv-modal-box form{display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden}
+.sv-modal-b{padding:16px 18px;overflow-y:auto;flex:1;min-height:0}
+.sv-modal-b::-webkit-scrollbar{width:6px}
+.sv-modal-b::-webkit-scrollbar-track{background:#f1f5f9;border-radius:3px}
+.sv-modal-b::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:3px}
+.sv-modal-b::-webkit-scrollbar-thumb:hover{background:#94a3b8}
+.sv-modal-f{display:flex;justify-content:flex-end;gap:10px;padding:12px 18px;border-top:1px solid #e2e8f0;background:#f8fafc;border-radius:0 0 12px 12px;flex-shrink:0}
+.sv-alert{display:flex;gap:8px;padding:10px 12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;margin-bottom:12px;font-size:12px;color:#1e40af}
 .sv-alert svg{width:16px;height:16px;color:#2563eb;flex-shrink:0}
 .sv-form-g{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.sv-fg{margin-bottom:12px}
+.sv-fg{margin-bottom:10px}
 .sv-fg.full{grid-column:span 2}
-.sv-fl{display:block;font-size:12px;font-weight:600;margin-bottom:4px;color:#1e293b}
+.sv-fl{display:block;font-size:11px;font-weight:600;margin-bottom:4px;color:#1e293b}
 .sv-fl .r{color:#dc2626}
-.sv-fi,.sv-fs,.sv-ft{width:100%;padding:8px 10px;font-size:12px;border:1px solid #e2e8f0;border-radius:6px;box-sizing:border-box}
-.sv-fi:focus,.sv-fs:focus,.sv-ft:focus{outline:none;border-color:#3b82f6}
+.sv-fi,.sv-fs,.sv-ft{width:100%;padding:8px 10px;font-size:12px;border:1px solid #e2e8f0;border-radius:6px;box-sizing:border-box;transition:border-color .2s}
+.sv-fi:focus,.sv-fs:focus,.sv-ft:focus{outline:none;border-color:#3b82f6;box-shadow:0 0 0 2px rgba(59,130,246,.1)}
 .sv-ft{min-height:60px;resize:vertical}
-.sv-fh{font-size:10px;color:#94a3b8;margin-top:2px}
+.sv-fh{font-size:10px;color:#94a3b8;margin-top:3px}
 .sv-mat{margin-top:14px;padding-top:14px;border-top:1px solid #e2e8f0}
-.sv-mat-t{font-size:13px;font-weight:600;margin-bottom:10px}
+.sv-mat-t{font-size:13px;font-weight:600;margin-bottom:10px;color:#1e293b}
 .sv-mat-h{display:none}
-.sv-mat-r{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;padding:14px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0}
+.sv-mat-r{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;padding:12px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0}
 .sv-mat-field{display:flex;flex-direction:column;gap:4px}
 .sv-mat-field.sv-mat-action{justify-content:flex-end}
-.sv-mat-label{font-size:11px;font-weight:600;color:#64748b}
+.sv-mat-label{font-size:10px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.3px}
 .sv-mat-r input,.sv-mat-r select{padding:8px 10px;font-size:12px;border:1px solid #e2e8f0;border-radius:6px;width:100%;box-sizing:border-box}
 .sv-mat-r select{background:#fff}
-.sv-mat-total{background:#f1f5f9 !important;font-weight:600;color:#16a34a}
-.sv-mat-rm{width:100%;padding:8px;background:#fee2e2;color:#dc2626;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600}
+.sv-mat-total{background:#f0fdf4 !important;font-weight:600;color:#16a34a;border-color:#bbf7d0 !important}
+.sv-mat-rm{width:100%;padding:8px;background:#fee2e2;color:#dc2626;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;transition:all .2s}
 .sv-mat-rm:hover{background:#fecaca}
-.sv-mat-add{padding:10px 14px;background:#dcfce7;color:#16a34a;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;margin-top:4px;width:100%}
+.sv-mat-add{padding:10px 14px;background:#dcfce7;color:#16a34a;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;margin-top:6px;width:100%;transition:all .2s}
 .sv-mat-add:hover{background:#bbf7d0}
 /* Multi-tax badges */
-.sv-tax-cell{display:flex;flex-wrap:wrap;gap:4px;align-items:center;min-height:36px;padding:4px 0}
+.sv-tax-cell{display:flex;flex-wrap:wrap;gap:4px;align-items:center;min-height:32px;padding:4px 0}
 .sv-tax-badge{display:inline-flex;align-items:center;gap:3px;padding:4px 8px;background:linear-gradient(to bottom,#fef2f2,#fee2e2);border:1px solid #fecaca;border-radius:4px;font-size:10px;font-weight:600;color:#991b1b;white-space:nowrap}
 .sv-tax-badge .sv-tax-rm{cursor:pointer;font-size:12px;opacity:.7;margin-left:2px}
 .sv-tax-badge .sv-tax-rm:hover{opacity:1}
-.sv-tax-add{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;background:#f3f4f6;border:2px dashed #d1d5db;border-radius:6px;cursor:pointer;color:#6b7280;font-size:18px;font-weight:400}
+.sv-tax-add{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;background:#f3f4f6;border:2px dashed #d1d5db;border-radius:6px;cursor:pointer;color:#6b7280;font-size:16px;font-weight:400;transition:all .2s}
 .sv-tax-add:hover{background:#e5e7eb;color:#374151;border-color:#9ca3af}
 /* Tax dropdown */
-.sv-tax-dropdown{position:fixed;background:#fff;border:1px solid #e5e7eb;border-radius:8px;box-shadow:0 10px 25px rgba(0,0,0,.15);z-index:1001;min-width:180px;max-height:240px;overflow-y:auto;display:none}
+.sv-tax-dropdown{position:fixed;background:#fff;border:1px solid #e5e7eb;border-radius:8px;box-shadow:0 10px 40px rgba(0,0,0,.15);z-index:1002;min-width:180px;max-height:240px;overflow-y:auto;display:none}
 .sv-tax-dropdown.show{display:block}
-.sv-tax-dropdown-item{padding:10px 14px;cursor:pointer;font-size:12px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #f3f4f6}
+.sv-tax-dropdown-item{padding:8px 12px;cursor:pointer;font-size:11px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #f3f4f6;transition:background .15s}
 .sv-tax-dropdown-item:last-child{border-bottom:none}
 .sv-tax-dropdown-item:hover{background:#f9fafb}
 .sv-tax-dropdown-item.selected{background:#eff6ff}
 .sv-tax-dropdown-item .tax-rate{color:#6b7280;font-size:11px}
-.sv-tax-dropdown-item .check-mark{color:#3b82f6;font-weight:bold}
-.sv-btn-c{padding:8px 14px;background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer}
-.sv-btn-s{padding:8px 14px;background:#3b82f6;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer}
-.sv-paid-box{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px;margin-top:14px}
+.sv-tax-dropdown-item .check-mark{color:#3b82f6;font-weight:bold;font-size:14px}
+/* Buttons */
+.sv-btn-c{padding:8px 16px;background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s}
+.sv-btn-c:hover{background:#e2e8f0;color:#475569}
+.sv-btn-s{padding:8px 16px;background:#3b82f6;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s}
+.sv-btn-s:hover{background:#2563eb}
+/* Paid service box */
+.sv-paid-box{background:linear-gradient(135deg,#f0fdf4 0%,#dcfce7 100%);border:1px solid #bbf7d0;border-radius:8px;padding:12px;margin-top:14px}
 .sv-paid-title{font-size:12px;font-weight:600;color:#166534;margin-bottom:10px;display:flex;align-items:center;gap:6px}
 .sv-paid-title svg{width:16px;height:16px;color:#16a34a}
-.sv-toggle{display:flex;align-items:center;gap:10px;margin-bottom:10px}
-.sv-toggle input[type="checkbox"]{width:18px;height:18px;cursor:pointer}
+.sv-toggle{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.sv-toggle input[type="checkbox"]{width:18px;height:18px;cursor:pointer;accent-color:#16a34a}
 .sv-toggle label{font-size:12px;color:#1e293b;cursor:pointer}
-.sv-charge-row{display:none;margin-top:10px}
+.sv-charge-row{display:none;margin-top:10px;padding-top:10px;border-top:1px solid #bbf7d0}
 .sv-charge-row.show{display:block}
 /* Desktop: Grid layout for materials */
 @media(min-width:768px){
-    .sv-mat-h{display:grid;grid-template-columns:2fr 70px 90px 140px 90px 1fr 40px;gap:8px;font-size:10px;font-weight:600;color:#64748b;margin-bottom:6px;padding:0 4px}
-    .sv-mat-r{grid-template-columns:2fr 70px 90px 140px 90px 1fr 40px;padding:0;background:transparent;border:none;align-items:center}
+    .sv-mat-h{display:grid;grid-template-columns:2fr 70px 90px 130px 90px 1fr 40px;gap:8px;font-size:10px;font-weight:600;color:#64748b;margin-bottom:6px;padding:0 4px;text-transform:uppercase;letter-spacing:.3px}
+    .sv-mat-r{grid-template-columns:2fr 70px 90px 130px 90px 1fr 40px;padding:0;background:transparent;border:none;align-items:center;gap:8px}
     .sv-mat-field{display:contents}
     .sv-mat-label{display:none}
     .sv-mat-rm{width:36px;height:36px;padding:0}
     .sv-mat-add{width:auto}
 }
 @media(max-width:900px){.sv-layout{grid-template-columns:1fr}.sv-side{order:-1}.sv-stats{grid-template-columns:repeat(2,1fr)}.sv-infos{grid-template-columns:1fr}}
-@media(max-width:639px){.sv-form-g{grid-template-columns:1fr}.sv-fg.full{grid-column:span 1}}
+@media(max-width:639px){
+    .sv-form-g{grid-template-columns:1fr}
+    .sv-fg.full{grid-column:span 1}
+    .sv-modal-box{top:70px;left:10px;right:10px;width:auto;transform:none;max-height:calc(100vh - 90px);border-radius:10px}
+    .sv-modal-h{padding:12px 14px}
+    .sv-modal-h h3{font-size:15px}
+    .sv-modal-b{padding:14px}
+    .sv-modal-f{padding:12px 14px}
+}
 </style>
 
 <div class="sv" data-service-id="{{ $service->id }}">
@@ -382,9 +401,9 @@
                         </div>
                         <div class="sv-rec-a">
                             <a href="{{ url('/admin/sales/invoices/' . $inv->id) }}" class="sv-btn-x v">View Invoice</a>
-                            {{-- @if(($inv->payment_status ?? 'unpaid') == 'unpaid')
+                            @if(($inv->payment_status ?? 'unpaid') == 'unpaid')
                             <button class="sv-btn-x e" onclick="markInvoicePaid({{ $inv->id }})">Mark Paid</button>
-                            @endif --}}
+                            @endif
                         </div>
                     </div>
                     @empty
@@ -507,14 +526,12 @@
                     </div>
                     <button type="button" class="sv-mat-add" onclick="addMat()">+ Add Material</button>
                 </div>
-
-                <!-- Tax Dropdown (shared) -->
-                <div class="sv-tax-dropdown" id="taxDropdown"></div>
-                </div>
             </div>
             <div class="sv-modal-f"><button type="button" class="sv-btn-c" onclick="closeRecordModal()">Cancel</button><button type="submit" class="sv-btn-s">Save</button></div>
         </form>
     </div>
+    <!-- Tax Dropdown (shared, outside modal for proper positioning) -->
+    <div class="sv-tax-dropdown" id="taxDropdown"></div>
 </div>
 
 <!-- Visit Modal -->
@@ -580,10 +597,12 @@ function openRecordModal(){
     document.getElementById('recordMethod').value = 'POST';
     resetRecordForm();
     document.getElementById('recordModal').classList.add('active');
+    document.body.style.overflow = 'hidden';
 }
 
 function closeRecordModal(){
     document.getElementById('recordModal').classList.remove('active');
+    document.body.style.overflow = '';
     resetRecordForm();
 }
 
@@ -626,6 +645,7 @@ function editRecord(btn){
             document.getElementById('rec_service_charge').value = rec.service_charge || '0';
             togglePaidFields();
             document.getElementById('recordModal').classList.add('active');
+            document.body.style.overflow = 'hidden';
         }
     })
     .catch(function(e){
@@ -643,12 +663,17 @@ function togglePaidFields(){
 }
 
 // Visit Modal
-function openVisitModal(){document.getElementById('visitModal').classList.add('active')}
-function closeVisitModal(){document.getElementById('visitModal').classList.remove('active')}
+function openVisitModal(){document.getElementById('visitModal').classList.add('active');document.body.style.overflow='hidden'}
+function closeVisitModal(){document.getElementById('visitModal').classList.remove('active');document.body.style.overflow=''}
 
 // Close modal on overlay click
 document.querySelectorAll('.sv-modal').forEach(function(m){
-    m.addEventListener('click',function(e){if(e.target===m)m.classList.remove('active')});
+    m.addEventListener('click',function(e){
+        if(e.target===m){
+            m.classList.remove('active');
+            document.body.style.overflow='';
+        }
+    });
 });
 
 // Materials
@@ -732,22 +757,9 @@ function calcT(i){
     
     var q = parseFloat(row.querySelector('[name="materials['+i+'][quantity]"]').value) || 0;
     var p = parseFloat(row.querySelector('[name="materials['+i+'][unit_price]"]').value) || 0;
-    var subtotal = q * p;
+    var total = q * p;
     
-    // Get tax rate from selected taxes
-    var taxIdsHidden = row.querySelector('.tax-ids-hidden');
-    var taxIds = [];
-    try { taxIds = JSON.parse(taxIdsHidden.value); } catch(e) {}
-    
-    var totalTaxRate = 0;
-    taxIds.forEach(function(id){
-        var tax = taxesData.find(function(t){ return t.id == id; });
-        if(tax) totalTaxRate += tax.rate;
-    });
-    
-    var taxAmount = subtotal * totalTaxRate / 100;
-    var total = subtotal + taxAmount;
-    
+    // Tax IDs are still stored but not calculated here - invoice will calculate
     row.querySelector('[name="materials['+i+'][total]"]').value = total.toFixed(2);
 }
 

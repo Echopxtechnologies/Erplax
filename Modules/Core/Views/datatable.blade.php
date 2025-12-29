@@ -1,35 +1,34 @@
 <style>
 /* =========================================
-   DATATABLE - Clean Version
-   Balanced colors, no zoom effects
+   DATATABLE v2.0 - Production Ready
+   Features: Multi-table, Bulk Actions Dropdown
    ========================================= */
 
 /* Container */
 .dt-container {
-    background: var(--card-bg);
-    border: 1px solid var(--card-border);
-    border-radius: var(--radius-lg);
+    background: var(--card-bg, #fff);
+    border: 1px solid var(--card-border, #e5e7eb);
+    border-radius: var(--radius-lg, 12px);
     overflow: hidden;
     margin: 15px 0;
     width: 100%;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
-/* Table Wrapper for horizontal scroll */
+/* Table Wrapper */
 .dt-container .dt-table-wrapper {
     overflow-x: auto;
     width: 100%;
     scrollbar-width: thin;
-    scrollbar-color: #a0aec0 var(--body-bg);
+    scrollbar-color: #a0aec0 var(--body-bg, #f7fafc);
 }
 
-/* Custom Scrollbar */
 .dt-container .dt-table-wrapper::-webkit-scrollbar {
     height: 8px;
 }
 
 .dt-container .dt-table-wrapper::-webkit-scrollbar-track {
-    background: var(--body-bg);
+    background: var(--body-bg, #f7fafc);
     border-radius: 4px;
 }
 
@@ -38,18 +37,14 @@
     border-radius: 4px;
 }
 
-.dt-container .dt-table-wrapper::-webkit-scrollbar-thumb:hover {
-    background: #718096;
-}
-
 /* Toolbar */
 .dt-container .dt-toolbar {
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: 14px 16px;
-    background: var(--card-bg);
-    border-bottom: 1px solid var(--card-border);
+    background: var(--card-bg, #fff);
+    border-bottom: 1px solid var(--card-border, #e5e7eb);
     flex-wrap: wrap;
     gap: 12px;
 }
@@ -65,13 +60,13 @@
 /* Search Input */
 .dt-container .dt-search-input {
     padding: 8px 14px;
-    border: 1px solid var(--input-border);
-    border-radius: var(--radius-md);
-    font-size: var(--font-sm);
-    background: var(--input-bg);
-    color: var(--input-text);
+    border: 1px solid var(--input-border, #d1d5db);
+    border-radius: var(--radius-md, 8px);
+    font-size: var(--font-sm, 14px);
+    background: var(--input-bg, #fff);
+    color: var(--input-text, #1f2937);
     min-width: 220px;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .dt-container .dt-search-input:focus {
@@ -80,38 +75,46 @@
     box-shadow: 0 0 0 3px rgba(90, 103, 216, 0.15);
 }
 
-.dt-container .dt-search-input::placeholder {
-    color: var(--text-muted);
-}
-
 /* Per Page Select */
 .dt-container .dt-perpage-select {
     padding: 8px 12px;
-    border: 1px solid var(--input-border);
-    border-radius: var(--radius-md);
-    font-size: var(--font-sm);
-    background: var(--input-bg);
-    color: var(--input-text);
+    border: 1px solid var(--input-border, #d1d5db);
+    border-radius: var(--radius-md, 8px);
+    font-size: var(--font-sm, 14px);
+    background: var(--input-bg, #fff);
+    color: var(--input-text, #1f2937);
     cursor: pointer;
-    transition: border-color 0.2s ease;
 }
 
-.dt-container .dt-perpage-select:focus {
-    outline: none;
-    border-color: #5a67d8;
+/* Buttons Base */
+.dt-container .dt-btn-base {
+    padding: 8px 16px;
+    border: none;
+    border-radius: var(--radius-md, 8px);
+    font-size: var(--font-sm, 14px);
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s, opacity 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.dt-container .dt-btn-base:hover {
+    opacity: 0.9;
 }
 
 /* Import Button */
 .dt-container .dt-import-btn {
     padding: 8px 16px;
     border: none;
-    border-radius: var(--radius-md);
-    font-size: var(--font-sm);
+    border-radius: var(--radius-md, 8px);
+    font-size: var(--font-sm, 14px);
     font-weight: 500;
     background: #5a67d8;
     color: #fff;
     cursor: pointer;
-    transition: background 0.2s ease;
+    transition: background 0.2s;
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -121,212 +124,156 @@
     background: #4c56c0;
 }
 
-/* Export Dropdown */
-.dt-container .dt-export-dropdown {
+/* Dropdown Base */
+.dt-container .dt-dropdown {
     position: relative;
     display: inline-block;
 }
 
-.dt-container .dt-export-btn {
+.dt-container .dt-dropdown-btn {
     padding: 8px 16px;
     border: none;
-    border-radius: var(--radius-md);
-    font-size: var(--font-sm);
+    border-radius: var(--radius-md, 8px);
+    font-size: var(--font-sm, 14px);
     font-weight: 500;
-    background: #38a169;
-    color: #fff;
     cursor: pointer;
-    transition: background 0.2s ease;
+    transition: background 0.2s;
     display: inline-flex;
     align-items: center;
     gap: 6px;
 }
 
-.dt-container .dt-export-btn:hover {
-    background: #2f8a5a;
-}
-
-.dt-container .dt-export-btn .dt-caret {
+.dt-container .dt-dropdown .dt-caret {
     margin-left: 2px;
     font-size: 10px;
-    transition: transform 0.2s ease;
+    transition: transform 0.2s;
 }
 
-.dt-container .dt-export-dropdown.open .dt-caret {
+.dt-container .dt-dropdown.open .dt-caret {
     transform: rotate(180deg);
 }
 
-.dt-container .dt-export-menu {
+.dt-container .dt-dropdown-menu {
     position: absolute;
     top: 100%;
-    right: 0;
     margin-top: 6px;
-    background: var(--card-bg);
-    border: 1px solid var(--card-border);
-    border-radius: var(--radius-md);
+    background: var(--card-bg, #fff);
+    border: 1px solid var(--card-border, #e5e7eb);
+    border-radius: var(--radius-md, 8px);
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.12);
     min-width: 180px;
     z-index: 1000;
     opacity: 0;
     visibility: hidden;
-    transition: opacity 0.2s ease, visibility 0.2s ease;
+    transition: opacity 0.2s, visibility 0.2s;
 }
 
-.dt-container .dt-export-dropdown.open .dt-export-menu {
+.dt-container .dt-dropdown.open .dt-dropdown-menu {
     opacity: 1;
     visibility: visible;
 }
 
-.dt-container .dt-export-menu-item {
+.dt-container .dt-dropdown-item {
     display: flex;
     align-items: center;
     gap: 10px;
     padding: 11px 16px;
     cursor: pointer;
-    font-size: var(--font-sm);
-    color: var(--text-primary);
-    transition: background 0.15s ease;
+    font-size: var(--font-sm, 14px);
+    color: var(--text-primary, #1f2937);
+    transition: background 0.15s;
     border: none;
     background: none;
     width: 100%;
     text-align: left;
 }
 
-.dt-container .dt-export-menu-item:first-child {
-    border-radius: var(--radius-md) var(--radius-md) 0 0;
+.dt-container .dt-dropdown-item:first-child {
+    border-radius: var(--radius-md, 8px) var(--radius-md, 8px) 0 0;
 }
 
-.dt-container .dt-export-menu-item:last-child {
-    border-radius: 0 0 var(--radius-md) var(--radius-md);
+.dt-container .dt-dropdown-item:last-child {
+    border-radius: 0 0 var(--radius-md, 8px) var(--radius-md, 8px);
 }
 
-.dt-container .dt-export-menu-item:hover {
-    background: var(--body-bg);
+.dt-container .dt-dropdown-item:hover {
+    background: var(--body-bg, #f7fafc);
 }
 
-.dt-container .dt-export-menu-item .dt-export-icon {
+.dt-container .dt-dropdown-divider {
+    height: 1px;
+    background: var(--card-border, #e5e7eb);
+    margin: 6px 0;
+}
+
+/* Export Dropdown */
+.dt-container .dt-export-dropdown .dt-dropdown-btn {
+    background: #38a169;
+    color: #fff;
+}
+
+.dt-container .dt-export-dropdown .dt-dropdown-btn:hover {
+    background: #2f8a5a;
+}
+
+.dt-container .dt-export-dropdown .dt-dropdown-menu {
+    right: 0;
+}
+
+.dt-container .dt-dropdown-item .dt-icon {
     width: 22px;
-    height: 22px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    text-align: center;
     font-size: 15px;
 }
 
-.dt-container .dt-export-menu-item .dt-export-label {
-    flex: 1;
-    font-weight: 500;
-}
-
-.dt-container .dt-export-menu-item .dt-export-ext {
+.dt-container .dt-dropdown-item .dt-ext {
     font-size: 10px;
-    color: var(--text-muted);
-    background: var(--body-bg);
+    color: var(--text-muted, #6b7280);
+    background: var(--body-bg, #f7fafc);
     padding: 3px 8px;
     border-radius: 4px;
     font-weight: 600;
     text-transform: uppercase;
+    margin-left: auto;
 }
 
-.dt-container .dt-export-menu-divider {
-    height: 1px;
-    background: var(--card-border);
-    margin: 6px 0;
-}
-
-/* Bulk Action Buttons */
-.dt-container .dt-bulk-delete-btn {
-    padding: 8px 16px;
-    border: none;
-    border-radius: var(--radius-md);
-    font-size: var(--font-sm);
-    font-weight: 500;
-    background: #e53e3e;
-    color: #fff;
-    cursor: pointer;
-    display: none;
-    transition: background 0.2s ease;
-}
-
-.dt-container .dt-bulk-delete-btn:hover {
-    background: #c53030;
-}
-
-.dt-container .dt-bulk-delete-btn.show {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    animation: dtFadeIn 0.2s ease;
-}
-
-/* Bulk Export Dropdown */
-.dt-container .dt-bulk-export-dropdown {
-    position: relative;
+/* Bulk Actions Dropdown */
+.dt-container .dt-bulk-dropdown {
     display: none;
 }
 
-.dt-container .dt-bulk-export-dropdown.show {
+.dt-container .dt-bulk-dropdown.show {
     display: inline-block;
-    animation: dtFadeIn 0.2s ease;
+    animation: dtFadeIn 0.2s;
 }
 
-.dt-container .dt-bulk-export-btn {
-    padding: 8px 16px;
-    border: none;
-    border-radius: var(--radius-md);
-    font-size: var(--font-sm);
-    font-weight: 500;
+.dt-container .dt-bulk-dropdown .dt-dropdown-btn {
     background: #5a67d8;
     color: #fff;
-    cursor: pointer;
-    transition: background 0.2s ease;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
 }
 
-.dt-container .dt-bulk-export-btn:hover {
+.dt-container .dt-bulk-dropdown .dt-dropdown-btn:hover {
     background: #4c56c0;
 }
 
-.dt-container .dt-bulk-export-btn .dt-caret {
-    margin-left: 2px;
-    font-size: 10px;
-    transition: transform 0.2s ease;
-}
-
-.dt-container .dt-bulk-export-dropdown.open .dt-caret {
-    transform: rotate(180deg);
-}
-
-.dt-container .dt-bulk-export-menu {
-    position: absolute;
-    top: 100%;
+.dt-container .dt-bulk-dropdown .dt-dropdown-menu {
     left: 0;
-    margin-top: 6px;
-    background: var(--card-bg);
-    border: 1px solid var(--card-border);
-    border-radius: var(--radius-md);
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.12);
-    min-width: 180px;
-    z-index: 1000;
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.2s ease, visibility 0.2s ease;
 }
 
-.dt-container .dt-bulk-export-dropdown.open .dt-bulk-export-menu {
-    opacity: 1;
-    visibility: visible;
-}
+/* Bulk action colors */
+.dt-container .dt-dropdown-item[data-color="red"] { color: #e53e3e; }
+.dt-container .dt-dropdown-item[data-color="green"] { color: #38a169; }
+.dt-container .dt-dropdown-item[data-color="yellow"] { color: #d69e2e; }
+.dt-container .dt-dropdown-item[data-color="blue"] { color: #3182ce; }
 
+/* Selected Count */
 .dt-container .dt-selected-count {
-    font-size: var(--font-sm);
+    font-size: var(--font-sm, 14px);
     display: none;
     padding: 8px 14px;
     background: rgba(90, 103, 216, 0.1);
     color: #5a67d8;
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-md, 8px);
     font-weight: 600;
     border: 1px solid rgba(90, 103, 216, 0.2);
 }
@@ -335,7 +282,7 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    animation: dtFadeIn 0.2s ease;
+    animation: dtFadeIn 0.2s;
 }
 
 /* Animation */
@@ -355,27 +302,26 @@
 .dt-container .dt-table td {
     padding: 12px 16px;
     text-align: left;
-    border-bottom: 1px solid var(--card-border);
-    color: var(--text-primary);
-    font-size: var(--font-sm);
+    border-bottom: 1px solid var(--card-border, #e5e7eb);
+    color: var(--text-primary, #1f2937);
+    font-size: var(--font-sm, 14px);
     white-space: nowrap;
 }
 
 .dt-container .dt-table th {
-    background: var(--body-bg);
+    background: var(--body-bg, #f7fafc);
     font-weight: 600;
-    color: var(--text-primary);
     position: sticky;
     top: 0;
     z-index: 10;
 }
 
 .dt-container .dt-table tbody tr {
-    transition: background 0.15s ease;
+    transition: background 0.15s;
 }
 
 .dt-container .dt-table tbody tr:hover {
-    background: var(--body-bg);
+    background: var(--body-bg, #f7fafc);
 }
 
 .dt-container .dt-table tbody tr.selected {
@@ -390,7 +336,7 @@
 /* Clickable cells */
 .dt-container .dt-table td.dt-clickable-cell {
     cursor: pointer;
-    transition: color 0.15s ease;
+    transition: color 0.15s;
 }
 
 .dt-container .dt-table td.dt-clickable-cell:hover {
@@ -427,11 +373,11 @@
     user-select: none;
     position: relative;
     padding-right: 28px;
-    transition: background 0.15s ease;
+    transition: background 0.15s;
 }
 
 .dt-container .dt-table th.dt-sort:hover {
-    background: var(--card-border);
+    background: var(--card-border, #e5e7eb);
 }
 
 .dt-container .dt-table th.dt-sort::after {
@@ -440,12 +386,6 @@
     right: 10px;
     opacity: 0.3;
     font-size: 12px;
-    color: var(--text-muted);
-    transition: opacity 0.2s ease;
-}
-
-.dt-container .dt-table th.dt-sort:hover::after {
-    opacity: 0.5;
 }
 
 .dt-container .dt-table th.dt-sort.asc::after {
@@ -466,15 +406,15 @@
     justify-content: space-between;
     align-items: center;
     padding: 14px 16px;
-    background: var(--card-bg);
-    border-top: 1px solid var(--card-border);
+    background: var(--card-bg, #fff);
+    border-top: 1px solid var(--card-border, #e5e7eb);
     flex-wrap: wrap;
     gap: 12px;
 }
 
 .dt-container .dt-info {
-    color: var(--text-muted);
-    font-size: var(--font-sm);
+    color: var(--text-muted, #6b7280);
+    font-size: var(--font-sm, 14px);
     font-weight: 500;
 }
 
@@ -485,18 +425,18 @@
 
 .dt-container .dt-pages button {
     padding: 6px 12px;
-    border: 1px solid var(--input-border);
-    background: var(--input-bg);
-    color: var(--text-primary);
-    border-radius: var(--radius-sm);
+    border: 1px solid var(--input-border, #d1d5db);
+    background: var(--input-bg, #fff);
+    color: var(--text-primary, #1f2937);
+    border-radius: var(--radius-sm, 6px);
     cursor: pointer;
-    font-size: var(--font-xs);
+    font-size: var(--font-xs, 12px);
     font-weight: 500;
-    transition: border-color 0.15s ease, background 0.15s ease;
+    transition: border-color 0.15s, background 0.15s;
 }
 
 .dt-container .dt-pages button:hover:not(:disabled) {
-    background: var(--body-bg);
+    background: var(--body-bg, #f7fafc);
     border-color: #5a67d8;
 }
 
@@ -515,13 +455,12 @@
 .dt-container .dt-badge {
     padding: 4px 12px;
     border-radius: 20px;
-    font-size: var(--font-xs);
+    font-size: var(--font-xs, 12px);
     font-weight: 600;
     display: inline-flex;
     align-items: center;
     gap: 4px;
     text-transform: capitalize;
-    letter-spacing: 0.3px;
 }
 
 .dt-container .dt-badge-active,
@@ -535,20 +474,14 @@
 .dt-container .dt-badge-inactive,
 .dt-container .dt-badge-secondary,
 .dt-container .dt-badge-draft {
-    background: var(--body-bg);
-    color: var(--text-muted);
-    border: 1px solid var(--card-border);
-}
-
-.dt-container .dt-badge-graduated,
-.dt-container .dt-badge-info {
-    background: rgba(90, 103, 216, 0.12);
-    color: #4c56c0;
-    border: 1px solid rgba(90, 103, 216, 0.2);
+    background: var(--body-bg, #f7fafc);
+    color: var(--text-muted, #6b7280);
+    border: 1px solid var(--card-border, #e5e7eb);
 }
 
 .dt-container .dt-badge-pending,
-.dt-container .dt-badge-warning {
+.dt-container .dt-badge-warning,
+.dt-container .dt-badge-in_progress {
     background: rgba(221, 156, 38, 0.12);
     color: #b7791f;
     border: 1px solid rgba(221, 156, 38, 0.2);
@@ -562,6 +495,12 @@
     border: 1px solid rgba(229, 62, 62, 0.2);
 }
 
+.dt-container .dt-badge-info {
+    background: rgba(90, 103, 216, 0.12);
+    color: #4c56c0;
+    border: 1px solid rgba(90, 103, 216, 0.2);
+}
+
 /* Action Buttons */
 .dt-container .dt-actions {
     display: flex;
@@ -572,16 +511,16 @@
 .dt-container .dt-btn {
     padding: 5px 10px;
     border: none;
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-sm, 6px);
     cursor: pointer;
-    font-size: var(--font-xs);
+    font-size: var(--font-xs, 12px);
     text-decoration: none;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     font-weight: 500;
     white-space: nowrap;
-    transition: opacity 0.15s ease;
+    transition: opacity 0.15s;
     min-width: 50px;
 }
 
@@ -589,67 +528,36 @@
     opacity: 0.85;
 }
 
-.dt-container .dt-btn-view {
-    background: #5a67d8;
-    color: #fff;
-}
-
-.dt-container .dt-btn-edit {
-    background: #dd9c26;
-    color: #fff;
-}
-
-.dt-container .dt-btn-delete {
-    background: #e53e3e;
-    color: #fff;
-}
-
-/* Loading State */
-.dt-container .dt-loading {
-    text-align: center;
-    padding: 50px 20px;
-    color: var(--text-muted);
-    font-size: var(--font-sm);
-}
-
-.dt-container .dt-loading::before {
-    content: '';
-    display: block;
-    width: 36px;
-    height: 36px;
-    margin: 0 auto 15px;
-    border: 3px solid var(--card-border);
-    border-top-color: #5a67d8;
-    border-radius: 50%;
-    animation: dtSpin 0.8s linear infinite;
-}
-
-@keyframes dtSpin {
-    to { transform: rotate(360deg); }
-}
+.dt-container .dt-btn-view { background: #5a67d8; color: #fff; }
+.dt-container .dt-btn-edit { background: #dd9c26; color: #fff; }
+.dt-container .dt-btn-delete { background: #e53e3e; color: #fff; }
 
 /* Empty State */
 .dt-container .dt-empty {
     text-align: center;
     padding: 60px 20px;
-    color: var(--text-muted);
+    color: var(--text-muted, #6b7280);
 }
 
 .dt-container .dt-empty-icon {
     font-size: 48px;
-    margin-bottom: 15px;
+    margin-bottom: 16px;
     opacity: 0.5;
 }
 
 .dt-container .dt-empty-text {
-    font-size: var(--font-sm);
+    font-size: 16px;
     font-weight: 500;
 }
 
-/* =========================================
-   MODALS (Import & Delete Confirmation)
-   ========================================= */
+/* Loading */
+.dt-container .dt-loading {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-muted, #6b7280);
+}
 
+/* Modal */
 .dt-modal-overlay {
     position: fixed;
     top: 0;
@@ -657,275 +565,86 @@
     right: 0;
     bottom: 0;
     background: rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(2px);
-    display: none;
+    display: flex;
     align-items: center;
     justify-content: center;
     z-index: 9999;
-    padding: 20px;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s, visibility 0.2s;
 }
 
 .dt-modal-overlay.show {
-    display: flex;
-    animation: dtFadeIn 0.2s ease;
+    opacity: 1;
+    visibility: visible;
 }
 
 .dt-modal {
-    background: var(--card-bg);
-    border-radius: var(--radius-lg);
-    width: 100%;
-    max-width: 520px;
+    background: var(--card-bg, #fff);
+    border-radius: var(--radius-lg, 12px);
+    width: 90%;
+    max-width: 500px;
+    max-height: 90vh;
+    overflow: hidden;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
-    animation: dtSlideUp 0.25s ease;
-}
-
-.dt-modal.dt-modal-sm {
-    max-width: 400px;
-}
-
-@keyframes dtSlideUp {
-    from {
-        opacity: 0;
-        transform: translateY(15px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
 }
 
 .dt-modal-header {
-    padding: 18px 24px;
-    border-bottom: 1px solid var(--card-border);
     display: flex;
     justify-content: space-between;
     align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--card-border, #e5e7eb);
 }
 
 .dt-modal-title {
-    font-size: 17px;
+    font-size: 18px;
     font-weight: 600;
-    color: var(--text-primary);
-    display: flex;
-    align-items: center;
-    gap: 10px;
+    color: var(--text-primary, #1f2937);
 }
 
 .dt-modal-close {
     background: none;
     border: none;
-    font-size: 26px;
+    font-size: 24px;
     cursor: pointer;
-    color: var(--text-muted);
+    color: var(--text-muted, #6b7280);
+    padding: 0;
     line-height: 1;
-    padding: 4px;
-    border-radius: var(--radius-sm);
-    transition: color 0.15s ease;
-}
-
-.dt-modal-close:hover {
-    color: #e53e3e;
 }
 
 .dt-modal-body {
-    padding: 24px;
+    padding: 20px;
+    overflow-y: auto;
+    max-height: calc(90vh - 140px);
 }
 
 .dt-modal-footer {
-    padding: 18px 24px;
-    border-top: 1px solid var(--card-border);
     display: flex;
     justify-content: flex-end;
-    gap: 12px;
+    gap: 10px;
+    padding: 16px 20px;
+    border-top: 1px solid var(--card-border, #e5e7eb);
 }
 
-/* Delete Modal Specific */
-.dt-delete-icon {
-    width: 60px;
-    height: 60px;
-    background: rgba(229, 62, 62, 0.1);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0 auto 20px;
-    font-size: 28px;
-}
-
-.dt-delete-title {
-    font-size: 18px;
-    font-weight: 600;
-    color: var(--text-primary);
-    text-align: center;
-    margin-bottom: 10px;
-}
-
-.dt-delete-message {
-    font-size: 14px;
-    color: var(--text-muted);
-    text-align: center;
-    line-height: 1.6;
-}
-
-.dt-delete-message strong {
-    color: var(--text-primary);
-}
-
-/* File Drop Zone */
-.dt-file-drop {
-    border: 2px dashed var(--card-border);
-    border-radius: var(--radius-lg);
-    padding: 50px 24px;
-    text-align: center;
-    cursor: pointer;
-    transition: border-color 0.2s ease, background 0.2s ease;
-    background: var(--body-bg);
-}
-
-.dt-file-drop:hover {
-    border-color: #5a67d8;
-    background: rgba(90, 103, 216, 0.04);
-}
-
-.dt-file-drop.dragover {
-    border-color: #5a67d8;
-    background: rgba(90, 103, 216, 0.06);
-}
-
-.dt-file-drop-icon {
-    font-size: 50px;
-    margin-bottom: 12px;
-    opacity: 0.7;
-}
-
-.dt-file-drop-text {
-    color: var(--text-muted);
-    font-size: var(--font-sm);
-    line-height: 1.6;
-}
-
-.dt-file-drop-text strong {
-    color: #5a67d8;
-    font-weight: 600;
-}
-
-.dt-file-input {
-    display: none;
-}
-
-.dt-file-name {
-    margin-top: 15px;
-    padding: 12px 16px;
-    background: rgba(56, 161, 105, 0.1);
-    border: 1px solid rgba(56, 161, 105, 0.2);
-    border-radius: var(--radius-md);
-    font-size: var(--font-sm);
-    display: none;
-    color: #2f855a;
-    font-weight: 500;
-}
-
-.dt-file-name.show {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    animation: dtFadeIn 0.2s ease;
-}
-
-.dt-template-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    color: #5a67d8;
-    font-size: var(--font-sm);
-    text-decoration: none;
-    margin-top: 18px;
-    padding: 8px 14px;
-    background: rgba(90, 103, 216, 0.08);
-    border-radius: var(--radius-md);
-    font-weight: 500;
-    transition: background 0.15s ease;
-}
-
-.dt-template-link:hover {
-    background: rgba(90, 103, 216, 0.15);
-}
-
-/* Import Results */
-.dt-import-results {
-    margin-top: 18px;
-    padding: 14px 16px;
-    border-radius: var(--radius-md);
-    font-size: var(--font-sm);
-    display: none;
-    font-weight: 500;
-}
-
-.dt-import-results.show {
-    display: block;
-    animation: dtFadeIn 0.2s ease;
-}
-
-.dt-import-results.success {
-    background: rgba(56, 161, 105, 0.1);
-    color: #2f855a;
-    border: 1px solid rgba(56, 161, 105, 0.2);
-}
-
-.dt-import-results.error {
-    background: rgba(229, 62, 62, 0.1);
-    color: #c53030;
-    border: 1px solid rgba(229, 62, 62, 0.2);
-}
-
-.dt-import-errors {
-    margin-top: 12px;
-    max-height: 160px;
-    overflow-y: auto;
-    font-size: 12px;
-    font-weight: 400;
-}
-
-.dt-import-errors div {
-    padding: 6px 0;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-}
-
-.dt-import-errors div:last-child {
-    border-bottom: none;
-}
-
-/* Modal Buttons */
 .dt-btn-cancel {
     padding: 10px 20px;
-    border: 1px solid var(--card-border);
-    background: var(--card-bg);
-    color: var(--text-primary);
-    border-radius: var(--radius-md);
+    border: 1px solid var(--input-border, #d1d5db);
+    background: var(--input-bg, #fff);
+    color: var(--text-primary, #1f2937);
+    border-radius: var(--radius-md, 8px);
     cursor: pointer;
-    font-size: var(--font-sm);
     font-weight: 500;
-    transition: background 0.15s ease;
-}
-
-.dt-btn-cancel:hover {
-    background: var(--body-bg);
 }
 
 .dt-btn-submit {
-    padding: 10px 24px;
+    padding: 10px 20px;
     border: none;
     background: #5a67d8;
     color: #fff;
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-md, 8px);
     cursor: pointer;
-    font-size: var(--font-sm);
-    font-weight: 600;
-    transition: background 0.15s ease;
-}
-
-.dt-btn-submit:hover:not(:disabled) {
-    background: #4c56c0;
+    font-weight: 500;
 }
 
 .dt-btn-submit:disabled {
@@ -934,161 +653,136 @@
 }
 
 .dt-btn-danger {
-    padding: 10px 24px;
-    border: none;
     background: #e53e3e;
-    color: #fff;
-    border-radius: var(--radius-md);
+}
+
+/* File Drop */
+.dt-file-drop {
+    border: 2px dashed var(--input-border, #d1d5db);
+    border-radius: var(--radius-md, 8px);
+    padding: 40px 20px;
+    text-align: center;
     cursor: pointer;
-    font-size: var(--font-sm);
-    font-weight: 600;
-    transition: background 0.15s ease;
+    transition: border-color 0.2s, background 0.2s;
 }
 
-.dt-btn-danger:hover:not(:disabled) {
-    background: #c53030;
+.dt-file-drop:hover,
+.dt-file-drop.dragover {
+    border-color: #5a67d8;
+    background: rgba(90, 103, 216, 0.05);
 }
 
-.dt-btn-danger:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
+.dt-file-drop-icon {
+    font-size: 48px;
+    margin-bottom: 12px;
 }
 
-/* =========================================
-   RESPONSIVE
-   ========================================= */
+.dt-file-drop-text {
+    color: var(--text-muted, #6b7280);
+    font-size: 14px;
+}
 
-@media (max-width: 768px) {
-    .dt-container .dt-toolbar {
-        padding: 12px;
-    }
-    
-    .dt-container .dt-toolbar-left,
-    .dt-container .dt-toolbar-right {
-        width: 100%;
-        justify-content: center;
-    }
-    
-    .dt-container .dt-search-input {
-        min-width: 100%;
-    }
-    
-    .dt-container .dt-pagination {
-        flex-direction: column;
-        text-align: center;
-    }
-    
-    .dt-container .dt-table th,
-    .dt-container .dt-table td {
-        padding: 10px 12px;
-    }
-    
-    .dt-modal {
-        max-width: 100%;
-        margin: 10px;
-    }
+.dt-file-input {
+    display: none;
+}
+
+.dt-file-name {
+    margin-top: 12px;
+    padding: 10px;
+    background: rgba(56, 161, 105, 0.1);
+    border-radius: var(--radius-md, 8px);
+    color: #2f855a;
+    font-size: 14px;
+    display: none;
+}
+
+.dt-file-name.show {
+    display: block;
+}
+
+.dt-template-link {
+    display: inline-block;
+    margin-top: 16px;
+    color: #5a67d8;
+    font-size: 14px;
+    text-decoration: none;
+}
+
+.dt-template-link:hover {
+    text-decoration: underline;
+}
+
+.dt-import-results {
+    margin-top: 16px;
+    padding: 12px;
+    border-radius: var(--radius-md, 8px);
+    font-size: 14px;
+    display: none;
+}
+
+.dt-import-results.show {
+    display: block;
+}
+
+.dt-import-results.success {
+    background: rgba(56, 161, 105, 0.1);
+    color: #2f855a;
+}
+
+.dt-import-results.error {
+    background: rgba(229, 62, 62, 0.1);
+    color: #c53030;
+}
+
+.dt-import-errors {
+    margin-top: 10px;
+    font-size: 12px;
+    max-height: 150px;
+    overflow-y: auto;
 }
 </style>
 
 <script>
 /**
- * DataTable - Clean JavaScript
- * Handles: List, Search, Filter, Sort, Pagination, Export, Import
- * Features: Clickable cells, Delete modal, Export selected dropdown
+ * DataTable v2.0
+ * Multi-table support, Bulk Actions Dropdown
  */
 (function(){
-    document.addEventListener('DOMContentLoaded', function(){
-        document.querySelectorAll('table.dt-table').forEach(initDT);
+    'use strict';
+
+    // Store all instances
+    window.dtInstance = window.dtInstance || {};
+
+    // Find all tables
+    var tables = document.querySelectorAll('.dt-table[data-route]');
+    
+    tables.forEach(function(table){
+        initTable(table);
     });
 
-    // Global delete modal (shared across all tables)
-    var deleteModal = null;
-    var deleteCallback = null;
-
-    function createDeleteModal(){
-        if(deleteModal) return;
-        
-        deleteModal = document.createElement('div');
-        deleteModal.className = 'dt-modal-overlay';
-        deleteModal.innerHTML = 
-            '<div class="dt-modal dt-modal-sm">' +
-                '<div class="dt-modal-header">' +
-                    '<span class="dt-modal-title">⚠️ Confirm Delete</span>' +
-                    '<button class="dt-modal-close">&times;</button>' +
-                '</div>' +
-                '<div class="dt-modal-body">' +
-                    '<div class="dt-delete-icon">🗑️</div>' +
-                    '<div class="dt-delete-title">Delete Item?</div>' +
-                    '<div class="dt-delete-message">Are you sure you want to delete this item? This action cannot be undone.</div>' +
-                '</div>' +
-                '<div class="dt-modal-footer">' +
-                    '<button class="dt-btn-cancel">Cancel</button>' +
-                    '<button class="dt-btn-danger dt-confirm-delete">Delete</button>' +
-                '</div>' +
-            '</div>';
-        
-        document.body.appendChild(deleteModal);
-        
-        var closeBtn = deleteModal.querySelector('.dt-modal-close');
-        var cancelBtn = deleteModal.querySelector('.dt-btn-cancel');
-        var confirmBtn = deleteModal.querySelector('.dt-confirm-delete');
-        
-        closeBtn.onclick = function(){ hideDeleteModal(); };
-        cancelBtn.onclick = function(){ hideDeleteModal(); };
-        
-        confirmBtn.onclick = function(){
-            if(deleteCallback){
-                confirmBtn.disabled = true;
-                confirmBtn.textContent = 'Deleting...';
-                deleteCallback();
-            }
-        };
-        
-        deleteModal.onclick = function(e){
-            if(e.target === deleteModal) hideDeleteModal();
-        };
-    }
-
-    function showDeleteModal(message, count, callback){
-        createDeleteModal();
-        
-        var titleEl = deleteModal.querySelector('.dt-delete-title');
-        var msgEl = deleteModal.querySelector('.dt-delete-message');
-        var confirmBtn = deleteModal.querySelector('.dt-confirm-delete');
-        
-        if(count > 1){
-            titleEl.textContent = 'Delete ' + count + ' Items?';
-            msgEl.innerHTML = 'Are you sure you want to delete <strong>' + count + ' selected items</strong>? This action cannot be undone.';
-        } else {
-            titleEl.textContent = 'Delete Item?';
-            msgEl.innerHTML = message || 'Are you sure you want to delete this item? This action cannot be undone.';
-        }
-        
-        confirmBtn.disabled = false;
-        confirmBtn.textContent = 'Delete';
-        deleteCallback = callback;
-        deleteModal.classList.add('show');
-    }
-
-    function hideDeleteModal(){
-        if(deleteModal){
-            deleteModal.classList.remove('show');
-            deleteCallback = null;
-            var confirmBtn = deleteModal.querySelector('.dt-confirm-delete');
-            confirmBtn.disabled = false;
-            confirmBtn.textContent = 'Delete';
-        }
-    }
-
-    function initDT(table){
-        var route = table.dataset.route;
-        if(!route){
-            console.error('dt-table: data-route required');
-            return;
-        }
-
-        var tableId = table.id || 'dt-' + Math.random().toString(36).substr(2, 9);
+    function initTable(table){
+        var tableId = table.id || 'dt_' + Math.random().toString(36).substr(2, 9);
         table.id = tableId;
+        
+        var route = table.dataset.route;
+        var bulkRoute = table.dataset.bulkRoute || route.replace('/data', '/bulk-action');
+        var hasSearch = table.classList.contains('dt-search');
+        var hasExport = table.classList.contains('dt-export');
+        var hasImport = table.classList.contains('dt-import');
+        var hasPerpage = table.classList.contains('dt-perpage');
+        var hasCheckbox = table.classList.contains('dt-checkbox');
+        
+        // Default filters from data attribute
+        var defaultFilters = {};
+        try {
+            defaultFilters = JSON.parse(table.dataset.filters || '{}');
+        } catch(e) {}
+
+        // Bulk actions config
+        var bulkActionsConfig = {};
+        try {
+            bulkActionsConfig = JSON.parse(table.dataset.bulkActions || '{}');
+        } catch(e) {}
 
         // State
         var state = {
@@ -1097,595 +791,580 @@
             search: '',
             sort: 'id',
             dir: 'desc',
+            filters: Object.assign({}, defaultFilters),
             selected: [],
-            filters: {}
+            data: [],
+            total: 0,
+            lastPage: 1
         };
 
-        // Feature flags from classes
-        var hasCheckbox = table.classList.contains('dt-checkbox');
-        var hasSearch = table.classList.contains('dt-search');
-        var hasExport = table.classList.contains('dt-export');
-        var hasImport = table.classList.contains('dt-import');
-        var hasPerPage = table.classList.contains('dt-perpage');
-
-        // Track clickable columns
-        var clickableColumns = [];
-
-        // Create wrapper
-        var wrapper = document.createElement('div');
-        wrapper.className = 'dt-container';
-        table.parentNode.insertBefore(wrapper, table);
-
-        var selectedCountEl, bulkDeleteBtn, bulkExportDropdown;
-        var exportDropdown = null;
+        // Build container
+        var container = document.createElement('div');
+        container.className = 'dt-container';
+        table.parentNode.insertBefore(container, table);
 
         // Build toolbar
-        if(hasSearch || hasExport || hasImport || hasPerPage || hasCheckbox){
-            var toolbar = document.createElement('div');
-            toolbar.className = 'dt-toolbar';
+        var toolbar = document.createElement('div');
+        toolbar.className = 'dt-toolbar';
+        
+        var toolbarLeft = document.createElement('div');
+        toolbarLeft.className = 'dt-toolbar-left';
+        
+        var toolbarRight = document.createElement('div');
+        toolbarRight.className = 'dt-toolbar-right';
 
-            var left = document.createElement('div');
-            left.className = 'dt-toolbar-left';
+        // Search
+        if(hasSearch){
+            var searchInput = document.createElement('input');
+            searchInput.type = 'text';
+            searchInput.className = 'dt-search-input';
+            searchInput.placeholder = 'Search...';
+            var searchTimer;
+            searchInput.oninput = function(){
+                clearTimeout(searchTimer);
+                searchTimer = setTimeout(function(){
+                    state.search = searchInput.value;
+                    state.page = 1;
+                    load();
+                }, 300);
+            };
+            toolbarLeft.appendChild(searchInput);
+        }
 
-            // Search
-            if(hasSearch){
-                var inp = document.createElement('input');
-                inp.type = 'text';
-                inp.placeholder = '🔍 Search...';
-                inp.className = 'dt-search-input';
-                var t;
-                inp.oninput = function(){
-                    clearTimeout(t);
-                    t = setTimeout(function(){
-                        state.search = inp.value;
-                        state.page = 1;
-                        load();
-                    }, 300);
-                };
-                left.appendChild(inp);
+        // Per page
+        if(hasPerpage){
+            var perPageSelect = document.createElement('select');
+            perPageSelect.className = 'dt-perpage-select';
+            [10, 25, 50, 100].forEach(function(n){
+                var opt = document.createElement('option');
+                opt.value = n;
+                opt.textContent = n + ' per page';
+                if(n === state.perPage) opt.selected = true;
+                perPageSelect.appendChild(opt);
+            });
+            perPageSelect.onchange = function(){
+                state.perPage = parseInt(this.value);
+                state.page = 1;
+                load();
+            };
+            toolbarLeft.appendChild(perPageSelect);
+        }
+
+        // Selected count
+        var selectedCount = document.createElement('span');
+        selectedCount.className = 'dt-selected-count';
+        toolbarLeft.appendChild(selectedCount);
+
+        // Bulk Actions Dropdown
+        var bulkDropdown = document.createElement('div');
+        bulkDropdown.className = 'dt-dropdown dt-bulk-dropdown';
+        
+        var bulkBtn = document.createElement('button');
+        bulkBtn.className = 'dt-dropdown-btn';
+        bulkBtn.innerHTML = '⚡ Actions <span class="dt-caret">▼</span>';
+        
+        var bulkMenu = document.createElement('div');
+        bulkMenu.className = 'dt-dropdown-menu';
+        
+        bulkDropdown.appendChild(bulkBtn);
+        bulkDropdown.appendChild(bulkMenu);
+        toolbarLeft.appendChild(bulkDropdown);
+
+        // Load bulk actions config
+        function loadBulkActions(){
+            if(Object.keys(bulkActionsConfig).length > 0){
+                renderBulkActions(bulkActionsConfig);
+            } else {
+                // Fetch from server
+                fetch(route + '?bulk_actions=1')
+                    .then(function(r){ return r.json(); })
+                    .then(function(json){
+                        if(json.actions){
+                            bulkActionsConfig = json.actions;
+                            renderBulkActions(json.actions);
+                        }
+                    })
+                    .catch(function(){
+                        // Default actions
+                        renderBulkActions({ delete: { label: 'Delete', confirm: true, color: 'red' }});
+                    });
             }
+        }
 
-            // Selected count
-            if(hasCheckbox){
-                selectedCountEl = document.createElement('span');
-                selectedCountEl.className = 'dt-selected-count';
-                left.appendChild(selectedCountEl);
-            }
-
-            var right = document.createElement('div');
-            right.className = 'dt-toolbar-right';
-
-            // Bulk delete button
-            if(hasCheckbox){
-                bulkDeleteBtn = document.createElement('button');
-                bulkDeleteBtn.type = 'button';
-                bulkDeleteBtn.className = 'dt-bulk-delete-btn';
-                bulkDeleteBtn.innerHTML = '🗑️ Delete Selected';
-                bulkDeleteBtn.onclick = function(){ bulkDelete(); };
-                right.appendChild(bulkDeleteBtn);
-
-                // Bulk Export Dropdown
-                bulkExportDropdown = document.createElement('div');
-                bulkExportDropdown.className = 'dt-bulk-export-dropdown';
-                
-                var bulkExportBtn = document.createElement('button');
-                bulkExportBtn.type = 'button';
-                bulkExportBtn.className = 'dt-bulk-export-btn';
-                bulkExportBtn.innerHTML = '📤 Export Selected <span class="dt-caret">▼</span>';
-                bulkExportBtn.onclick = function(e){
+        function renderBulkActions(actions){
+            bulkMenu.innerHTML = '';
+            Object.keys(actions).forEach(function(key){
+                var action = actions[key];
+                var item = document.createElement('button');
+                item.className = 'dt-dropdown-item';
+                item.dataset.action = key;
+                item.dataset.confirm = action.confirm ? '1' : '0';
+                if(action.color) item.dataset.color = action.color;
+                item.innerHTML = '<span class="dt-icon">' + getActionIcon(key) + '</span><span>' + action.label + '</span>';
+                item.onclick = function(e){
                     e.stopPropagation();
-                    bulkExportDropdown.classList.toggle('open');
-                    if(exportDropdown) exportDropdown.classList.remove('open');
+                    bulkDropdown.classList.remove('open');
+                    handleBulkAction(key, action);
                 };
-                
-                var bulkExportMenu = document.createElement('div');
-                bulkExportMenu.className = 'dt-bulk-export-menu dt-export-menu';
-                bulkExportMenu.innerHTML = 
-                    '<button class="dt-export-menu-item" data-format="csv">' +
-                        '<span class="dt-export-icon">📊</span>' +
-                        '<span class="dt-export-label">CSV File</span>' +
-                        '<span class="dt-export-ext">.csv</span>' +
-                    '</button>' +
-                    '<button class="dt-export-menu-item" data-format="xlsx">' +
-                        '<span class="dt-export-icon">📗</span>' +
-                        '<span class="dt-export-label">Excel File</span>' +
-                        '<span class="dt-export-ext">.xlsx</span>' +
-                    '</button>' +
-                    '<div class="dt-export-menu-divider"></div>' +
-                    '<button class="dt-export-menu-item" data-format="pdf">' +
-                        '<span class="dt-export-icon">📕</span>' +
-                        '<span class="dt-export-label">PDF Document</span>' +
-                        '<span class="dt-export-ext">.pdf</span>' +
-                    '</button>';
-                
-                bulkExportMenu.querySelectorAll('.dt-export-menu-item').forEach(function(item){
-                    item.onclick = function(e){
-                        e.stopPropagation();
-                        var format = this.dataset.format;
-                        doExport(format, true); // true = selected only
-                        bulkExportDropdown.classList.remove('open');
-                    };
-                });
-                
-                bulkExportDropdown.appendChild(bulkExportBtn);
-                bulkExportDropdown.appendChild(bulkExportMenu);
-                right.appendChild(bulkExportDropdown);
-            }
+                bulkMenu.appendChild(item);
+            });
+        }
 
-            // Per page select
-            if(hasPerPage){
-                var sel = document.createElement('select');
-                sel.className = 'dt-perpage-select';
-                [10, 25, 50, 100].forEach(function(n){
-                    var o = document.createElement('option');
-                    o.value = n;
-                    o.textContent = n + ' rows';
-                    sel.appendChild(o);
-                });
-                sel.onchange = function(){
-                    state.perPage = parseInt(this.value);
+        function getActionIcon(action){
+            var icons = {
+                'delete': '🗑️',
+                'activate': '✅',
+                'deactivate': '⛔',
+                'restore': '♻️',
+                'export': '📤'
+            };
+            return icons[action] || '⚡';
+        }
+
+        bulkBtn.onclick = function(e){
+            e.stopPropagation();
+            closeAllDropdowns();
+            bulkDropdown.classList.toggle('open');
+        };
+
+        // Import button
+        if(hasImport){
+            var importBtn = document.createElement('button');
+            importBtn.className = 'dt-import-btn';
+            importBtn.innerHTML = '📥 Import';
+            importBtn.onclick = showImportModal;
+            toolbarRight.appendChild(importBtn);
+        }
+
+        // Export dropdown
+        if(hasExport){
+            var exportDropdown = document.createElement('div');
+            exportDropdown.className = 'dt-dropdown dt-export-dropdown';
+            
+            var exportBtn = document.createElement('button');
+            exportBtn.className = 'dt-dropdown-btn';
+            exportBtn.innerHTML = '📤 Export <span class="dt-caret">▼</span>';
+            
+            var exportMenu = document.createElement('div');
+            exportMenu.className = 'dt-dropdown-menu';
+            
+            var exports = [
+                { format: 'csv', icon: '📄', label: 'CSV', ext: 'csv' },
+                { format: 'xlsx', icon: '📊', label: 'Excel', ext: 'xlsx' },
+                { format: 'pdf', icon: '📕', label: 'PDF', ext: 'pdf' }
+            ];
+
+            exports.forEach(function(exp){
+                var item = document.createElement('button');
+                item.className = 'dt-dropdown-item';
+                item.innerHTML = '<span class="dt-icon">' + exp.icon + '</span><span>' + exp.label + '</span><span class="dt-ext">' + exp.ext + '</span>';
+                item.onclick = function(e){
+                    e.stopPropagation();
+                    exportDropdown.classList.remove('open');
+                    doExport(exp.format, false);
+                };
+                exportMenu.appendChild(item);
+            });
+
+            // Divider
+            var divider = document.createElement('div');
+            divider.className = 'dt-dropdown-divider';
+            exportMenu.appendChild(divider);
+
+            // Export selected
+            exports.forEach(function(exp){
+                var item = document.createElement('button');
+                item.className = 'dt-dropdown-item';
+                item.innerHTML = '<span class="dt-icon">☑️</span><span>Selected ' + exp.label + '</span><span class="dt-ext">' + exp.ext + '</span>';
+                item.onclick = function(e){
+                    e.stopPropagation();
+                    exportDropdown.classList.remove('open');
+                    doExport(exp.format, true);
+                };
+                exportMenu.appendChild(item);
+            });
+
+            exportBtn.onclick = function(e){
+                e.stopPropagation();
+                closeAllDropdowns();
+                exportDropdown.classList.toggle('open');
+            };
+
+            exportDropdown.appendChild(exportBtn);
+            exportDropdown.appendChild(exportMenu);
+            toolbarRight.appendChild(exportDropdown);
+        }
+
+        toolbar.appendChild(toolbarLeft);
+        toolbar.appendChild(toolbarRight);
+        container.appendChild(toolbar);
+
+        // Table wrapper
+        var wrapper = document.createElement('div');
+        wrapper.className = 'dt-table-wrapper';
+        wrapper.appendChild(table);
+        container.appendChild(wrapper);
+
+        // Get headers
+        var headers = [];
+        var ths = table.querySelectorAll('thead th');
+        ths.forEach(function(th){
+            headers.push({
+                col: th.dataset.col || '',
+                render: th.dataset.render || '',
+                sortable: th.classList.contains('dt-sort'),
+                clickable: th.classList.contains('dt-clickable')
+            });
+        });
+
+        // Add checkbox column
+        if(hasCheckbox){
+            var checkTh = document.createElement('th');
+            checkTh.className = 'dt-checkbox-col';
+            var checkAll = document.createElement('input');
+            checkAll.type = 'checkbox';
+            checkAll.className = 'dt-checkbox';
+            checkAll.onchange = function(){
+                var checked = this.checked;
+                state.selected = checked ? state.data.map(function(r){ return r.id; }) : [];
+                updateCheckboxes();
+                updateBulkUI();
+            };
+            checkTh.appendChild(checkAll);
+            table.querySelector('thead tr').insertBefore(checkTh, table.querySelector('thead tr').firstChild);
+            headers.unshift({ col: '_checkbox', render: 'checkbox' });
+        }
+
+        // Setup sort
+        ths.forEach(function(th){
+            if(th.classList.contains('dt-sort')){
+                th.onclick = function(){
+                    var col = th.dataset.col;
+                    if(state.sort === col){
+                        state.dir = state.dir === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        state.sort = col;
+                        state.dir = 'asc';
+                    }
                     state.page = 1;
                     load();
                 };
-                right.appendChild(sel);
             }
-
-            // Import button
-            if(hasImport){
-                var importBtn = document.createElement('button');
-                importBtn.type = 'button';
-                importBtn.className = 'dt-import-btn';
-                importBtn.innerHTML = '📥 Import';
-                importBtn.onclick = showImportModal;
-                right.appendChild(importBtn);
-            }
-
-            // Export dropdown
-            if(hasExport){
-                exportDropdown = document.createElement('div');
-                exportDropdown.className = 'dt-export-dropdown';
-                
-                var exportBtn = document.createElement('button');
-                exportBtn.type = 'button';
-                exportBtn.className = 'dt-export-btn';
-                exportBtn.innerHTML = '📤 Export <span class="dt-caret">▼</span>';
-                exportBtn.onclick = function(e){
-                    e.stopPropagation();
-                    exportDropdown.classList.toggle('open');
-                    if(bulkExportDropdown) bulkExportDropdown.classList.remove('open');
-                };
-                
-                var exportMenu = document.createElement('div');
-                exportMenu.className = 'dt-export-menu';
-                exportMenu.innerHTML = 
-                    '<button class="dt-export-menu-item" data-format="csv">' +
-                        '<span class="dt-export-icon">📊</span>' +
-                        '<span class="dt-export-label">CSV File</span>' +
-                        '<span class="dt-export-ext">.csv</span>' +
-                    '</button>' +
-                    '<button class="dt-export-menu-item" data-format="xlsx">' +
-                        '<span class="dt-export-icon">📗</span>' +
-                        '<span class="dt-export-label">Excel File</span>' +
-                        '<span class="dt-export-ext">.xlsx</span>' +
-                    '</button>' +
-                    '<div class="dt-export-menu-divider"></div>' +
-                    '<button class="dt-export-menu-item" data-format="pdf">' +
-                        '<span class="dt-export-icon">📕</span>' +
-                        '<span class="dt-export-label">PDF Document</span>' +
-                        '<span class="dt-export-ext">.pdf</span>' +
-                    '</button>';
-                
-                exportMenu.querySelectorAll('.dt-export-menu-item').forEach(function(item){
-                    item.onclick = function(e){
-                        e.stopPropagation();
-                        var format = this.dataset.format;
-                        doExport(format, false); // false = all data
-                        exportDropdown.classList.remove('open');
-                    };
-                });
-                
-                exportDropdown.appendChild(exportBtn);
-                exportDropdown.appendChild(exportMenu);
-                right.appendChild(exportDropdown);
-                
-                // Close dropdown on outside click
-                document.addEventListener('click', function(){
-                    if(exportDropdown) exportDropdown.classList.remove('open');
-                    if(bulkExportDropdown) bulkExportDropdown.classList.remove('open');
-                });
-            }
-
-            toolbar.appendChild(left);
-            toolbar.appendChild(right);
-            wrapper.appendChild(toolbar);
-        }
-
-        // Table wrapper for horizontal scroll
-        var tableWrapper = document.createElement('div');
-        tableWrapper.className = 'dt-table-wrapper';
-        tableWrapper.appendChild(table);
-        wrapper.appendChild(tableWrapper);
-
-        // Add checkbox header
-        if(hasCheckbox){
-            var thead = table.querySelector('thead tr');
-            var checkTh = document.createElement('th');
-            checkTh.className = 'dt-checkbox-col';
-            checkTh.innerHTML = '<input type="checkbox" class="dt-checkbox dt-check-all" title="Select All">';
-            thead.insertBefore(checkTh, thead.firstChild);
-
-            checkTh.querySelector('.dt-check-all').onchange = function(){
-                var checked = this.checked;
-                table.querySelectorAll('tbody .dt-row-check').forEach(function(cb){
-                    cb.checked = checked;
-                    var id = parseInt(cb.dataset.id);
-                    var tr = cb.closest('tr');
-                    if(checked){
-                        if(state.selected.indexOf(id) === -1) state.selected.push(id);
-                        tr.classList.add('selected');
-                    } else {
-                        state.selected = state.selected.filter(function(x){ return x !== id; });
-                        tr.classList.remove('selected');
-                    }
-                });
-                updateBulkUI();
-            };
-        }
-
-        // Mark actions column and detect clickable columns
-        var colIndex = 0;
-        table.querySelectorAll('thead th').forEach(function(th){
-            if(th.classList.contains('dt-checkbox-col')) return;
-            
-            if(th.dataset.render === 'actions'){
-                th.classList.add('dt-actions-col');
-            }
-            
-            // Check for dt-clickable class
-            if(th.classList.contains('dt-clickable')){
-                clickableColumns.push(colIndex);
-            }
-            
-            colIndex++;
         });
 
         // Pagination
-        var pag = document.createElement('div');
-        pag.className = 'dt-pagination';
-        pag.innerHTML = '<span class="dt-info"></span><div class="dt-pages"></div>';
-        wrapper.appendChild(pag);
+        var pagination = document.createElement('div');
+        pagination.className = 'dt-pagination';
+        container.appendChild(pagination);
 
-        var tbody = table.querySelector('tbody') || table.createTBody();
-        var infoEl = pag.querySelector('.dt-info');
-        var pagesEl = pag.querySelector('.dt-pages');
-
-        // Parse columns
-        var cols = [];
-        var colIdx = 0;
-        table.querySelectorAll('thead th:not(.dt-checkbox-col)').forEach(function(th){
-            cols.push({
-                col: th.dataset.col || null,
-                render: th.dataset.render || null,
-                clickable: th.classList.contains('dt-clickable'),
-                index: colIdx
+        // External filter support
+        document.querySelectorAll('[data-dt-filter][data-dt-table="' + tableId + '"]').forEach(function(el){
+            el.addEventListener('change', function(){
+                var filterCol = this.dataset.dtFilter;
+                state.filters[filterCol] = this.value;
+                state.page = 1;
+                load();
             });
-            
-            // Sortable
-            if(th.classList.contains('dt-sort') && th.dataset.col){
-                th.onclick = function(){
-                    var c = this.dataset.col;
-                    if(state.sort === c){
-                        state.dir = state.dir === 'asc' ? 'desc' : 'asc';
-                    } else {
-                        state.sort = c;
-                        state.dir = 'asc';
-                    }
-                    table.querySelectorAll('th.dt-sort').forEach(function(h){
-                        h.classList.remove('asc', 'desc');
-                    });
-                    this.classList.add(state.dir);
-                    load();
-                };
-            }
-            
-            colIdx++;
         });
 
-        // External filters
-        document.querySelectorAll('[data-dt-filter]').forEach(function(el){
-            var targetTable = el.dataset.dtTable;
-            if(!targetTable || targetTable === tableId){
-                var column = el.dataset.dtFilter;
-                var tagName = el.tagName.toUpperCase();
-                var inputType = el.type || '';
-                
-                if(tagName === 'SELECT' || inputType === 'date'){
-                    el.addEventListener('change', function(){
-                        state.filters[column] = this.value;
-                        state.page = 1;
-                        load();
-                    });
-                } else {
-                    var filterTimer;
-                    el.addEventListener('input', function(){
-                        var val = this.value;
-                        clearTimeout(filterTimer);
-                        filterTimer = setTimeout(function(){
-                            state.filters[column] = val;
-                            state.page = 1;
-                            load();
-                        }, 300);
-                    });
-                }
-            }
-        });
+        // Close dropdowns on outside click
+        document.addEventListener('click', closeAllDropdowns);
 
-        function updateBulkUI(){
-            if(!hasCheckbox) return;
-            var count = state.selected.length;
-            if(count > 0){
-                selectedCountEl.innerHTML = '✓ ' + count + ' selected';
-                selectedCountEl.classList.add('show');
-                bulkDeleteBtn.classList.add('show');
-                bulkExportDropdown.classList.add('show');
-            } else {
-                selectedCountEl.classList.remove('show');
-                bulkDeleteBtn.classList.remove('show');
-                bulkExportDropdown.classList.remove('show');
-            }
+        function closeAllDropdowns(){
+            container.querySelectorAll('.dt-dropdown.open').forEach(function(d){
+                d.classList.remove('open');
+            });
         }
 
+        // Load data
         function load(){
-            var colSpan = cols.length + (hasCheckbox ? 1 : 0);
-            tbody.innerHTML = '<tr><td colspan="' + colSpan + '" class="dt-loading">Loading data...</td></tr>';
-            
+            var tbody = table.querySelector('tbody');
+            tbody.innerHTML = '<tr><td colspan="' + headers.length + '" class="dt-loading">Loading...</td></tr>';
+
             var params = new URLSearchParams();
             params.set('page', state.page);
             params.set('per_page', state.perPage);
-            if(state.search) params.set('search', state.search);
             params.set('sort', state.sort);
             params.set('dir', state.dir);
+            if(state.search) params.set('search', state.search);
             
-            for(var key in state.filters){
-                if(state.filters[key]) params.set(key, state.filters[key]);
-            }
+            Object.keys(state.filters).forEach(function(k){
+                if(state.filters[k]) params.set(k, state.filters[k]);
+            });
 
             fetch(route + '?' + params.toString())
                 .then(function(r){ return r.json(); })
                 .then(function(json){
-                    render(json);
-                    renderPag(json);
+                    state.data = json.data || [];
+                    state.total = json.total || 0;
+                    state.lastPage = json.last_page || 1;
+                    render();
+                    updateSortUI();
+                    updateBulkUI();
                 })
                 .catch(function(e){
-                    tbody.innerHTML = '<tr><td colspan="' + colSpan + '" class="dt-loading" style="color:#c53030">❌ Error loading data</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="' + headers.length + '" class="dt-empty"><div class="dt-empty-icon">⚠️</div><div class="dt-empty-text">Error loading data</div></td></tr>';
                 });
         }
 
-        function render(json){
-            var colSpan = cols.length + (hasCheckbox ? 1 : 0);
-            
-            if(!json.data || !json.data.length){
-                tbody.innerHTML = '<tr><td colspan="' + colSpan + '"><div class="dt-empty"><div class="dt-empty-icon">📭</div><div class="dt-empty-text">No data found</div></div></td></tr>';
+        function render(){
+            var tbody = table.querySelector('tbody');
+            tbody.innerHTML = '';
+
+            if(state.data.length === 0){
+                tbody.innerHTML = '<tr><td colspan="' + headers.length + '" class="dt-empty"><div class="dt-empty-icon">📭</div><div class="dt-empty-text">No data found</div></td></tr>';
+                renderPagination();
                 return;
             }
-            
-            tbody.innerHTML = json.data.map(function(row){
-                var isSelected = state.selected.indexOf(row.id) !== -1;
-                var checkboxCell = hasCheckbox ? 
-                    '<td class="dt-checkbox-col"><input type="checkbox" class="dt-checkbox dt-row-check" data-id="' + row.id + '" ' + (isSelected ? 'checked' : '') + '></td>' : '';
-                
-                return '<tr data-id="' + row.id + '" data-view-url="' + (row._show_url || row._edit_url || '') + '" class="' + (isSelected ? 'selected' : '') + '">' + 
-                    checkboxCell + 
-                    cols.map(function(c, idx){
-                        var cls = '';
-                        if(c.render === 'actions') cls = ' class="dt-actions-col"';
-                        else if(c.clickable && (row._show_url || row._edit_url)) cls = ' class="dt-clickable-cell" data-col-index="' + idx + '"';
-                        return '<td' + cls + '>' + cell(row, c) + '</td>';
-                    }).join('') + 
-                '</tr>';
-            }).join('');
+            state.data.forEach(function(row, index){
+                var tr = document.createElement('tr');
+                tr.dataset.id = row.id;
+                var rowNum = (state.page - 1) * state.perPage + index + 1;
 
-            // Checkbox handlers
-            tbody.querySelectorAll('.dt-row-check').forEach(function(cb){
-                cb.onchange = function(){
-                    var id = parseInt(this.dataset.id);
-                    var tr = this.closest('tr');
-                    if(this.checked){
-                        if(state.selected.indexOf(id) === -1) state.selected.push(id);
-                        tr.classList.add('selected');
-                    } else {
-                        state.selected = state.selected.filter(function(x){ return x !== id; });
-                        tr.classList.remove('selected');
-                    }
-                    updateBulkUI();
-                    
-                    var allChecked = tbody.querySelectorAll('.dt-row-check').length === tbody.querySelectorAll('.dt-row-check:checked').length;
-                    var selectAll = table.querySelector('.dt-check-all');
-                    if(selectAll) selectAll.checked = allChecked;
-                };
-            });
 
-            // Delete handlers
-            tbody.querySelectorAll('.dt-btn-delete').forEach(function(b){
-                b.onclick = function(e){
-                    e.preventDefault();
-                    del(this.dataset.id);
-                };
-            });
-
-            // Clickable cell handlers
-            tbody.querySelectorAll('.dt-clickable-cell').forEach(function(td){
-                td.onclick = function(e){
-                    // Don't navigate if clicking on a link or button inside
-                    if(e.target.tagName === 'A' || e.target.tagName === 'BUTTON') return;
-                    
-                    var tr = this.closest('tr');
-                    var viewUrl = tr.dataset.viewUrl;
-                    if(viewUrl){
-                        window.location.href = viewUrl;
-                    }
-                };
-            });
-
-            updateBulkUI();
-        }
-
-        function cell(row, c){
-            var v = c.col ? row[c.col] : null;
-            
-            // Custom render support
-            if(c.render && window.dtRenders && window.dtRenders[c.render]){
-                return window.dtRenders[c.render](v, row);
-            }
-            
-            switch(c.render){
-                case 'date':
-                    return v ? new Date(v).toLocaleDateString() : '-';
-                case 'datetime':
-                    return v ? new Date(v).toLocaleString() : '-';
-                case 'badge':
-                    var cls = badge(v);
-                    return '<span class="dt-badge dt-badge-' + cls + '">' + (v || '-') + '</span>';
-                case 'actions':
-                    var h = '<div class="dt-actions">';
-                    if(row._show_url && row._show_url !== '#'){
-                        h += '<a href="' + row._show_url + '" class="dt-btn dt-btn-view">View</a>';
-                    }
-                    if(row._edit_url && row._edit_url !== '#'){
-                        h += '<a href="' + row._edit_url + '" class="dt-btn dt-btn-edit">Edit</a>';
-                    }
-                    h += '<button class="dt-btn dt-btn-delete" data-id="' + row.id + '">Delete</button>';
-                    h += '</div>';
-                    return h;
-                default:
-                    return v !== null && v !== undefined ? v : '-';
-            }
-        }
-
-        function badge(s){
-            var m = {
-                active: 'active',
-                inactive: 'inactive',
-                graduated: 'graduated',
-                pending: 'pending',
-                cancelled: 'cancelled',
-                completed: 'success',
-                draft: 'secondary',
-                success: 'success',
-                failed: 'danger'
-            };
-            return m[s] || 'secondary';
-        }
-
-        function renderPag(json){
-            infoEl.textContent = 'Page ' + json.current_page + ' of ' + json.last_page + ' (' + json.total + ' total)';
-            
-            var h = '<button ' + (json.current_page <= 1 ? 'disabled' : '') + ' data-p="' + (json.current_page - 1) + '">← Prev</button>';
-            
-            for(var i = 1; i <= json.last_page; i++){
-                if(i === 1 || i === json.last_page || (i >= json.current_page - 1 && i <= json.current_page + 1)){
-                    h += '<button class="' + (i === json.current_page ? 'active' : '') + '" data-p="' + i + '">' + i + '</button>';
-                } else if(i === json.current_page - 2 || i === json.current_page + 2){
-                    h += '<span style="color:var(--text-muted);padding:0 6px">...</span>';
+                if(state.selected.indexOf(row.id) !== -1){
+                    tr.classList.add('selected');
                 }
+
+                    headers.forEach(function(h){
+                        var td = document.createElement('td');
+                        var val = row[h.col] || '';
+
+                        if(h.col === '_row_num'){
+                            td.textContent = rowNum;
+                            td.style.textAlign = 'center';
+                            td.style.fontWeight = '500';
+                            td.style.color = '#6b7280';
+                        }
+                        else if(h.render === 'checkbox'){
+                        td.className = 'dt-checkbox-col';
+                        var cb = document.createElement('input');
+                        cb.type = 'checkbox';
+                        cb.className = 'dt-checkbox';
+                        cb.checked = state.selected.indexOf(row.id) !== -1;
+                        cb.onchange = function(){
+                            if(this.checked){
+                                if(state.selected.indexOf(row.id) === -1) state.selected.push(row.id);
+                            } else {
+                                state.selected = state.selected.filter(function(id){ return id !== row.id; });
+                            }
+                            tr.classList.toggle('selected', this.checked);
+                            updateBulkUI();
+                        };
+                        td.appendChild(cb);
+                    } else if(h.render === 'actions'){
+                        td.className = 'dt-actions-col';
+                        td.innerHTML = renderActions(row);
+                    } else if(h.render === 'badge'){
+                        td.innerHTML = '<span class="dt-badge dt-badge-' + String(val).toLowerCase().replace(/\s+/g, '_') + '">' + formatValue(val) + '</span>';
+                    } else if(h.render === 'date'){
+                        td.textContent = val ? new Date(val).toLocaleDateString() : '-';
+                    } else if(h.render === 'datetime'){
+                        td.textContent = val ? new Date(val).toLocaleString() : '-';
+                    } else if(h.render === 'currency'){
+                        td.textContent = val ? parseFloat(val).toLocaleString('en-US', { style: 'currency', currency: 'USD' }) : '-';
+                    } else if(window.dtRenders && window.dtRenders[h.render]){
+                        td.innerHTML = window.dtRenders[h.render](val, row);
+                    } else {
+                        if(h.clickable && row._show_url){
+                            td.className = 'dt-clickable-cell';
+                            td.textContent = val || '-';
+                            td.onclick = function(){ window.location.href = row._show_url; };
+                        } else {
+                            td.textContent = val || '-';
+                        }
+                    }
+
+                    tr.appendChild(td);
+                });
+
+                tbody.appendChild(tr);
+            });
+
+            renderPagination();
+        }
+
+        function renderActions(row){
+            var html = '<div class="dt-actions">';
+            if(row._show_url) html += '<a href="' + row._show_url + '" class="dt-btn dt-btn-view">View</a>';
+            if(row._edit_url) html += '<a href="' + row._edit_url + '" class="dt-btn dt-btn-edit">Edit</a>';
+            if(row._delete_url) html += '<button class="dt-btn dt-btn-delete" onclick="dtDelete(\'' + row._delete_url + '\', \'' + tableId + '\')">Delete</button>';
+            html += '</div>';
+            return html;
+        }
+
+        function formatValue(val){
+            if(val === null || val === undefined) return '-';
+            return String(val).replace(/_/g, ' ');
+        }
+
+        function renderPagination(){
+            var start = (state.page - 1) * state.perPage + 1;
+            var end = Math.min(state.page * state.perPage, state.total);
+            
+            var html = '<div class="dt-info">Showing ' + (state.total ? start : 0) + ' to ' + end + ' of ' + state.total + '</div>';
+            html += '<div class="dt-pages">';
+            
+            html += '<button ' + (state.page <= 1 ? 'disabled' : '') + ' onclick="dtPage(\'' + tableId + '\', 1)">First</button>';
+            html += '<button ' + (state.page <= 1 ? 'disabled' : '') + ' onclick="dtPage(\'' + tableId + '\', ' + (state.page - 1) + ')">Prev</button>';
+            
+            // Page numbers
+            var startPage = Math.max(1, state.page - 2);
+            var endPage = Math.min(state.lastPage, state.page + 2);
+            
+            for(var p = startPage; p <= endPage; p++){
+                html += '<button class="' + (p === state.page ? 'active' : '') + '" onclick="dtPage(\'' + tableId + '\', ' + p + ')">' + p + '</button>';
             }
             
-            h += '<button ' + (json.current_page >= json.last_page ? 'disabled' : '') + ' data-p="' + (json.current_page + 1) + '">Next →</button>';
+            html += '<button ' + (state.page >= state.lastPage ? 'disabled' : '') + ' onclick="dtPage(\'' + tableId + '\', ' + (state.page + 1) + ')">Next</button>';
+            html += '<button ' + (state.page >= state.lastPage ? 'disabled' : '') + ' onclick="dtPage(\'' + tableId + '\', ' + state.lastPage + ')">Last</button>';
+            html += '</div>';
             
-            pagesEl.innerHTML = h;
-            pagesEl.querySelectorAll('button').forEach(function(b){
-                b.onclick = function(){
-                    var p = parseInt(this.dataset.p);
-                    if(p && !this.disabled){
-                        state.page = p;
-                        load();
-                    }
-                };
+            pagination.innerHTML = html;
+        }
+
+        function updateSortUI(){
+            ths.forEach(function(th){
+                th.classList.remove('asc', 'desc');
+                if(th.dataset.col === state.sort){
+                    th.classList.add(state.dir);
+                }
             });
+        }
+
+        function updateCheckboxes(){
+            table.querySelectorAll('tbody .dt-checkbox').forEach(function(cb){
+                var id = parseInt(cb.closest('tr').dataset.id);
+                cb.checked = state.selected.indexOf(id) !== -1;
+                cb.closest('tr').classList.toggle('selected', cb.checked);
+            });
+            
+            var checkAll = table.querySelector('thead .dt-checkbox');
+            if(checkAll){
+                checkAll.checked = state.data.length > 0 && state.selected.length === state.data.length;
+            }
+        }
+
+        function updateBulkUI(){
+            var count = state.selected.length;
+            
+            if(count > 0){
+                selectedCount.textContent = count + ' selected';
+                selectedCount.classList.add('show');
+                bulkDropdown.classList.add('show');
+            } else {
+                selectedCount.classList.remove('show');
+                bulkDropdown.classList.remove('show');
+            }
         }
 
         function doExport(format, selectedOnly){
-            var url = route + '?export=' + format + '&search=' + encodeURIComponent(state.search) + '&sort=' + state.sort + '&dir=' + state.dir;
+            var params = new URLSearchParams();
+            params.set('export', format);
+            params.set('sort', state.sort);
+            params.set('dir', state.dir);
+            if(state.search) params.set('search', state.search);
             
-            for(var key in state.filters){
-                if(state.filters[key]) url += '&' + key + '=' + encodeURIComponent(state.filters[key]);
-            }
-            
+            Object.keys(state.filters).forEach(function(k){
+                if(state.filters[k]) params.set(k, state.filters[k]);
+            });
+
             if(selectedOnly && state.selected.length > 0){
-                url += '&ids=' + state.selected.join(',');
+                params.set('ids', state.selected.join(','));
             }
-            
-            window.location.href = url;
+
+            window.location.href = route + '?' + params.toString();
         }
 
-        function del(id){
-            showDeleteModal(null, 1, function(){
-                var dr = route.replace('/data', '') + '/' + id;
-                var csrf = document.querySelector('meta[name="csrf-token"]');
-                
-                fetch(dr, {
-                    method: 'DELETE',
-                    headers: {
-                        'X-CSRF-TOKEN': csrf ? csrf.content : '',
-                        'Accept': 'application/json'
+        // Bulk action handler
+        function handleBulkAction(action, config){
+            if(state.selected.length === 0){
+                showToast('No items selected', 'error');
+                return;
+            }
+
+            if(config.confirm){
+                showConfirmModal(
+                    'Confirm ' + config.label,
+                    'Are you sure you want to ' + config.label.toLowerCase() + ' ' + state.selected.length + ' items?',
+                    function(){
+                        executeBulkAction(action);
                     }
-                })
-                .then(function(r){ return r.json(); })
-                .then(function(json){
-                    hideDeleteModal();
-                    if(json.success !== false){
-                        state.selected = state.selected.filter(function(x){ return x !== parseInt(id); });
-                        load();
-                    } else {
-                        showToast(json.message || 'Delete failed', 'error');
-                    }
-                })
-                .catch(function(){
-                    hideDeleteModal();
-                    showToast('Delete failed', 'error');
-                });
+                );
+            } else {
+                executeBulkAction(action);
+            }
+        }
+
+        function executeBulkAction(action){
+            var csrf = document.querySelector('meta[name="csrf-token"]');
+            
+            fetch(bulkRoute, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrf ? csrf.content : '',
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ action: action, ids: state.selected })
+            })
+            .then(function(r){ return r.json(); })
+            .then(function(json){
+                if(json.success !== false){
+                    showToast(json.message || 'Action completed', 'success');
+                    state.selected = [];
+                    load();
+                } else {
+                    showToast(json.message || 'Action failed', 'error');
+                }
+            })
+            .catch(function(){
+                showToast('Action failed', 'error');
             });
         }
 
-        function bulkDelete(){
-            if(state.selected.length === 0) return;
+        // Confirm Modal
+        var confirmModal = null;
+        
+        function showConfirmModal(title, message, onConfirm){
+            if(!confirmModal){
+                confirmModal = document.createElement('div');
+                confirmModal.className = 'dt-modal-overlay';
+                confirmModal.innerHTML = 
+                    '<div class="dt-modal">' +
+                        '<div class="dt-modal-header">' +
+                            '<span class="dt-modal-title"></span>' +
+                            '<button class="dt-modal-close">&times;</button>' +
+                        '</div>' +
+                        '<div class="dt-modal-body"><p class="dt-confirm-message"></p></div>' +
+                        '<div class="dt-modal-footer">' +
+                            '<button class="dt-btn-cancel">Cancel</button>' +
+                            '<button class="dt-btn-submit dt-btn-danger">Confirm</button>' +
+                        '</div>' +
+                    '</div>';
+                document.body.appendChild(confirmModal);
+
+                confirmModal.querySelector('.dt-modal-close').onclick = function(){ confirmModal.classList.remove('show'); };
+                confirmModal.querySelector('.dt-btn-cancel').onclick = function(){ confirmModal.classList.remove('show'); };
+                confirmModal.onclick = function(e){ if(e.target === confirmModal) confirmModal.classList.remove('show'); };
+            }
+
+            confirmModal.querySelector('.dt-modal-title').textContent = title;
+            confirmModal.querySelector('.dt-confirm-message').textContent = message;
             
-            showDeleteModal(null, state.selected.length, function(){
-                var dr = route.replace('/data', '') + '/bulk-delete';
-                var csrf = document.querySelector('meta[name="csrf-token"]');
-                
-                var confirmBtn = deleteModal.querySelector('.dt-confirm-delete');
-                
-                fetch(dr, {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRF-TOKEN': csrf ? csrf.content : '',
-                        'Accept': 'application/json',
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ ids: state.selected })
-                })
-                .then(function(r){ return r.json(); })
-                .then(function(json){
-                    hideDeleteModal();
-                    if(json.success !== false){
-                        state.selected = [];
-                        load();
-                    } else {
-                        showToast(json.message || 'Bulk delete failed', 'error');
-                    }
-                })
-                .catch(function(){
-                    hideDeleteModal();
-                    showToast('Bulk delete failed', 'error');
-                });
-            });
+            var confirmBtn = confirmModal.querySelector('.dt-btn-submit');
+            confirmBtn.onclick = function(){
+                confirmModal.classList.remove('show');
+                onConfirm();
+            };
+
+            confirmModal.classList.add('show');
         }
 
-        // Simple toast notification
+        // Toast
         function showToast(message, type){
             var toast = document.createElement('div');
-            toast.style.cssText = 'position:fixed;bottom:20px;right:20px;padding:14px 20px;border-radius:8px;color:#fff;font-size:14px;font-weight:500;z-index:10000;animation:dtFadeIn 0.2s ease;box-shadow:0 4px 12px rgba(0,0,0,0.15);';
+            toast.style.cssText = 'position:fixed;bottom:20px;right:20px;padding:14px 20px;border-radius:8px;color:#fff;font-size:14px;font-weight:500;z-index:10000;animation:dtFadeIn 0.2s;box-shadow:0 4px 12px rgba(0,0,0,0.15);';
             toast.style.background = type === 'error' ? '#e53e3e' : '#38a169';
             toast.textContent = message;
             document.body.appendChild(toast);
@@ -1729,29 +1408,12 @@
                 var fileName = importModal.querySelector('.dt-file-name');
                 var submitBtn = importModal.querySelector('.dt-btn-submit');
                 var results = importModal.querySelector('.dt-import-results');
-                var closeBtn = importModal.querySelector('.dt-modal-close');
-                var cancelBtn = importModal.querySelector('.dt-btn-cancel');
 
                 dropZone.onclick = function(){ fileInput.click(); };
-                
-                dropZone.ondragover = function(e){
-                    e.preventDefault();
-                    this.classList.add('dragover');
-                };
-                
-                dropZone.ondragleave = function(){
-                    this.classList.remove('dragover');
-                };
-                
-                dropZone.ondrop = function(e){
-                    e.preventDefault();
-                    this.classList.remove('dragover');
-                    if(e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
-                };
-
-                fileInput.onchange = function(){
-                    if(this.files.length) handleFile(this.files[0]);
-                };
+                dropZone.ondragover = function(e){ e.preventDefault(); this.classList.add('dragover'); };
+                dropZone.ondragleave = function(){ this.classList.remove('dragover'); };
+                dropZone.ondrop = function(e){ e.preventDefault(); this.classList.remove('dragover'); if(e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]); };
+                fileInput.onchange = function(){ if(this.files.length) handleFile(this.files[0]); };
 
                 function handleFile(file){
                     var ext = file.name.split('.').pop().toLowerCase();
@@ -1760,16 +1422,10 @@
                         return;
                     }
                     selectedFile = file;
-                    fileName.innerHTML = '✅ ' + file.name + ' (' + formatSize(file.size) + ')';
+                    fileName.innerHTML = '✅ ' + file.name;
                     fileName.classList.add('show');
                     submitBtn.disabled = false;
                     results.classList.remove('show');
-                }
-
-                function formatSize(bytes){
-                    if(bytes < 1024) return bytes + ' B';
-                    if(bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
-                    return (bytes / 1048576).toFixed(1) + ' MB';
                 }
 
                 submitBtn.onclick = function(){
@@ -1777,7 +1433,6 @@
                     
                     submitBtn.disabled = true;
                     submitBtn.textContent = 'Importing...';
-                    results.classList.remove('show');
 
                     var formData = new FormData();
                     formData.append('file', selectedFile);
@@ -1804,21 +1459,15 @@
                             }
                             
                             load();
-                            
-                            setTimeout(function(){
-                                importModal.classList.remove('show');
-                                resetModal();
-                            }, 2000);
+                            setTimeout(function(){ importModal.classList.remove('show'); resetModal(); }, 2000);
                         } else {
                             results.className = 'dt-import-results show error';
                             results.innerHTML = '❌ ' + json.message;
-                            
                             if(json.results && json.results.errors){
                                 results.innerHTML += '<div class="dt-import-errors">' + 
                                     json.results.errors.map(function(e){ return '<div>' + e + '</div>'; }).join('') + 
                                 '</div>';
                             }
-                            
                             submitBtn.disabled = false;
                         }
                     })
@@ -1839,36 +1488,21 @@
                     results.classList.remove('show');
                 }
 
-                closeBtn.onclick = function(){
-                    importModal.classList.remove('show');
-                    resetModal();
-                };
-                
-                cancelBtn.onclick = function(){
-                    importModal.classList.remove('show');
-                    resetModal();
-                };
-                
-                // Close on backdrop click
-                importModal.onclick = function(e){
-                    if(e.target === importModal){
-                        importModal.classList.remove('show');
-                        resetModal();
-                    }
-                };
+                importModal.querySelector('.dt-modal-close').onclick = function(){ importModal.classList.remove('show'); resetModal(); };
+                importModal.querySelector('.dt-btn-cancel').onclick = function(){ importModal.classList.remove('show'); resetModal(); };
+                importModal.onclick = function(e){ if(e.target === importModal){ importModal.classList.remove('show'); resetModal(); }};
             }
 
             importModal.classList.add('show');
         }
 
-        // Initial load
+        // Load bulk actions and initial data
+        if(hasCheckbox){
+            loadBulkActions();
+        }
         load();
-        
-        // Expose reload function globally
-        window.dtReload = load;
-        
+
         // Expose API
-        window.dtInstance = window.dtInstance || {};
         window.dtInstance[tableId] = {
             reload: load,
             setFilter: function(col, val){
@@ -1876,15 +1510,16 @@
                 state.page = 1;
                 load();
             },
-            exportTo: function(format){ doExport(format, false); },
-            exportSelected: function(format){ doExport(format, true); },
             getSelected: function(){ return state.selected; },
             clearSelection: function(){
                 state.selected = [];
+                updateCheckboxes();
                 updateBulkUI();
-            }
+            },
+            exportTo: function(format){ doExport(format, false); },
+            exportSelected: function(format){ doExport(format, true); }
         };
-        
+
         // Legacy API
         table.dtReload = load;
         table.dtSetFilter = function(col, val){
@@ -1892,11 +1527,39 @@
             state.page = 1;
             load();
         };
-        table.dtClearSelection = function(){
-            state.selected = [];
-            updateBulkUI();
-        };
-        table.dtExport = function(format){ doExport(format, false); };
     }
+
+    // Global functions
+    window.dtPage = function(tableId, page){
+        var instance = window.dtInstance[tableId];
+        if(instance){
+            instance.setFilter('page', page);
+        }
+    };
+
+    window.dtDelete = function(url, tableId){
+        if(!confirm('Are you sure you want to delete this item?')) return;
+        
+        var csrf = document.querySelector('meta[name="csrf-token"]');
+        
+        fetch(url, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': csrf ? csrf.content : '',
+                'Accept': 'application/json'
+            }
+        })
+        .then(function(r){ return r.json(); })
+        .then(function(json){
+            if(json.success !== false){
+                window.dtInstance[tableId].reload();
+            } else {
+                alert(json.message || 'Delete failed');
+            }
+        })
+        .catch(function(){
+            alert('Delete failed');
+        });
+    };
 })();
 </script>
