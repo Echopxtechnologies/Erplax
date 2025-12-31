@@ -1,4 +1,4 @@
-{!! \App\Livewire\Admin\AdminComponent::renderMenu([
+{{-- {!! \App\Livewire\Admin\AdminComponent::renderMenu([
     'title' => 'POS',
     'icon' => 'shopping-cart',
     'route' => 'admin.pos.*',
@@ -8,4 +8,4 @@
         ['title' => 'Sessions', 'route' => 'admin.pos.sessions', 'icon' => 'clock'],
         ['title' => 'Setup', 'route' => 'admin.pos.settings', 'icon' => 'settings'],
     ]
-]) !!}
+]) !!} --}}

@@ -1,6 +1,6 @@
 {{-- Test1 Module Menu --}}
-{!! admin_menu([
+@adminMenu([
     'title' => 'Test1',
     'icon' => 'cube',
     'route' => 'admin.test1.index',
-]) !!}
+]) 

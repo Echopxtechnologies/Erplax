@@ -2,6 +2,8 @@
     <h1 class="page-title">Modules</h1>
 </x-slot>
 
+    
+
 <div style="display: flex; flex-direction: column; gap: 16px;">
 
     {{-- Header --}}
@@ -10,26 +12,30 @@
             <h2 style="font-size: 18px; font-weight: 600; color: var(--text-primary); margin: 0 0 4px;">Modules</h2>
             <p style="font-size: 13px; color: var(--text-secondary); margin: 0;">Manage your application modules</p>
         </div>
-        <button onclick="document.getElementById('uploadPanel').classList.toggle('hidden')" class="btn btn-primary">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-            </svg>
-            Upload Module
-        </button>
+        
+        @can('modules.modules.upload')
+            <button onclick="document.getElementById('uploadPanel').classList.toggle('hidden')" class="btn btn-primary">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+                Upload Module
+            </button>
+        @endcan
     </div>
 
     {{-- Upload Panel (Hidden by default) --}}
-    <div id="uploadPanel" class="card hidden" style="padding: 16px;">
-        <form action="{{ route('admin.modules.upload') }}" method="POST" enctype="multipart/form-data" style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-            @csrf
-            <div style="flex: 1; min-width: 200px;">
-                <input type="file" name="module_zip" accept=".zip" required class="form-control">
-            </div>
-            <button type="submit" class="btn btn-primary">Upload ZIP</button>
-            <button type="button" onclick="document.getElementById('uploadPanel').classList.add('hidden')" class="btn btn-light">Cancel</button>
-        </form>
-    </div>
-
+    @can('modules.modules.upload')
+        <div id="uploadPanel" class="card hidden" style="padding: 16px;">
+            <form action="{{ route('admin.modules.upload') }}" method="POST" enctype="multipart/form-data" style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                @csrf
+                <div style="flex: 1; min-width: 200px;">
+                    <input type="file" name="module_zip" accept=".zip" required class="form-control">
+                </div>
+                <button type="submit" class="btn btn-primary">Upload ZIP</button>
+                <button type="button" onclick="document.getElementById('uploadPanel').classList.add('hidden')" class="btn btn-light">Cancel</button>
+            </form>
+        </div>
+    @endcan
     {{-- Stats Cards --}}
     @php
         $total = count($modules);
@@ -154,18 +160,22 @@
                                 
                                 {{-- NOT INSTALLED: Show Install + Delete --}}
                                 @if(!$module['is_installed'])
+                                @can('modules.modules.install')
                                     <form action="{{ route('admin.modules.install', $module['alias']) }}" method="POST">
                                         @csrf
                                         <button type="submit" class="btn btn-primary btn-xs">Install</button>
                                     </form>
+                                @endcan
                                     
+                                @can('modules.modules.delete')
                                     <form action="{{ route('admin.modules.delete', $module['alias']) }}" method="POST"
                                           onsubmit="return confirm('Are you sure you want to DELETE this module? This will remove all files and cannot be undone!')">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" class="btn btn-danger btn-xs">Delete</button>
                                     </form>
-                                
+                                @endcan
+                                    
                                 {{-- INSTALLED & ACTIVE --}}
                                 @elseif($module['is_active'])
                                     {{-- Migrate Button --}}
@@ -179,23 +189,29 @@
                                     </form>
 
                                     @if(!$module['is_core'])
-                                        <form action="{{ route('admin.modules.deactivate', $module['alias']) }}" method="POST">
+                                        @can('modules.modules.deactivate')
+                                            <form action="{{ route('admin.modules.deactivate', $module['alias']) }}" method="POST">
                                             @csrf
                                             <button type="submit" class="btn btn-warning btn-xs">Deactivate</button>
                                         </form>
+                                        @endcan
                                         
-                                        <form action="{{ route('admin.modules.uninstall', $module['alias']) }}" method="POST"
+                                        @can('modules.modules.uninstall')
+                                            <form action="{{ route('admin.modules.uninstall', $module['alias']) }}" method="POST"
                                               onsubmit="return confirm('Are you sure you want to UNINSTALL this module? Tables will be dropped but files will be kept.')">
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit" class="btn btn-light btn-xs">Uninstall</button>
                                         </form>
+                                        @endcan
+                                        
                                     @endif
                                 
                                 {{-- INSTALLED & INACTIVE --}}
                                 @else
                                     {{-- Migrate Button --}}
-                                    <form action="{{ route('admin.modules.migrate', $module['alias']) }}" method="POST">
+                                    @can('modules.modules.migrate')
+                                        <form action="{{ route('admin.modules.migrate', $module['alias']) }}" method="POST">
                                         @csrf
                                         <button type="submit" class="btn btn-light btn-xs" title="Run Migrations">
                                             <svg style="width:12px;height:12px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -203,19 +219,24 @@
                                             </svg>
                                         </button>
                                     </form>
-
+                                    @endcan
+                                    
+                                    @can('modules.modules.activate')
                                     <form action="{{ route('admin.modules.activate', $module['alias']) }}" method="POST">
                                         @csrf
                                         <button type="submit" class="btn btn-success btn-xs">Activate</button>
                                     </form>
-                                    
+                                    @endcan
                                     @if(!$module['is_core'])
+                                    @can('modules.modules.uninstall')
                                         <form action="{{ route('admin.modules.uninstall', $module['alias']) }}" method="POST"
                                               onsubmit="return confirm('Are you sure you want to UNINSTALL this module? Tables will be dropped but files will be kept.')">
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit" class="btn btn-light btn-xs">Uninstall</button>
                                         </form>
+                                    @endcan
+                                        
                                     @endif
                                 @endif
                                 

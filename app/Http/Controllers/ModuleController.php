@@ -41,6 +41,7 @@ class ModuleController extends AdminController
     */
     public function index()
     {
+        $this->authorize('modules.modules.read');
         $folderModules = NwidartModule::all();
         $modules = [];
 
@@ -71,6 +72,7 @@ class ModuleController extends AdminController
     */
     public function install($alias)
     {
+        $this->authorize('modules.modules.install');
         $name = $this->getModuleName($alias);
         $nwidart = NwidartModule::find($name);
 
@@ -146,6 +148,7 @@ class ModuleController extends AdminController
     */
     public function activate($alias)
     {
+        $this->authorize('modules.modules.activate');
         $module = Module::where('alias', strtolower($alias))->first();
         $name = $this->getModuleName($alias);
         $nwidart = NwidartModule::find($name);
@@ -177,6 +180,7 @@ class ModuleController extends AdminController
     */
     public function deactivate($alias)
     {
+        $this->authorize('modules.modules.deactivate');
         $module = Module::where('alias', strtolower($alias))->first();
         $name = $this->getModuleName($alias);
         $nwidart = NwidartModule::find($name);
@@ -212,6 +216,7 @@ class ModuleController extends AdminController
     */
     public function uninstall($alias)
     {
+        $this->authorize('modules.modules.uninstall');
         $module = Module::where('alias', strtolower($alias))->first();
 
         if (!$module) {
@@ -269,6 +274,7 @@ class ModuleController extends AdminController
     */
     public function delete($alias)
     {
+        $this->authorize('modules.modules.delete');
         // Check if module is installed in DB - prevent deletion
         if (Module::where('alias', strtolower($alias))->exists()) {
             return back()->with('error', 'Please uninstall the module first before deleting files');
@@ -310,6 +316,7 @@ class ModuleController extends AdminController
     */
     public function uploadZip(Request $request)
     {
+        $this->authorize('modules.modules.upload');
         if (!$request->hasFile('module_zip')) {
             return back()->with('error', 'Please select a ZIP file');
         }
@@ -468,6 +475,7 @@ class ModuleController extends AdminController
     */
     public function runMigration($alias)
     {
+        $this->authorize('modules.modules.migrate');
         $module = Module::where('alias', strtolower($alias))->first();
 
         if (!$module) {

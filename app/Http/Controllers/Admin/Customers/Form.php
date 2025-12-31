@@ -48,6 +48,7 @@ class Form extends AdminController
     
 public function create()
 {
+    $this->authorize('customers.customers.create');
     try {
         $customerGroups = DB::table('customer_groups')->orderBy('name')->pluck('name');
         
@@ -98,6 +99,7 @@ public function create()
     
     public function store(Request $request)
     {
+        $this->authorize('customers.customers.create');
         $rules = [
             'customer_type' => 'required|in:individual,company',
             'firstname' => 'required|string|max:191',
@@ -178,6 +180,7 @@ public function create()
     
     public function show($id)
     {
+        $this->authorize('customers.customers.show');
         try {
             $customer = $this->getCustomer($id);
             
@@ -212,6 +215,7 @@ public function create()
     
     public function edit($id)
     {
+        $this->authorize('customers.customers.edit');
         try {
             $customer = $this->getCustomer($id);
             
@@ -266,6 +270,7 @@ public function create()
     
     public function update(Request $request, $id)
     {
+        $this->authorize('customers.customers.edit');
         $customer = $this->getCustomer($id);
         
         if (!$customer) {
@@ -446,6 +451,7 @@ public function create()
 
 public function destroy(Request $request, $id)
 {
+    $this->authorize('customers.customers.delete');
     try {
         $customer = $this->getCustomer($id);
         

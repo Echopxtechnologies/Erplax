@@ -173,6 +173,26 @@ class CoreMenuService
 
                 $services[] = $className;
             }
+            // 2. nWidart Module Services (Modules/*/Services/*Service.php)
+        $modulesPath = base_path('Modules');
+        if (File::isDirectory($modulesPath)) {
+            foreach (File::directories($modulesPath) as $moduleDir) {
+                $servicesPath = $moduleDir . '/Services';
+                if (!File::isDirectory($servicesPath)) continue;
+
+                foreach (File::files($servicesPath) as $file) {
+                    $fileName = $file->getFilenameWithoutExtension();
+                    if (!str_ends_with($fileName, 'Service')) continue;
+
+                    $moduleName = basename($moduleDir);
+                    $className = "Modules\\{$moduleName}\\Services\\{$fileName}";
+
+                    if (class_exists($className) && method_exists($className, 'config') && method_exists($className, 'menus')) {
+                        $services[] = $className;
+                    }
+                }
+            }
+        }
 
             return $services;
         });
@@ -342,7 +362,7 @@ class CoreMenuService
         $html = '';
 
         // Add Modules link
-        $html .= self::renderSimpleMenuItem('Modules', 'puzzle', 'admin.modules.index');
+        // $html .= self::renderSimpleMenuItem('Modules', 'puzzle', 'admin.modules.index');
 
         // Add Activity Logs
         $html .= self::renderSimpleMenuItem('Activity Logs', 'activity', 'admin.activity-logs.index');

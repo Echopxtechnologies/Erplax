@@ -408,7 +408,8 @@
             Customer Groups
         </a>
          --}}
-         <div style="display:flex;justify-content:flex-end;gap:12px;margin-bottom:16px;">
+        @can('customers.customers.create')
+            <div style="display:flex;justify-content:flex-end;gap:12px;margin-bottom:16px;">
         <a href="{{ route('admin.customers.create') }}" class="btn-modern btn-primary">
             <svg style="width:16px;height:16px;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path>
@@ -416,6 +417,8 @@
              Create Customer
         </a>
     </div>
+        @endcan
+         
 
 
 

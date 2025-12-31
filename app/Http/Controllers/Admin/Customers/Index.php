@@ -140,6 +140,7 @@ class Index extends AdminController
 
 public function index(Request $request)
 {
+    $this->authorize('customers.customers.read');
     try {
         // Statistics - Count ALL contacts
         $stats = [
@@ -335,6 +336,7 @@ public function index(Request $request)
 
 public function data(Request $request)
 {
+    // $this->authorize('customers.customers.read');
     try {
         // EXPORT
         if ($request->has('export')) {

@@ -123,6 +123,10 @@ class UniversityStudentController extends AdminController
         try {
             $hashId = HashId::encode($item->id);
             
+            // Get sponsors for this student
+            $sponsorsList = $item->sponsors_list;
+            $sponsorNames = array_map(fn($s) => $s['name'], $sponsorsList);
+            
             return [
                 'id' => $item->id,
                 'hash_id' => $hashId,
@@ -134,8 +138,12 @@ class UniversityStudentController extends AdminController
                 'program_name' => $item->program->name ?? 'N/A',
                 'university_year_of_study' => $item->university_year_of_study ?? '',
                 'current_state' => $item->current_state ?? 'inprogress',
+                'completed_year' => $item->completed_year ?? null,
                 'active' => $item->active ? 1 : 0,
                 'profile_photo_url' => $item->hasMedia('profile_photo') ? $item->getFirstMediaUrl('profile_photo') : null,
+                'sponsors' => $sponsorsList,
+                'sponsors_count' => count($sponsorsList),
+                'sponsors_names' => implode(', ', $sponsorNames) ?: '-',
                 '_show_url' => route('admin.studentsponsorship.university-students.show', $hashId),
                 '_edit_url' => route('admin.studentsponsorship.university-students.edit', $hashId),
                 '_delete_url' => route('admin.studentsponsorship.university-students.destroy', $hashId),
@@ -153,8 +161,12 @@ class UniversityStudentController extends AdminController
                 'program_name' => 'N/A',
                 'university_year_of_study' => '',
                 'current_state' => 'inprogress',
+                'completed_year' => null,
                 'active' => 0,
                 'profile_photo_url' => null,
+                'sponsors' => [],
+                'sponsors_count' => 0,
+                'sponsors_names' => '-',
                 '_show_url' => '#',
                 '_edit_url' => '#',
                 '_delete_url' => '#',
@@ -387,9 +399,15 @@ class UniversityStudentController extends AdminController
             }
 
             // Filters
+            if ($request->filled('completed_year')) {
+                $query->where('completed_year', $request->completed_year);
+            }
             if ($request->filled('status')) {
                 $status = $request->input('status');
                 $query->where('active', $status == '1' || $status == 'active');
+            }
+            if ($request->filled('university_year_of_study')) {
+                $query->where('university_year_of_study', $request->university_year_of_study);
             }
             if ($request->filled('year_of_study')) {
                 $query->where('university_year_of_study', $request->year_of_study);
@@ -408,7 +426,7 @@ class UniversityStudentController extends AdminController
             $sortCol = $request->input('sort', 'id');
             $sortDir = $request->input('dir', 'desc');
             
-            if (in_array($sortCol, ['id', 'name', 'email', 'university_year_of_study', 'active', 'created_at'])) {
+            if (in_array($sortCol, ['id', 'name', 'email', 'university_year_of_study', 'active', 'completed_year', 'created_at'])) {
                 $query->orderBy($sortCol, $sortDir);
             } else {
                 $query->orderBy('id', 'desc');
@@ -1549,6 +1567,117 @@ class UniversityStudentController extends AdminController
         return response()->json([
             'success' => true,
             'message' => 'Password reset successfully.'
+        ]);
+    }
+
+    /**
+     * Rollback a completed student to next year
+     * - Removes portal access (sets user_id to null)
+     * - Sets student to inactive
+     * - Changes current_state to 'in_progress'
+     * - Increases year by 1
+     */
+    public function studentRollback($hash): JsonResponse
+    {
+        $student = UniversityStudent::findByHashOrFail($hash);
+        
+        // Get current year and calculate new year
+        $currentYear = (int) $student->university_year_of_study;
+        $newYear = $currentYear + 1;
+        
+        // Cap at year 6 (or adjust as needed for PhD etc)
+        if ($newYear > 6) {
+            $newYear = 6;
+        }
+        
+        // Update student
+        $student->update([
+            'user_id' => null,           // Remove portal access
+            'active' => 0,                // Set to inactive
+            'current_state' => 'complete', // Mark as complete (DB uses 'complete')
+            'university_year_of_study' => $newYear, // Promote to next year
+        ]);
+        
+        // Get year label for response
+        $yearLabels = [
+            1 => '1st Year',
+            2 => '2nd Year', 
+            3 => '3rd Year',
+            4 => '4th Year',
+            5 => '5th Year',
+            6 => '6th Year'
+        ];
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Student rolled back successfully',
+            'new_year' => $yearLabels[$newYear] ?? "Year $newYear",
+            'data' => [
+                'user_id' => null,
+                'active' => 0,
+                'current_state' => 'complete',
+                'university_year_of_study' => $newYear
+            ]
+        ]);
+    }
+
+    /**
+     * Rollback ALL in_progress students at once
+     * - Removes portal access (user_id = null)
+     * - Sets inactive (active = 0)
+     * - Sets current_state to 'completed'
+     * - Increases year by 1
+     */
+    public function rollbackAll(Request $request): JsonResponse
+    {
+        $completedYear = $request->input('completed_year', date('Y'));
+        
+        // Get all IN PROGRESS students
+        $students = \DB::table('university_students')
+            ->where('current_state', 'inprogress')
+            ->whereNull('deleted_at')
+            ->get();
+        
+        if ($students->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No in-progress students found to rollback'
+            ]);
+        }
+        
+        $count = 0;
+        $usersDeleted = 0;
+        
+        foreach ($students as $student) {
+            $currentYear = (int) $student->university_year_of_study;
+            $newYear = min($currentYear + 1, 6); // Cap at year 6
+            
+            // If student has portal access, delete the user record
+            if ($student->user_id) {
+                \DB::table('users')->where('id', $student->user_id)->delete();
+                $usersDeleted++;
+            }
+            
+            \DB::table('university_students')
+                ->where('id', $student->id)
+                ->update([
+                    'user_id' => null,           // Remove portal access reference
+                    'active' => 0,                // Set to inactive
+                    'current_state' => 'complete', // Mark as completed
+                    'completed_year' => $completedYear, // Save the completed year
+                    'university_year_of_study' => $newYear, // Promote to next year
+                    'updated_at' => now(),
+                ]);
+            
+            $count++;
+        }
+        
+        return response()->json([
+            'success' => true,
+            'message' => "Successfully rolled back $count students for year $completedYear",
+            'count' => $count,
+            'users_deleted' => $usersDeleted,
+            'completed_year' => $completedYear
         ]);
     }
 }

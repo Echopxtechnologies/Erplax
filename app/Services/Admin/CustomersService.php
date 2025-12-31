@@ -41,10 +41,9 @@ class CustomersService
             'slug' => 'customers',
             'icon'        => 'users',
             'route'       => 'admin.customers.index',
-            // 'permission'  => 'customers.read',
             'category'     => 'core',
             'sort_order'  => 50,
-            'actions' => ['read', 'create', 'edit', 'delete','update'],
+            'actions' => ['read', 'create', 'edit', 'delete','show',],
             'children' => [
                 // [
                 //     'title' => 'All Customers',

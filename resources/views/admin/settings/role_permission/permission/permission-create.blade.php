@@ -1,6 +1,14 @@
 {{-- <x-layouts.app> --}}
     <div style="max-width: 800px;">
-        <h1 class="page-title" style="margin-bottom: 20px;">Create Permission</h1>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h1 class="page-title">Create Permission</h1>
+            <a href="{{ route('admin.settings.permissions.index') }}" class="btn btn-secondary">
+                <svg style="width: 18px; height: 18px; margin-right: 6px;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                </svg>
+                Back to Permissions
+            </a>
+        </div>
 
         @if($errors->any())
             <div style="background-color: #fee2e2; border: 1px solid #ef4444; color: #991b1b; padding: 12px 16px; border-radius: 6px; margin-bottom: 16px;">
@@ -113,23 +121,50 @@
                     <form action="{{ route('admin.settings.permissions.store') }}" method="POST">
                         @csrf
                         
-                        <div style="margin-bottom: 20px;">
-                            <label class="form-label">Permission Name</label>
-                            <input type="text" name="name" id="custom_name" class="form-control" 
-                                   placeholder="e.g., inventory.products.approve" 
-                                   pattern="^[a-z]+\.[a-z_]+\.[a-z_]+$"
-                                   style="font-family: monospace; font-size: 16px;"
-                                   required>
-                            <small style="color: #6b7280;">Use lowercase, dots to separate, underscores for spaces</small>
+                        <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 16px; margin-bottom: 20px;">
+                            {{-- Module Selection --}}
+                            <div>
+                                <label class="form-label">Assign to Module</label>
+                                <select name="module_id" id="custom_module" class="form-control">
+                                    <option value="">-- No Module (Custom) --</option>
+                                    @foreach($modules as $module)
+                                        <option value="{{ $module->id }}" data-alias="{{ $module->alias }}">
+                                            {{ $module->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <small style="color: #6b7280;">Leave empty for standalone permission</small>
+                            </div>
+
+                            {{-- Permission Name --}}
+                            <div>
+                                <label class="form-label">Permission Name</label>
+                                <input type="text" name="name" id="custom_name" class="form-control" 
+                                       placeholder="e.g., inventory.products.approve" 
+                                       style="font-family: monospace; font-size: 16px;"
+                                       required>
+                                <small style="color: #6b7280;">Use lowercase, dots to separate, underscores for spaces</small>
+                            </div>
                         </div>
 
                         {{-- Examples --}}
                         <div style="padding: 16px; background-color: #f9fafb; border-radius: 8px; margin-bottom: 20px;">
-                            <label style="font-size: 13px; font-weight: 500; color: #374151; margin-bottom: 8px; display: block;">Examples:</label>
+                            <label style="font-size: 13px; font-weight: 500; color: #374151; margin-bottom: 8px; display: block;">Click to use example:</label>
                             <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-                                <span onclick="setCustomValue('inventory.products.read')" style="padding: 4px 10px; background: #dbeafe; color: #1e40af; border-radius: 4px; font-family: monospace; font-size: 13px; cursor: pointer;">inventory.products.read</span>
-                                <span onclick="setCustomValue('sales.invoices.create')" style="padding: 4px 10px; background: #d1fae5; color: #065f46; border-radius: 4px; font-family: monospace; font-size: 13px; cursor: pointer;">sales.invoices.create</span>
-                                <span onclick="setCustomValue('hr.employees.approve')" style="padding: 4px 10px; background: #fef3c7; color: #92400e; border-radius: 4px; font-family: monospace; font-size: 13px; cursor: pointer;">hr.employees.approve</span>
+                                <span onclick="setCustomValue('inventory.products.approve')" style="padding: 4px 10px; background: #dbeafe; color: #1e40af; border-radius: 4px; font-family: monospace; font-size: 13px; cursor: pointer;">inventory.products.approve</span>
+                                <span onclick="setCustomValue('sales.invoices.send')" style="padding: 4px 10px; background: #d1fae5; color: #065f46; border-radius: 4px; font-family: monospace; font-size: 13px; cursor: pointer;">sales.invoices.send</span>
+                                <span onclick="setCustomValue('hr.employees.verify')" style="padding: 4px 10px; background: #fef3c7; color: #92400e; border-radius: 4px; font-family: monospace; font-size: 13px; cursor: pointer;">hr.employees.verify</span>
+                                <span onclick="setCustomValue('crm.leads.convert')" style="padding: 4px 10px; background: #e0e7ff; color: #3730a3; border-radius: 4px; font-family: monospace; font-size: 13px; cursor: pointer;">crm.leads.convert</span>
+                            </div>
+                        </div>
+
+                        {{-- Preview --}}
+                        <div style="padding: 16px; background-color: #f0f9ff; border-radius: 8px; border: 1px solid #bae6fd; margin-bottom: 20px;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span style="color: #6b7280; font-size: 14px;">Will create:</span>
+                                <span id="custom_preview" style="font-family: monospace; font-size: 18px; color: #0369a1; font-weight: 600;">
+                                    Select module and enter name
+                                </span>
                             </div>
                         </div>
 
@@ -220,14 +255,11 @@
     <script>
         // Tab switching
         function showTab(tab) {
-            // Hide all content
             document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
-            // Reset all tabs
             document.querySelectorAll('[id^="tab-"]').forEach(el => {
                 el.style.borderBottomColor = 'transparent';
                 el.style.color = '#6b7280';
             });
-            // Show selected
             document.getElementById('content-' + tab).style.display = 'block';
             document.getElementById('tab-' + tab).style.borderBottomColor = '#3b82f6';
             document.getElementById('tab-' + tab).style.color = '#3b82f6';
@@ -254,9 +286,30 @@
         document.getElementById('builder_menu').addEventListener('input', updateBuilderPreview);
         document.getElementById('builder_action').addEventListener('change', updateBuilderPreview);
 
+        // Custom permission preview
+        function updateCustomPreview() {
+            const moduleSelect = document.getElementById('custom_module');
+            const nameInput = document.getElementById('custom_name');
+            const preview = document.getElementById('custom_preview');
+            
+            const moduleValue = moduleSelect.value;
+            const moduleName = moduleValue ? moduleSelect.options[moduleSelect.selectedIndex]?.text : 'No Module (Custom)';
+            const permName = nameInput.value || '';
+            
+            if (permName) {
+                preview.innerHTML = `<span style="color: #10b981;">${permName}</span> <span style="color: #6b7280; font-size: 14px;">→ ${moduleName}</span>`;
+            } else {
+                preview.textContent = 'Enter permission name';
+            }
+        }
+
+        document.getElementById('custom_module').addEventListener('change', updateCustomPreview);
+        document.getElementById('custom_name').addEventListener('input', updateCustomPreview);
+
         // Custom example click
         function setCustomValue(value) {
             document.getElementById('custom_name').value = value;
+            updateCustomPreview();
         }
 
         // Bulk preview

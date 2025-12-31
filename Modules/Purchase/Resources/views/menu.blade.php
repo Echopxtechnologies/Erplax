@@ -1,4 +1,4 @@
-{!! \App\Livewire\Admin\AdminComponent::renderMenu([
+{{-- {!! \App\Livewire\Admin\AdminComponent::renderMenu([
     'title' => 'Purchase',
     'icon' => 'shopping-cart',
     'route' => 'admin.purchase.*',
@@ -10,4 +10,4 @@
         ['title' => 'Vendor Bills', 'route' => 'admin.purchase.bills.index', 'icon' => 'file-text'],
         ['title' => 'Settings', 'route' => 'admin.purchase.settings', 'icon' => 'settings'],
     ]
-]) !!}
+]) !!} --}}

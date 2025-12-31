@@ -1,4 +1,4 @@
-{{-- Product Module - Sidebar Menu --}}
+{{-- Product Module - Sidebar Menu
 {!! \App\Livewire\Admin\AdminComponent::renderMenu([
     'title' => 'Products',
     'icon' => 'cube',
@@ -7,4 +7,4 @@
         ['title' => 'All Products', 'route' => 'admin.product.index', 'icon' => 'list'],
         ['title' => 'Add Product', 'route' => 'admin.product.create', 'icon' => 'plus'],
     ]
-]) !!}
+]) !!} --}}

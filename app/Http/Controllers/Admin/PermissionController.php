@@ -88,7 +88,7 @@ class PermissionController extends AdminController
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'module_id' => 'required|exists:modules,id',
+            'module_id' => 'nullable|exists:modules,id',  // Made optional
             'name' => 'required|unique:permissions,name|min:3',
         ]);
 
@@ -110,8 +110,8 @@ class PermissionController extends AdminController
 
         Permission::create([
             'name' => $request->name,
-            'guard_name' => 'admin',  // ← Changed from 'web' to 'admin'
-            'module_id' => $request->module_id,
+            'guard_name' => 'admin',
+            'module_id' => $request->module_id ?: null,  // Allow null
             'action_name' => $actionNames[$actionSlug] ?? ucfirst($actionSlug),
         ]);
 
@@ -166,7 +166,7 @@ class PermissionController extends AdminController
 
                 Permission::create([
                     'name' => $permissionName,
-                    'guard_name' => 'admin',  // ← Changed from 'web' to 'admin'
+                    'guard_name' => 'admin',
                     'module_id' => $module->id,
                     'action_name' => $actionNames[$action] ?? ucfirst($action),
                 ]);
@@ -209,7 +209,7 @@ class PermissionController extends AdminController
         $permission = Permission::findOrFail($id);
 
         $validator = Validator::make($request->all(), [
-            'module_id' => 'required|exists:modules,id',
+            'module_id' => 'nullable|exists:modules,id',  // Made optional
             'name' => 'required|min:3|unique:permissions,name,' . $id,
         ]);
 
@@ -230,8 +230,8 @@ class PermissionController extends AdminController
 
         $permission->update([
             'name' => $request->name,
-            'guard_name' => 'admin',  // ← Ensure admin guard
-            'module_id' => $request->module_id,
+            'guard_name' => 'admin',
+            'module_id' => $request->module_id ?: null,  // Allow null
             'action_name' => $actionNames[$actionSlug] ?? ucfirst($actionSlug),
         ]);
 

@@ -35,6 +35,8 @@
     .student-avatar { width: 55px; height: 55px; border-radius: 50%; object-fit: cover; background: var(--body-bg); border: 2px solid var(--card-border); flex-shrink: 0; }
     .student-info { display: flex; flex-direction: column; gap: 2px; }
     .student-name { font-weight: 600; color: var(--text-primary); font-size: 14px; }
+    .student-name a.dt-clickable { color: var(--primary); text-decoration: none; font-weight: 600; }
+    .student-name a.dt-clickable:hover { text-decoration: underline; }
     .student-id { font-size: 11px; color: var(--text-muted); }
     
     /* Year Badge */
@@ -175,6 +177,7 @@
                         <th data-col="program_name">Program</th>
                         <th class="dt-sort" data-col="university_year_of_study" data-render="year_badge">Year</th>
                         <th data-col="current_state" data-render="state_badge">State</th>
+                        <th data-col="sponsors_names" data-render="sponsors_cell">Sponsors</th>
                         <th class="dt-sort" data-col="active" data-render="status_badge">Status</th>
                         <th data-render="actions" style="width:100px;">Actions</th>
                     </tr>
@@ -211,10 +214,13 @@
     // Student cell with photo, name, ID
     window.dtRenders.student_cell = function(value, row) {
         var avatar = row.profile_photo_url || defaultAvatar;
+        var nameHtml = row._show_url 
+            ? '<a href="' + row._show_url + '" class="dt-clickable">' + (value || '-') + '</a>' 
+            : (value || '-');
         return '<div class="student-cell">' +
             '<img src="' + avatar + '" alt="" class="student-avatar" onerror="this.src=\'' + defaultAvatar + '\'">' +
             '<div class="student-info">' +
-                '<div class="student-name">' + (value || '-') + '</div>' +
+                '<div class="student-name">' + nameHtml + '</div>' +
                 '<div class="student-id">ID: ' + (row.university_internal_id || '-') + '</div>' +
             '</div>' +
         '</div>';
@@ -233,6 +239,25 @@
             return '<span class="status-active">✓ Active</span>';
         }
         return '<span class="status-inactive">⊘ Inactive</span>';
+    };
+
+    // Sponsors cell
+    window.dtRenders.sponsors_cell = function(value, row) {
+        var sponsors = row.sponsors || [];
+        if (!sponsors.length) {
+            return '<span style="color:var(--text-muted);">-</span>';
+        }
+        
+        var html = '<div style="display:flex;flex-wrap:wrap;gap:4px;">';
+        sponsors.slice(0, 2).forEach(function(s) {
+            html += '<span style="background:#10b98115;color:#10b981;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:500;">' + 
+                s.name + '</span>';
+        });
+        if (sponsors.length > 2) {
+            html += '<span style="background:#e5e7eb;color:#6b7280;padding:2px 8px;border-radius:12px;font-size:11px;">+' + (sponsors.length - 2) + ' more</span>';
+        }
+        html += '</div>';
+        return html;
     };
     
     // State badge (In Progress / Complete)

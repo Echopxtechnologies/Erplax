@@ -3,6 +3,10 @@
 use Illuminate\Support\Facades\Route;
 use Modules\StudentSponsorship\Http\Controllers\SchoolStudentController;
 use Modules\StudentSponsorship\Http\Controllers\UniversityStudentController;
+use Modules\StudentSponsorship\Http\Controllers\SponsorController;
+use Modules\StudentSponsorship\Http\Controllers\SponsorTransactionController;
+use Modules\StudentSponsorship\Http\Controllers\SponsorPaymentController;
+use Modules\StudentSponsorship\Http\Controllers\DashboardController;
 use App\Http\Middleware\EnsureIsAdmin;
 
 Route::prefix('admin/studentsponsorship')
@@ -10,6 +14,44 @@ Route::prefix('admin/studentsponsorship')
     ->name('admin.studentsponsorship.')
     ->group(function () {
         
+        // =====================================================================
+        // DASHBOARD
+        // =====================================================================
+        Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+        Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard.index');
+        Route::get('/dashboard/chart-data', [DashboardController::class, 'chartData'])->name('dashboard.chart-data');
+        
+        // =====================================================================
+        // SPONSORS
+        // =====================================================================
+        Route::prefix('sponsors')->name('sponsors.')->group(function () {
+            Route::get('/', [SponsorController::class, 'index'])->name('index');
+            
+            // DataTable routes
+            Route::match(['get', 'post'], '/data', [SponsorController::class, 'handleData'])->name('data');
+            
+            // Bulk actions
+            Route::post('/bulk-action', [SponsorController::class, 'handleBulkAction'])->name('bulk-action');
+            
+            // STATIC routes MUST come BEFORE {id} routes
+            Route::get('/create', [SponsorController::class, 'create'])->name('create');
+            Route::post('/add-bank', [SponsorController::class, 'addBank'])->name('add-bank');
+            
+            // Store (POST to root)
+            Route::post('/', [SponsorController::class, 'store'])->name('store');
+            
+            // Portal Access routes (before {id})
+            Route::post('/{id}/enable-portal', [SponsorController::class, 'enablePortalAccess'])->name('enable-portal')->where('id', '[0-9]+');
+            Route::post('/{id}/disable-portal', [SponsorController::class, 'disablePortalAccess'])->name('disable-portal')->where('id', '[0-9]+');
+            Route::post('/{id}/reset-password', [SponsorController::class, 'resetPortalPassword'])->name('reset-password')->where('id', '[0-9]+');
+            
+            // Dynamic {id} routes
+            Route::get('/{id}', [SponsorController::class, 'show'])->name('show')->where('id', '[0-9]+');
+            Route::get('/{id}/edit', [SponsorController::class, 'edit'])->name('edit')->where('id', '[0-9]+');
+            Route::put('/{id}', [SponsorController::class, 'update'])->name('update')->where('id', '[0-9]+');
+            Route::delete('/{id}', [SponsorController::class, 'destroy'])->name('destroy')->where('id', '[0-9]+');
+        });
+
         // =====================================================================
         // SCHOOL STUDENTS
         // =====================================================================
@@ -24,6 +66,9 @@ Route::prefix('admin/studentsponsorship')
             
             // Legacy bulk delete (backward compatibility)
             Route::post('/bulk-delete', [SchoolStudentController::class, 'bulkDelete'])->name('bulk-delete');
+            
+            // Rollback ALL completed students at once
+            Route::post('/rollback-all', [SchoolStudentController::class, 'rollbackAll'])->name('rollback-all');
             
             // STATIC routes MUST come BEFORE {hash} routes
             Route::get('/create', [SchoolStudentController::class, 'create'])->name('create');
@@ -56,6 +101,9 @@ Route::prefix('admin/studentsponsorship')
             Route::post('/{hash}/deactivate-portal', [SchoolStudentController::class, 'deactivatePortalAccount'])->name('deactivate-portal')->where('hash', '[a-zA-Z0-9]+');
             Route::post('/{hash}/activate-portal', [SchoolStudentController::class, 'activatePortalAccount'])->name('activate-portal')->where('hash', '[a-zA-Z0-9]+');
             Route::post('/{hash}/reset-portal-password', [SchoolStudentController::class, 'resetPortalPassword'])->name('reset-portal-password')->where('hash', '[a-zA-Z0-9]+');
+            
+            // Rollback (promote to next year)
+            Route::post('/{hash}/rollback', [SchoolStudentController::class, 'studentRollback'])->name('rollback')->where('hash', '[a-zA-Z0-9]+');
         });
 
         // =====================================================================
@@ -73,6 +121,9 @@ Route::prefix('admin/studentsponsorship')
             Route::post('/bulk-action', [UniversityStudentController::class, 'handleBulkAction'])->name('bulk-action');
             Route::post('/bulk-delete', [UniversityStudentController::class, 'bulkDelete'])->name('bulk-delete');
             Route::post('/bulk-status', [UniversityStudentController::class, 'bulkStatus'])->name('bulk-status');
+            
+            // Rollback ALL completed students at once
+            Route::post('/rollback-all', [UniversityStudentController::class, 'rollbackAll'])->name('rollback-all');
             
             // Export/Import - STATIC routes before {hash}
             Route::get('/export', [UniversityStudentController::class, 'export'])->name('export');
@@ -111,6 +162,9 @@ Route::prefix('admin/studentsponsorship')
             Route::post('/{hash}/deactivate-portal', [UniversityStudentController::class, 'deactivatePortalAccount'])->name('deactivate-portal')->where('hash', '[a-zA-Z0-9]+');
             Route::post('/{hash}/activate-portal', [UniversityStudentController::class, 'activatePortalAccount'])->name('activate-portal')->where('hash', '[a-zA-Z0-9]+');
             Route::post('/{hash}/reset-portal-password', [UniversityStudentController::class, 'resetPortalPassword'])->name('reset-portal-password')->where('hash', '[a-zA-Z0-9]+');
+            
+            // Rollback (promote to next year)
+            Route::post('/{hash}/rollback', [UniversityStudentController::class, 'studentRollback'])->name('rollback')->where('hash', '[a-zA-Z0-9]+');
         });
         
         // =====================================================================
@@ -138,6 +192,62 @@ Route::prefix('admin/studentsponsorship')
             Route::post('/banks', [\Modules\StudentSponsorship\Http\Controllers\MasterDataController::class, 'storeBank'])->name('banks.store');
             Route::put('/banks/{id}', [\Modules\StudentSponsorship\Http\Controllers\MasterDataController::class, 'updateBank'])->name('banks.update');
             Route::delete('/banks/{id}', [\Modules\StudentSponsorship\Http\Controllers\MasterDataController::class, 'deleteBank'])->name('banks.delete');
+        });
+        
+        // =====================================================================
+        // TRANSACTIONS
+        // =====================================================================
+        Route::prefix('transactions')->name('transactions.')->group(function () {
+            Route::get('/', [SponsorTransactionController::class, 'index'])->name('index');
+            
+            // DataTable
+            Route::match(['get', 'post'], '/data', [SponsorTransactionController::class, 'handleData'])->name('data');
+            
+            // Bulk actions
+            Route::post('/bulk-action', [SponsorTransactionController::class, 'handleBulkAction'])->name('bulk-action');
+            
+            // Create
+            Route::get('/create', [SponsorTransactionController::class, 'create'])->name('create');
+            Route::post('/', [SponsorTransactionController::class, 'store'])->name('store');
+            
+            // Dynamic {id} routes
+            Route::get('/{id}', [SponsorTransactionController::class, 'show'])->name('show')->where('id', '[0-9]+');
+            Route::get('/{id}/edit', [SponsorTransactionController::class, 'edit'])->name('edit')->where('id', '[0-9]+');
+            Route::put('/{id}', [SponsorTransactionController::class, 'update'])->name('update')->where('id', '[0-9]+');
+            Route::delete('/{id}', [SponsorTransactionController::class, 'destroy'])->name('destroy')->where('id', '[0-9]+');
+            
+            // Status actions
+            Route::post('/{id}/mark-cancelled', [SponsorTransactionController::class, 'markCancelled'])->name('mark-cancelled')->where('id', '[0-9]+');
+            
+            // Email
+            Route::post('/{id}/send-email', [SponsorTransactionController::class, 'sendEmail'])->name('send-email')->where('id', '[0-9]+');
+        });
+
+        // =====================================================================
+        // PAYMENTS (for transactions)
+        // =====================================================================
+        Route::prefix('payments')->name('payments.')->group(function () {
+            Route::get('/', [SponsorPaymentController::class, 'index'])->name('index');
+            Route::match(['get', 'post'], '/data', [SponsorPaymentController::class, 'handleData'])->name('data');
+            Route::post('/', [SponsorPaymentController::class, 'store'])->name('store');
+            Route::delete('/{id}', [SponsorPaymentController::class, 'destroy'])->name('destroy')->where('id', '[0-9]+');
+            
+            // Receipt preview, download, and send email
+            Route::get('/{id}/receipt', [\Modules\StudentSponsorship\Http\Controllers\PaymentReceiptController::class, 'previewPayment'])->name('receipt')->where('id', '[0-9]+');
+            Route::get('/{id}/receipt/download', [\Modules\StudentSponsorship\Http\Controllers\PaymentReceiptController::class, 'downloadPayment'])->name('receipt.download')->where('id', '[0-9]+');
+            Route::post('/{id}/send-receipt', [SponsorPaymentController::class, 'sendReceipt'])->name('send-receipt')->where('id', '[0-9]+');
+        });
+        
+        // =====================================================================
+        // RECEIPT TEMPLATES
+        // =====================================================================
+        Route::prefix('receipts')->name('receipts.')->group(function () {
+            Route::get('/', [\Modules\StudentSponsorship\Http\Controllers\PaymentReceiptController::class, 'index'])->name('index');
+            Route::post('/', [\Modules\StudentSponsorship\Http\Controllers\PaymentReceiptController::class, 'store'])->name('store');
+            Route::get('/{currency}/edit', [\Modules\StudentSponsorship\Http\Controllers\PaymentReceiptController::class, 'edit'])->name('edit');
+            Route::put('/{currency}', [\Modules\StudentSponsorship\Http\Controllers\PaymentReceiptController::class, 'update'])->name('update');
+            Route::delete('/{currency}', [\Modules\StudentSponsorship\Http\Controllers\PaymentReceiptController::class, 'destroy'])->name('destroy');
+            Route::get('/{currency}/preview', [\Modules\StudentSponsorship\Http\Controllers\PaymentReceiptController::class, 'preview'])->name('preview');
         });
         
     });

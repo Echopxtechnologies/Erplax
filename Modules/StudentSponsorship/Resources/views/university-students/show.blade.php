@@ -347,6 +347,81 @@
         </div>
     </div>
 
+    <!-- Sponsors Section -->
+    @php
+        $sponsorsList = $student->sponsors_list;
+    @endphp
+    
+    <div class="card info-card">
+        <div class="card-header">
+            <i class="fas fa-heart me-2" style="color: #ec4899;"></i>My Sponsors ({{ count($sponsorsList) }})
+        </div>
+        <div class="card-body">
+            @if(count($sponsorsList) > 0)
+                <div style="overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                        <thead>
+                            <tr style="background: var(--body-bg); border-bottom: 1px solid var(--card-border);">
+                                <th style="padding: 12px; text-align: left; font-weight: 600; color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Sponsor</th>
+                                <th style="padding: 12px; text-align: right; font-weight: 600; color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Paid</th>
+                                <th style="padding: 12px; text-align: right; font-weight: 600; color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Balance</th>
+                                <th style="padding: 12px; text-align: center; font-weight: 600; color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Status</th>
+                                <th style="padding: 12px; text-align: center; font-weight: 600; color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($sponsorsList as $sponsor)
+                            <tr style="border-bottom: 1px solid var(--card-border);">
+                                <td style="padding: 12px;">
+                                    <a href="{{ route('admin.studentsponsorship.sponsors.show', $sponsor['sponsor_id']) }}" style="font-weight: 600; color: var(--primary); text-decoration: none;">
+                                        {{ $sponsor['name'] }}
+                                    </a>
+                                    <div style="font-size: 12px; color: var(--text-muted);">{{ $sponsor['id'] }}</div>
+                                </td>
+                                <td style="padding: 12px; text-align: right; font-weight: 600; color: var(--success);">
+                                    {{ $sponsor['currency_symbol'] }}{{ number_format($sponsor['amount_paid'], 2) }}
+                                </td>
+                                <td style="padding: 12px; text-align: right; font-weight: 600; color: {{ $sponsor['balance'] > 0 ? '#d97706' : 'var(--success)' }};">
+                                    {{ $sponsor['currency_symbol'] }}{{ number_format($sponsor['balance'], 2) }}
+                                </td>
+                                <td style="padding: 12px; text-align: center;">
+                                    @if($sponsor['status'] == 'completed')
+                                        <span style="padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; background: #dcfce7; color: #16a34a;">Completed</span>
+                                    @else
+                                        <span style="padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; background: #dbeafe; color: #2563eb;">Partial</span>
+                                    @endif
+                                </td>
+                                <td style="padding: 12px; text-align: center;">
+                                    <a href="{{ route('admin.studentsponsorship.transactions.show', $sponsor['transaction_id']) }}" style="color: var(--primary); text-decoration: none; font-size: 13px; font-weight: 500;">
+                                        View →
+                                    </a>
+                                </td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Summary Row -->
+                <div style="display: flex; gap: 20px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--card-border); flex-wrap: wrap;">
+                    <div style="text-align: center; padding: 12px 20px; background: var(--body-bg); border-radius: 8px;">
+                        <div style="font-size: 20px; font-weight: 700; color: var(--success);">{{ number_format($student->total_sponsorship_received, 2) }}</div>
+                        <div style="font-size: 12px; color: var(--text-muted);">Total Received</div>
+                    </div>
+                    <div style="text-align: center; padding: 12px 20px; background: var(--body-bg); border-radius: 8px;">
+                        <div style="font-size: 20px; font-weight: 700; color: #d97706;">{{ number_format($student->total_sponsorship_balance, 2) }}</div>
+                        <div style="font-size: 12px; color: var(--text-muted);">Total Pending</div>
+                    </div>
+                </div>
+            @else
+                <div style="text-align: center; padding: 40px; color: var(--text-muted);">
+                    <i class="fas fa-heart" style="font-size: 48px; margin-bottom: 12px; opacity: 0.3;"></i>
+                    <p style="margin: 0;">No sponsors yet</p>
+                </div>
+            @endif
+        </div>
+    </div>
+
     <!-- Banking Information -->
     <div class="card info-card">
         <div class="card-header">

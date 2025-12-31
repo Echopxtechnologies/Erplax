@@ -1,3 +1,5 @@
+@can('customers.customers.edit')
+    
 
     <x-slot name="header">
         <div style="display:flex;align-items:center;justify-content:space-between;">
@@ -245,7 +247,7 @@
                     </div>
                 </div>
             </div>
-
+            
             <div class="factions">
                 <button type="submit" class="btn btn-primary">💾 Update Customer</button>
                 <a href="{{ route('admin.customers.show', $customer->id) }}" class="btn btn-light">Cancel</a>
@@ -262,3 +264,4 @@
             document.getElementById('shipping_country').value = document.querySelector('[name="billing_country"]').value;
         }
     </script>
+@endcan

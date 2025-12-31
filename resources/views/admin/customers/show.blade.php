@@ -24,6 +24,8 @@
             </a>
         </div> --}}
 
+@can('customers.customers.show')
+    
 
     
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
@@ -51,12 +53,19 @@
                         Add Contact
                     </a>
                 @endif
+                @can('customers.customers.edit')
+                    
+                
                 <a href="{{ route('admin.customers.edit', $customer->id) }}" class="btn-modern btn-primary">
                     <svg style="width:16px;height:16px;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                         <path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                     </svg>
                     Edit
                 </a>
+                @endcan
+                @can('customers.customers.delete')
+                    
+                
                 <form action="{{ route('admin.customers.destroy', $customer->id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Delete this customer?')">
                     @csrf
                     @method('DELETE')
@@ -67,6 +76,7 @@
                         Delete
                     </button>
                 </form>
+                @endcan
                 <a href="{{ route('admin.customers.index') }}" class="btn-modern btn-light">
     <svg style="width:16px;height:16px;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/>
@@ -589,4 +599,4 @@
         </table>
     </div>
     @endif
-
+@endcan

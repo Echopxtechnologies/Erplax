@@ -1,4 +1,4 @@
-{!! \App\Livewire\Admin\AdminComponent::renderMenu([
+{{-- {!! \App\Livewire\Admin\AdminComponent::renderMenu([
     'title' => 'Inventory',
     'icon' => 'cube',
     'route' => 'inventory.*',
@@ -12,4 +12,4 @@
         ['title' => 'Reports', 'route' => 'inventory.reports.stock-summary', 'icon' => 'document'],
         ['title' => 'Settings', 'route' => 'inventory.settings.index', 'icon' => 'settings'],
     ]
-]) !!}
+]) !!} --}}

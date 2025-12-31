@@ -141,6 +141,86 @@ class SchoolStudent extends Model implements HasMedia
     }
 
     /**
+     * Get sponsors (via transactions with ANY payment - partial or completed)
+     */
+    public function getSponsorsAttribute()
+    {
+        return Sponsor::whereIn('id', function ($query) {
+            $query->select('sponsor_id')
+                ->from('sponsor_transactions')
+                ->where('school_student_id', $this->id)
+                ->whereIn('status', ['partial', 'completed']); // ANY payment creates relation
+        })->get();
+    }
+
+    /**
+     * Get sponsors list with payment details for display
+     */
+    public function getSponsorsListAttribute(): array
+    {
+        $sponsors = [];
+        
+        $transactions = SponsorTransaction::where('school_student_id', $this->id)
+            ->whereIn('status', ['partial', 'completed']) // ANY payment
+            ->with('sponsor')
+            ->get();
+        
+        foreach ($transactions as $txn) {
+            if ($txn->sponsor) {
+                $sponsors[] = [
+                    'name' => $txn->sponsor->name,
+                    'id' => $txn->sponsor->sponsor_internal_id,
+                    'sponsor_id' => $txn->sponsor->id,
+                    'amount_paid' => $txn->amount_paid,
+                    'total_amount' => $txn->total_amount,
+                    'balance' => max(0, $txn->total_amount - $txn->amount_paid),
+                    'status' => $txn->status,
+                    'currency' => $txn->currency,
+                    'currency_symbol' => $txn->currency_symbol,
+                    'transaction_id' => $txn->id,
+                ];
+            }
+        }
+        
+        return $sponsors;
+    }
+
+    /**
+     * Get sponsors count (partial + completed)
+     */
+    public function getSponsorsCountAttribute(): int
+    {
+        return \Illuminate\Support\Facades\DB::table('sponsor_transactions')
+            ->where('school_student_id', $this->id)
+            ->whereIn('status', ['partial', 'completed']) // ANY payment
+            ->distinct('sponsor_id')
+            ->count('sponsor_id');
+    }
+
+    /**
+     * Get total amount received from all sponsors
+     */
+    public function getTotalSponsorshipReceivedAttribute(): float
+    {
+        return SponsorTransaction::where('school_student_id', $this->id)
+            ->sum('amount_paid');
+    }
+
+    /**
+     * Get total balance pending from all sponsors
+     */
+    public function getTotalSponsorshipBalanceAttribute(): float
+    {
+        $transactions = SponsorTransaction::where('school_student_id', $this->id)
+            ->whereIn('status', ['pending', 'partial'])
+            ->get();
+        
+        return $transactions->sum(function($t) {
+            return max(0, $t->total_amount - $t->amount_paid);
+        });
+    }
+
+    /**
      * Get the country - using DB query since model may not exist
      */
     public function country(): BelongsTo

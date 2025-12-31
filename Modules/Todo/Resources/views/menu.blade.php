@@ -1,5 +1,5 @@
-{{-- Todo Module - Admin Sidebar Menu --}}
-{!! admin_menu([
+{{-- Todo Module - Admin Sidebar Menu
+@adminMenu([
     'title' => 'Todo',
     'icon' => 'clipboard-check',
     'route' => 'admin.todo.*',
@@ -7,4 +7,4 @@
         ['title' => 'All Tasks', 'route' => 'admin.todo.index', 'icon' => 'list'],
         ['title' => 'Add New Task', 'route' => 'admin.todo.create', 'icon' => 'plus'],
     ]
-]) !!}
+]) --}}

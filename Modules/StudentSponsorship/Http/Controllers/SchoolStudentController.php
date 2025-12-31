@@ -243,6 +243,10 @@ class SchoolStudentController extends AdminController
         try {
             $hashId = HashId::encode($item->id);
             
+            // Get sponsors for this student
+            $sponsorsList = $item->sponsors_list;
+            $sponsorNames = array_map(fn($s) => $s['name'], $sponsorsList);
+            
             return [
                 'id' => $item->id,
                 'hash_id' => $hashId,
@@ -253,9 +257,13 @@ class SchoolStudentController extends AdminController
                 'school_name' => $item->school->name ?? 'N/A',
                 'grade' => $item->grade ?? '',
                 'current_state' => $item->current_state ?? 'inprogress',
+                'completed_year' => $item->completed_year ?? null,
                 'age' => $item->age ?? '',
                 'status' => $item->status ? 1 : 0,
                 'profile_photo_url' => $item->hasMedia('profile_photo') ? $item->getFirstMediaUrl('profile_photo') : null,
+                'sponsors' => $sponsorsList,
+                'sponsors_count' => count($sponsorsList),
+                'sponsors_names' => implode(', ', $sponsorNames) ?: '-',
                 '_show_url' => route('admin.studentsponsorship.school-students.show', $hashId),
                 '_edit_url' => route('admin.studentsponsorship.school-students.edit', $hashId),
                 '_delete_url' => route('admin.studentsponsorship.school-students.destroy', $hashId),
@@ -272,9 +280,13 @@ class SchoolStudentController extends AdminController
                 'school_name' => 'N/A',
                 'grade' => '',
                 'current_state' => 'inprogress',
+                'completed_year' => null,
                 'age' => '',
                 'status' => 0,
                 'profile_photo_url' => null,
+                'sponsors' => [],
+                'sponsors_count' => 0,
+                'sponsors_names' => '-',
                 '_show_url' => '#',
                 '_edit_url' => '#',
                 '_delete_url' => '#',
@@ -582,6 +594,9 @@ class SchoolStudentController extends AdminController
             }
 
             // Filters
+            if ($request->filled('completed_year')) {
+                $query->where('completed_year', $request->completed_year);
+            }
             if ($request->filled('status')) {
                 $status = $request->input('status');
                 $query->where('status', $status == '1' || $status == 'active');
@@ -600,7 +615,7 @@ class SchoolStudentController extends AdminController
             $sortCol = $request->input('sort', 'id');
             $sortDir = $request->input('dir', 'desc');
             
-            if (in_array($sortCol, ['id', 'full_name', 'email', 'grade', 'status', 'age', 'created_at'])) {
+            if (in_array($sortCol, ['id', 'full_name', 'email', 'grade', 'status', 'age', 'completed_year', 'created_at'])) {
                 $query->orderBy($sortCol, $sortDir);
             } else {
                 $query->orderBy('id', 'desc');
@@ -1513,6 +1528,116 @@ class SchoolStudentController extends AdminController
         return response()->json([
             'success' => true,
             'message' => 'Password reset successfully.'
+        ]);
+    }
+
+    /**
+     * Rollback a completed student to next year
+     * - Removes portal access (sets user_id to null)
+     * - Sets student to inactive
+     * - Changes current_state to 'in_progress'
+     * - Increases grade by 1
+     */
+    public function studentRollback($hash): JsonResponse
+    {
+        $id = $this->resolveId($hash);
+        $student = SchoolStudent::findOrFail($id);
+        
+        // Get current grade and calculate new grade
+        $currentGrade = (int) $student->grade;
+        $newGrade = $currentGrade + 1;
+        
+        // Cap at grade 13 (or adjust as needed)
+        if ($newGrade > 13) {
+            $newGrade = 13;
+        }
+        
+        // Update student
+        $student->update([
+            'user_id' => null,           // Remove portal access
+            'status' => 0,                // Set to inactive
+            'current_state' => 'complete', // Mark as complete (DB uses 'complete')
+            'grade' => $newGrade,         // Promote to next grade
+        ]);
+        
+        // Get grade label for response
+        $gradeLabels = [
+            1 => 'Grade 1', 2 => 'Grade 2', 3 => 'Grade 3', 4 => 'Grade 4',
+            5 => 'Grade 5', 6 => 'Grade 6', 7 => 'Grade 7', 8 => 'Grade 8',
+            9 => 'Grade 9', 10 => 'Grade 10', 11 => 'Grade 11', 12 => 'Grade 12',
+            13 => 'Grade 13'
+        ];
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Student rolled back successfully',
+            'new_grade' => $gradeLabels[$newGrade] ?? "Grade $newGrade",
+            'data' => [
+                'user_id' => null,
+                'status' => 0,
+                'current_state' => 'complete',
+                'grade' => $newGrade
+            ]
+        ]);
+    }
+
+    /**
+     * Rollback ALL in_progress students at once
+     * - Removes portal access (user_id = null)
+     * - Sets inactive (status = 0)
+     * - Sets current_state to 'completed'
+     * - Increases grade by 1
+     */
+    public function rollbackAll(Request $request): JsonResponse
+    {
+        $completedYear = $request->input('completed_year', date('Y'));
+        
+        // Get all IN PROGRESS students
+        $students = \DB::table('school_students')
+            ->where('current_state', 'inprogress')
+            ->whereNull('deleted_at')
+            ->get();
+        
+        if ($students->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No in-progress students found to rollback'
+            ]);
+        }
+        
+        $count = 0;
+        $usersDeleted = 0;
+        
+        foreach ($students as $student) {
+            $currentGrade = (int) $student->grade;
+            $newGrade = min($currentGrade + 1, 13); // Cap at grade 13
+            
+            // If student has portal access, delete the user record
+            if ($student->user_id) {
+                \DB::table('users')->where('id', $student->user_id)->delete();
+                $usersDeleted++;
+            }
+            
+            \DB::table('school_students')
+                ->where('id', $student->id)
+                ->update([
+                    'user_id' => null,           // Remove portal access reference
+                    'status' => 0,                // Set to inactive
+                    'current_state' => 'complete', // Mark as completed
+                    'completed_year' => $completedYear, // Save the completed year
+                    'grade' => $newGrade,         // Promote to next grade
+                    'updated_at' => now(),
+                ]);
+            
+            $count++;
+        }
+        
+        return response()->json([
+            'success' => true,
+            'message' => "Successfully rolled back $count students for year $completedYear",
+            'count' => $count,
+            'users_deleted' => $usersDeleted,
+            'completed_year' => $completedYear
         ]);
     }
 }

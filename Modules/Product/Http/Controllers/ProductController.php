@@ -25,6 +25,7 @@ class ProductController extends AdminController
      */
     public function index()
     {
+        $this->authorize('product.products-list.read');
         $stats = [
             'total' => Product::count(),
             'active' => Product::active()->count(),
@@ -785,6 +786,7 @@ class ProductController extends AdminController
      */
     public function create()
     {
+        $this->authorize('product.products-list.create');
         return view('product::create');
     }
 
@@ -793,6 +795,7 @@ class ProductController extends AdminController
      */
     public function store(Request $request)
     {
+        $this->authorize('product.products-list.create');
         $validated = $request->validate([
             'name' => 'required|string|max:191',
             'sku' => 'required|string|max:100|unique:products,sku',
@@ -814,6 +817,7 @@ class ProductController extends AdminController
      */
     public function show($id)
     {
+        $this->authorize('product.products-list.show');
         $product = Product::findOrFail($id);
         return view('product::show', compact('product'));
     }
@@ -823,6 +827,7 @@ class ProductController extends AdminController
      */
     public function edit($id)
     {
+        $this->authorize('product.products-list.edit');
         $product = Product::findOrFail($id);
         return view('product::edit', compact('product'));
     }
@@ -832,6 +837,7 @@ class ProductController extends AdminController
      */
     public function update(Request $request, $id)
     {
+        $this->authorize('product.products-list.edit');
         $product = Product::findOrFail($id);
 
         $validated = $request->validate([
@@ -855,6 +861,7 @@ class ProductController extends AdminController
      */
     public function destroy($id)
     {
+        $this->authorize('product.products-list.delete');
         Product::findOrFail($id)->delete();
 
         if (request()->ajax()) {
